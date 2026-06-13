@@ -19,25 +19,34 @@ func mustLoadIST() *time.Location {
 	return loc
 }
 
-type matchDTO struct {
-	ID         int64   `json:"id"`
-	Stage      string  `json:"stage"`
-	Round      string  `json:"round"`
-	KickoffUTC string  `json:"kickoff_utc"`
-	KickoffIST string  `json:"kickoff_ist"`
-	Status     string  `json:"status"`
-	Locked     bool    `json:"locked"`
-	Home       teamDTO `json:"home"`
-	Away       teamDTO `json:"away"`
-	HomeScore  *int32  `json:"home_score"`
-	AwayScore  *int32  `json:"away_score"`
+type teamDTO struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+	Code string `json:"code"`
 }
 
-type teamDTO struct {
-	ID      int64  `json:"id"`
+type venueDTO struct {
 	Name    string `json:"name"`
-	Code    string `json:"code"`
-	LogoURL string `json:"logo_url"`
+	City    string `json:"city"`
+	Country string `json:"country"`
+}
+
+type matchDTO struct {
+	ID          int64     `json:"id"`
+	MatchNumber int32     `json:"match_number"`
+	Stage       string    `json:"stage"`
+	Round       string    `json:"round"`
+	Group       string    `json:"group"` // letter, or "" for knockout
+	Label       string    `json:"label"` // e.g. "Group A" or "W73 vs W75"
+	KickoffUTC  string    `json:"kickoff_utc"`
+	KickoffIST  string    `json:"kickoff_ist"`
+	Status      string    `json:"status"`
+	Locked      bool      `json:"locked"`
+	Home        *teamDTO  `json:"home"` // null for placeholder
+	Away        *teamDTO  `json:"away"`
+	Venue       *venueDTO `json:"venue"`
+	HomeScore   *int32    `json:"home_score"`
+	AwayScore   *int32    `json:"away_score"`
 }
 
 type dayDTO struct {
@@ -59,26 +68,33 @@ func (d *Deps) GetMatches(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, matchesResponse{Days: groupByISTDate(rows, now())})
 }
 
-// groupByISTDate buckets matches (already kickoff-ordered) by their IST calendar
-// date and computes locked = now >= kickoff. Pure: testable without HTTP.
+func teamDTOf(t *store.TeamRef) *teamDTO {
+	if t == nil {
+		return nil
+	}
+	return &teamDTO{ID: t.ID, Name: t.Name, Code: t.Code}
+}
+
+// groupByISTDate buckets matches (kickoff-ordered) by their IST calendar date
+// and computes locked = now >= kickoff. Pure: testable without HTTP.
 func groupByISTDate(rows []store.MatchWithTeams, nowUTC time.Time) []dayDTO {
 	var days []dayDTO
 	idx := map[string]int{}
 	for _, m := range rows {
 		k := m.KickoffUTC.In(ist)
 		date := k.Format("2006-01-02")
+		var venue *venueDTO
+		if m.Venue != nil {
+			venue = &venueDTO{Name: m.Venue.Name, City: m.Venue.City, Country: m.Venue.Country}
+		}
 		dto := matchDTO{
-			ID:         m.ID,
-			Stage:      string(m.Stage),
-			Round:      m.Round,
+			ID: m.ID, MatchNumber: m.MatchNumber, Stage: string(m.Stage), Round: m.Round,
+			Group: m.GroupLetter, Label: m.MatchLabel,
 			KickoffUTC: m.KickoffUTC.UTC().Format(time.RFC3339),
 			KickoffIST: k.Format(time.RFC3339),
-			Status:     string(m.Status),
-			Locked:     !nowUTC.Before(m.KickoffUTC), // now >= kickoff
-			Home:       teamDTO{ID: m.Home.ID, Name: m.Home.Name, Code: m.Home.Code, LogoURL: m.Home.LogoURL},
-			Away:       teamDTO{ID: m.Away.ID, Name: m.Away.Name, Code: m.Away.Code, LogoURL: m.Away.LogoURL},
-			HomeScore:  m.HomeScore,
-			AwayScore:  m.AwayScore,
+			Status:     string(m.Status), Locked: !nowUTC.Before(m.KickoffUTC),
+			Home: teamDTOf(m.Home), Away: teamDTOf(m.Away), Venue: venue,
+			HomeScore: m.HomeScore, AwayScore: m.AwayScore,
 		}
 		if i, ok := idx[date]; ok {
 			days[i].Matches = append(days[i].Matches, dto)
