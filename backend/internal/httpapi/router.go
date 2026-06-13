@@ -14,6 +14,10 @@ func NewRouter(d *Deps, debug bool) chi.Router {
 
 	r.Get("/healthz", Healthz)
 
+	// API reference (Scalar) + the OpenAPI document it renders. Public.
+	r.Get("/docs", GetDocs)
+	r.Get("/openapi.yaml", GetOpenAPISpec)
+
 	r.Route("/api", func(api chi.Router) {
 		api.Post("/auth/google", d.PostAuthGoogle)
 		api.Post("/auth/logout", d.PostAuthLogout)

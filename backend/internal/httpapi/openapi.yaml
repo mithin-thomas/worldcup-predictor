@@ -1,0 +1,128 @@
+openapi: 3.1.0
+info:
+  title: SayScore API
+  version: 0.1.0
+  description: >
+    Internal API for SayScore — the SayOne FIFA World Cup 2026 prediction game.
+    Authentication is via Google Workspace SSO (ID-token flow); authenticated
+    endpoints require the httpOnly `sayscore_session` cookie set at sign-in.
+servers:
+  - url: /
+    description: Same origin (the frontend proxies /api to the backend)
+
+tags:
+  - name: Ops
+  - name: Auth
+
+paths:
+  /healthz:
+    get:
+      tags: [Ops]
+      summary: Liveness probe
+      security: []
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, examples: ["ok"] }
+
+  /api/auth/google:
+    post:
+      tags: [Auth]
+      summary: Sign in with a Google ID token
+      description: >
+        Verifies the Google ID token (signature + audience), enforces the
+        `sayonetech.com` hosted-domain gate, provisions/refreshes the user, and
+        sets an httpOnly session cookie.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_token]
+              properties:
+                id_token:
+                  type: string
+                  description: Google Identity Services credential (a signed JWT).
+      responses:
+        "200":
+          description: Signed in. Sets the session cookie and returns the user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400":
+          description: id_token missing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Invalid Google token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Account is outside the allowed domain
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out (clears the session cookie)
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, examples: ["logged out"] }
+
+  /api/me:
+    get:
+      tags: [Auth]
+      summary: The current authenticated user
+      responses:
+        "200":
+          description: The signed-in user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sayscore_session
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        email: { type: string }
+        name: { type: string }
+        avatar_url: { type: string }
+        role: { type: string, enum: [user, admin] }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+
+# Authenticated endpoints require the session cookie; per-operation `security: []`
+# marks the public ones (healthz, sign-in).
+security:
+  - sessionCookie: []
