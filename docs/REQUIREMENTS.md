@@ -17,7 +17,7 @@ All times are displayed to users in **IST (Asia/Kolkata)**. Internally, timestam
 There are two roles. Role is stored on the user record and enforced by server-side middleware.
 
 - **User** — signs in, makes/edits match predictions before kickoff, makes tournament bonus predictions before the bonus lock, views fixtures and leaderboards.
-- **Admin** — everything a user can do, plus all elevated operations: trigger the fixtures sync from the sports API, add / edit / remove matches and the schedule, correct match results and penalty-shootout winners, edit configurable settings (e.g. the results-cron time, bonus lock time), promote/demote other users, and force a points recompute.
+- **Admin** — everything a user can do, plus all elevated operations: trigger the results sync from the results API, add / edit / remove matches and the schedule, correct match results and penalty-shootout winners, edit configurable settings (e.g. the results-cron time, bonus lock time), promote/demote other users, and force a points recompute.
 
 Any admin edit to a match (fixture detail or result) sets a `manual_override` flag on that match so the scheduled results job never overwrites a human correction.
 
@@ -134,7 +134,7 @@ This cascade is computed from stored per-prediction points, so it is determinist
 
 Run in-process via a cron scheduler on a single backend instance (use a leader-lock if you later scale to multiple instances). The process timezone is `Asia/Kolkata`.
 
-- **results-ingest** — default `0 13 * * *` (13:00 IST daily), stored as a configurable setting. Pulls finished matches from the sports API for the previous IST day, updates score + `went_to_penalties` + `penalty_winner` for matches *not* flagged `manual_override`, then recomputes points idempotently for affected predictions.
+- **results-ingest** — default `0 3,8,13 * * *` (03:00 / 08:00 / 13:00 IST), stored as a configurable setting. WC 2026 matches finish across a wide IST window (~23:30 → ~12:30, since kickoffs run 21:30 IST through 09:30 IST next morning), so three intraday runs keep results fresh: 03:00 catches the evening matches plus the large 00:30-IST batch (≈19 games), 08:00 the overnight batch, 13:00 the morning finishers (including any knockout shootout). Each run pulls **FINISHED** matches from the results API over a recent window (current + previous IST day), updates `home_score`/`away_score` + `went_to_penalties` + `penalty_winner_team_id` for matches *not* flagged `manual_override`, then recomputes points idempotently for affected predictions (re-runs are safe).
 - **weekly-winner** — Mondays shortly after ingest (e.g. `30 13 * * 1`). Computes the previous Mon–Sun IST window, writes `weekly_results`, and marks winner(s), allowing ties.
 
 Kickoff **locking is real-time** (enforced on every prediction write) and is *not* part of these jobs.
@@ -227,7 +227,7 @@ Body text ≥ 4.5:1 contrast (verified for `--muted` on `--bg`); visible focus r
 - Migrations: `golang-migrate` (versioned SQL)
 - Auth: `google.golang.org/api/idtoken` for ID-token verification; signed httpOnly session cookie
 - Scheduler: `robfig/cron/v3` (in-process)
-- Sports data: API-Football (api-sports.io), league `1`, season `2026`
+- Results data: **football-data.org v4** — competition `WC`, season `2398` (2026-06-11 → 2026-07-19); API key sent in the `X-Auth-Token` request header (not the URL). Used **only** for live results; fixtures are seeded statically (M2).
 - Logging: stdlib `slog`; config via env (12-factor)
 
 **Frontend**
@@ -236,7 +236,24 @@ Body text ≥ 4.5:1 contrast (verified for `--muted` on `--bg`); visible focus r
 - TanStack Query (data/cache), React Router, react-hook-form + zod (forms/validation)
 - Google Identity Services for sign-in
 
-**Why API-Football**: `fixtures?league=1&season=2026` returns all 104 matches with UTC kickoff, status, and venue; `teams?league=1&season=2026` returns the 48 teams. It exposes match status and shootout data needed for the penalty bonus, and has a free / low-cost tier sufficient for once-daily polling.
+**Why football-data.org**: it exposes match status, the full-time score, the winner, and crucially the shootout signal needed for the knockout penalty bonus, on a free tier sufficient for a few polls per day (10 req/min). Because fixtures are static (seeded in M2), the API is used **only** to ingest results.
+
+**Results endpoint**: `GET /v4/competitions/WC/matches?status=FINISHED` (optionally bound with `&dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD`, UTC dates, or narrow by `&stage=` / `&matchday=` / `&group=`); `GET /v4/matches/{id}` for a single match.
+
+**Field mapping (football-data.org → SayScore):**
+
+| API field | Maps to |
+|---|---|
+| `status == FINISHED` | score the match (set `matches.status = final`) |
+| `score.fullTime.{home,away}` | `matches.home_score` / `away_score` (exact + correct-result points) |
+| `score.winner` (`HOME_TEAM` / `AWAY_TEAM` / `DRAW`) | sanity-check the stored result |
+| `score.duration == PENALTY_SHOOTOUT` | `matches.went_to_penalties = true` (the penalty-bonus trigger) |
+| `score.winner` when a shootout | resolves `matches.penalty_winner_team_id`; `score.penalties` holds the tally |
+| `stage` (`GROUP_STAGE` vs `LAST_32` … `FINAL`) | `matches.stage` (group vs knockout) |
+| `id` | `matches.api_fixture_id` (match/update key) |
+| `utcDate` | `matches.kickoff_utc` (displayed in IST) |
+
+**Matching results to seeded matches**: football-data.org's `id` differs from the static seed's match number, so M5 maps each finished match to its seeded row by `(utcDate, teams)` once and stores the API `id` in `matches.api_fixture_id` for subsequent direct updates.
 
 ---
 
@@ -252,7 +269,7 @@ Single GitHub repository. The Go module lives inside `backend/`; module path: **
 │   │   ├── http/            # chi routes, middleware (auth, role, CSRF)
 │   │   ├── auth/            # Google ID-token verify, sessions
 │   │   ├── scoring/         # pure scoring engine (heavily unit-tested)
-│   │   ├── sportsapi/       # API-Football client
+│   │   ├── sportsapi/       # football-data.org results client
 │   │   ├── jobs/            # results-ingest, weekly-winner
 │   │   ├── store/           # sqlc-generated queries + db
 │   │   └── config/
@@ -403,7 +420,7 @@ Install once per clone with `lefthook install` (wired into the Makefile / postin
 
 ### Environment variables
 
-Backend: `APP_ENV`, `HTTP_PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `ALLOWED_EMAIL_DOMAIN=sayonetech.com`, `SEED_ADMIN_EMAILS`, `APIFOOTBALL_KEY`, `APIFOOTBALL_BASE_URL`, `RESULTS_CRON=0 13 * * *`, `WEEKLY_CRON=30 13 * * 1`, `BONUS_LOCK_AT=2026-06-28T23:59:00+05:30`, `TZ=Asia/Kolkata`.
+Backend: `APP_ENV`, `HTTP_PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `ALLOWED_EMAIL_DOMAIN=sayonetech.com`, `SEED_ADMIN_EMAILS`, `FOOTBALL_DATA_API_KEY`, `FOOTBALL_DATA_BASE_URL=https://api.football-data.org/v4`, `RESULTS_CRON=0 3,8,13 * * *`, `WEEKLY_CRON=30 13 * * 1`, `BONUS_LOCK_AT=2026-06-28T23:59:00+05:30`, `TZ=Asia/Kolkata`.
 
 Frontend (Vite): `VITE_GOOGLE_CLIENT_ID`, `VITE_API_BASE_URL`.
 
