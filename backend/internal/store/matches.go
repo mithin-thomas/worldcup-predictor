@@ -24,93 +24,125 @@ const (
 	StatusFinal     MatchStatus = "final"
 )
 
-type Team struct {
-	ID        int64
-	APITeamID int64
-	Name      string
-	Code      string
-	LogoURL   string
+type UpsertVenueParams struct {
+	SourceID      int64
+	CityName      string
+	Country       string
+	VenueName     string
+	RegionCluster string
+	Code          string // airport_code
+}
+
+type UpsertTeamParams struct {
+	SourceID      int64
+	Name          string
+	Code          string
+	GroupLetter   string
+	IsPlaceholder bool
+}
+
+type UpsertMatchParams struct {
+	SourceID    int64
+	MatchNumber int32
+	Stage       Stage
+	Round       string
+	GroupLetter string
+	MatchLabel  string
+	HomeTeamID  *int64 // nil for knockout placeholders
+	AwayTeamID  *int64
+	VenueID     *int64
+	KickoffUTC  time.Time
+	Status      MatchStatus
 }
 
 type TeamRef struct {
-	ID      int64
-	Name    string
-	Code    string
-	LogoURL string
+	ID   int64
+	Name string
+	Code string
 }
 
-// MatchWithTeams is a match joined with its two teams (read model for the list).
+type VenueRef struct {
+	Name    string
+	City    string
+	Country string
+}
+
+// MatchWithTeams is a match joined with its teams + venue (read model for the
+// list). Home/Away/Venue are nil for knockout-placeholder/unknown rows.
 type MatchWithTeams struct {
 	ID             int64
-	APIFixtureID   int64
+	MatchNumber    int32
 	Stage          Stage
 	Round          string
+	GroupLetter    string
+	MatchLabel     string
 	KickoffUTC     time.Time
 	Status         MatchStatus
 	HomeScore      *int32
 	AwayScore      *int32
 	WentToPens     bool
-	PenWinnerTeam  *int64
 	ManualOverride bool
-	Home           TeamRef
-	Away           TeamRef
+	Home           *TeamRef
+	Away           *TeamRef
+	Venue          *VenueRef
 }
 
-type UpsertTeamParams struct {
-	APITeamID int64
-	Name      string
-	Code      string
-	LogoURL   string
-}
-
-type UpsertMatchParams struct {
-	APIFixtureID  int64
-	Stage         Stage
-	Round         string
-	HomeTeamID    int64
-	AwayTeamID    int64
-	KickoffUTC    time.Time
-	Status        MatchStatus
-	HomeScore     *int32
-	AwayScore     *int32
-	WentToPens    bool
-	PenWinnerTeam *int64
-}
-
-// MatchStore is the fixtures/matches data surface. Handlers and the syncer
-// depend on this narrow interface (not the whole DB) so they fake easily.
-type MatchStore interface {
+// SeedStore is the importer's write surface; MatchStore is the read surface.
+type SeedStore interface {
+	UpsertVenue(ctx context.Context, p UpsertVenueParams) error
 	UpsertTeam(ctx context.Context, p UpsertTeamParams) error
-	GetTeamIDByAPIID(ctx context.Context, apiTeamID int64) (int64, error)
 	UpsertMatch(ctx context.Context, p UpsertMatchParams) error
+	GetVenueIDBySourceID(ctx context.Context, sourceID int64) (int64, error)
+	GetTeamIDBySourceID(ctx context.Context, sourceID int64) (int64, error)
+}
+
+type MatchStore interface {
 	ListMatchesWithTeams(ctx context.Context) ([]MatchWithTeams, error)
 }
 
-// Compile-time guard.
-var _ MatchStore = (*SQLStore)(nil)
+var (
+	_ SeedStore  = (*SQLStore)(nil)
+	_ MatchStore = (*SQLStore)(nil)
+)
+
+func (s *SQLStore) UpsertVenue(ctx context.Context, p UpsertVenueParams) error {
+	if err := s.q.UpsertVenue(ctx, sqlc.UpsertVenueParams{
+		SourceID: p.SourceID, CityName: p.CityName, Country: p.Country,
+		VenueName: p.VenueName, RegionCluster: p.RegionCluster, AirportCode: p.Code,
+	}); err != nil {
+		return fmt.Errorf("store: upsert venue: %w", err)
+	}
+	return nil
+}
 
 func (s *SQLStore) UpsertTeam(ctx context.Context, p UpsertTeamParams) error {
-	_, err := s.q.UpsertTeam(ctx, sqlcUpsertTeamParams(p))
-	if err != nil {
+	if err := s.q.UpsertTeam(ctx, sqlc.UpsertTeamParams{
+		SourceID: p.SourceID, Name: p.Name, Code: p.Code,
+		GroupLetter: p.GroupLetter, IsPlaceholder: p.IsPlaceholder,
+	}); err != nil {
 		return fmt.Errorf("store: upsert team: %w", err)
 	}
 	return nil
 }
 
-func (s *SQLStore) GetTeamIDByAPIID(ctx context.Context, apiTeamID int64) (int64, error) {
-	row, err := s.q.GetTeamByAPIID(ctx, apiTeamID)
-	if err != nil {
-		return 0, err
-	}
-	return row.ID, nil
-}
-
 func (s *SQLStore) UpsertMatch(ctx context.Context, p UpsertMatchParams) error {
-	_, err := s.q.UpsertMatch(ctx, sqlcUpsertMatchParams(p))
-	if err != nil {
+	if err := s.q.UpsertMatch(ctx, sqlc.UpsertMatchParams{
+		SourceID: p.SourceID, MatchNumber: p.MatchNumber,
+		Stage: sqlc.MatchesStage(p.Stage), Round: p.Round, GroupLetter: p.GroupLetter,
+		MatchLabel: p.MatchLabel, HomeTeamID: nullI64(p.HomeTeamID), AwayTeamID: nullI64(p.AwayTeamID),
+		VenueID: nullI64(p.VenueID), KickoffUtc: p.KickoffUTC, Status: sqlc.MatchesStatus(p.Status),
+	}); err != nil {
 		return fmt.Errorf("store: upsert match: %w", err)
 	}
 	return nil
+}
+
+func (s *SQLStore) GetVenueIDBySourceID(ctx context.Context, sourceID int64) (int64, error) {
+	return s.q.GetVenueIDBySourceID(ctx, sourceID)
+}
+
+func (s *SQLStore) GetTeamIDBySourceID(ctx context.Context, sourceID int64) (int64, error) {
+	return s.q.GetTeamIDBySourceID(ctx, sourceID)
 }
 
 func (s *SQLStore) ListMatchesWithTeams(ctx context.Context) ([]MatchWithTeams, error) {
@@ -125,74 +157,36 @@ func (s *SQLStore) ListMatchesWithTeams(ctx context.Context) ([]MatchWithTeams, 
 	return out, nil
 }
 
-// --- converters to/from the generated sqlc types ---
-
-func sqlcUpsertTeamParams(p UpsertTeamParams) sqlc.UpsertTeamParams {
-	return sqlc.UpsertTeamParams{
-		ApiTeamID: p.APITeamID,
-		Name:      p.Name,
-		Code:      p.Code,
-		LogoUrl:   p.LogoURL,
-	}
-}
-
-func sqlcUpsertMatchParams(p UpsertMatchParams) sqlc.UpsertMatchParams {
-	return sqlc.UpsertMatchParams{
-		ApiFixtureID:        p.APIFixtureID,
-		Stage:               sqlc.MatchesStage(p.Stage),
-		Round:               p.Round,
-		HomeTeamID:          p.HomeTeamID,
-		AwayTeamID:          p.AwayTeamID,
-		KickoffUtc:          p.KickoffUTC,
-		Status:              sqlc.MatchesStatus(p.Status),
-		HomeScore:           nullInt32(p.HomeScore),
-		AwayScore:           nullInt32(p.AwayScore),
-		WentToPenalties:     p.WentToPens,
-		PenaltyWinnerTeamID: nullInt64(p.PenWinnerTeam),
-	}
-}
-
 func toMatchWithTeams(r sqlc.ListMatchesWithTeamsRow) MatchWithTeams {
-	return MatchWithTeams{
-		ID:             r.ID,
-		APIFixtureID:   r.ApiFixtureID,
-		Stage:          Stage(r.Stage),
-		Round:          r.Round,
-		KickoffUTC:     r.KickoffUtc,
-		Status:         MatchStatus(r.Status),
-		HomeScore:      ptrInt32(r.HomeScore),
-		AwayScore:      ptrInt32(r.AwayScore),
-		WentToPens:     r.WentToPenalties,
-		PenWinnerTeam:  ptrInt64(r.PenaltyWinnerTeamID),
-		ManualOverride: r.ManualOverride,
-		Home:           TeamRef{ID: r.HomeID, Name: r.HomeName, Code: r.HomeCode, LogoURL: r.HomeLogo},
-		Away:           TeamRef{ID: r.AwayID, Name: r.AwayName, Code: r.AwayCode, LogoURL: r.AwayLogo},
+	m := MatchWithTeams{
+		ID: r.ID, MatchNumber: r.MatchNumber, Stage: Stage(r.Stage), Round: r.Round,
+		GroupLetter: r.GroupLetter, MatchLabel: r.MatchLabel, KickoffUTC: r.KickoffUtc,
+		Status: MatchStatus(r.Status), HomeScore: ptrInt32(r.HomeScore), AwayScore: ptrInt32(r.AwayScore),
+		WentToPens: r.WentToPenalties, ManualOverride: r.ManualOverride,
 	}
+	if r.HomeTeamID.Valid {
+		m.Home = &TeamRef{ID: r.HomeTeamID.Int64, Name: r.HomeName.String, Code: r.HomeCode.String}
+	}
+	if r.AwayTeamID.Valid {
+		m.Away = &TeamRef{ID: r.AwayTeamID.Int64, Name: r.AwayName.String, Code: r.AwayCode.String}
+	}
+	if r.VenueID.Valid {
+		m.Venue = &VenueRef{Name: r.VenueName.String, City: r.VenueCity.String, Country: r.VenueCountry.String}
+	}
+	return m
 }
 
-func nullInt32(p *int32) sql.NullInt32 {
-	if p == nil {
-		return sql.NullInt32{}
-	}
-	return sql.NullInt32{Int32: *p, Valid: true}
-}
-func ptrInt32(n sql.NullInt32) *int32 {
-	if !n.Valid {
-		return nil
-	}
-	v := n.Int32
-	return &v
-}
-func nullInt64(p *int64) sql.NullInt64 {
+func nullI64(p *int64) sql.NullInt64 {
 	if p == nil {
 		return sql.NullInt64{}
 	}
 	return sql.NullInt64{Int64: *p, Valid: true}
 }
-func ptrInt64(n sql.NullInt64) *int64 {
+
+func ptrInt32(n sql.NullInt32) *int32 {
 	if !n.Valid {
 		return nil
 	}
-	v := n.Int64
+	v := n.Int32
 	return &v
 }
