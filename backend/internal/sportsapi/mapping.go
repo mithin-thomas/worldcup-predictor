@@ -9,6 +9,7 @@ import (
 
 // raw API-Football JSON shapes (only the fields we use).
 type teamsEnvelope struct {
+	Errors   json.RawMessage `json:"errors"`
 	Response []struct {
 		Team struct {
 			ID   int64  `json:"id"`
@@ -20,6 +21,7 @@ type teamsEnvelope struct {
 }
 
 type fixturesEnvelope struct {
+	Errors   json.RawMessage `json:"errors"`
 	Response []struct {
 		Fixture struct {
 			ID     int64  `json:"id"`
@@ -46,10 +48,25 @@ type fixturesEnvelope struct {
 	} `json:"response"`
 }
 
+// apiErrors returns a non-nil error if API-Football reported errors. The field
+// is `[]` when empty but an object like {"plan":"..."} or {"requests":"..."} when
+// the request was rejected (plan/quota/params) — those come back with HTTP 200,
+// so we must inspect the body rather than rely on the status code.
+func apiErrors(raw json.RawMessage) error {
+	s := strings.TrimSpace(string(raw))
+	if s == "" || s == "null" || s == "[]" || s == "{}" {
+		return nil
+	}
+	return fmt.Errorf("sportsapi: API-Football returned errors: %s", s)
+}
+
 func parseTeams(b []byte) ([]Team, error) {
 	var env teamsEnvelope
 	if err := json.Unmarshal(b, &env); err != nil {
 		return nil, fmt.Errorf("sportsapi: decode teams: %w", err)
+	}
+	if err := apiErrors(env.Errors); err != nil {
+		return nil, err
 	}
 	out := make([]Team, 0, len(env.Response))
 	for _, r := range env.Response {
@@ -64,6 +81,9 @@ func parseFixtures(b []byte) ([]Fixture, error) {
 	var env fixturesEnvelope
 	if err := json.Unmarshal(b, &env); err != nil {
 		return nil, fmt.Errorf("sportsapi: decode fixtures: %w", err)
+	}
+	if err := apiErrors(env.Errors); err != nil {
+		return nil, err
 	}
 	out := make([]Fixture, 0, len(env.Response))
 	for _, r := range env.Response {

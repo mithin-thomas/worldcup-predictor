@@ -36,10 +36,13 @@ func main() {
 	}
 	defer db.Close()
 
-	syncer := &fixtures.Syncer{
-		API:   sportsapi.NewHTTPClient(cfg.APIFootballBaseURL, cfg.APIFootballKey),
-		Store: store.New(db),
+	api := sportsapi.NewHTTPClient(cfg.APIFootballBaseURL, cfg.APIFootballKey)
+	if cfg.APIFootballSeason != "" {
+		api.Season = cfg.APIFootballSeason
 	}
+	logger.Info("seeding fixtures", "season", api.Season)
+
+	syncer := &fixtures.Syncer{API: api, Store: store.New(db)}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

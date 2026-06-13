@@ -21,6 +21,7 @@ type Config struct {
 	SeedAdminEmails    []string
 	APIFootballKey     string
 	APIFootballBaseURL string
+	APIFootballSeason  string
 }
 
 func (c Config) IsProduction() bool { return c.AppEnv == "production" }
@@ -46,6 +47,9 @@ func Load() (Config, error) {
 		SeedAdminEmails:    splitTrim(os.Getenv("SEED_ADMIN_EMAILS")),
 		APIFootballKey:     os.Getenv("APIFOOTBALL_KEY"),
 		APIFootballBaseURL: getenv("APIFOOTBALL_BASE_URL", "https://v3.football.api-sports.io"),
+		// Production target is the 2026 World Cup; override (e.g. 2022) for dev on
+		// a free API-Football plan that doesn't include the 2026 season.
+		APIFootballSeason: getenv("APIFOOTBALL_SEASON", "2026"),
 	}
 	if c.SessionSecret == "" {
 		return Config{}, fmt.Errorf("config: SESSION_SECRET is required")

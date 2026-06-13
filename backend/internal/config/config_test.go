@@ -57,10 +57,17 @@ func TestLoadAPIFootballDefaultsAndKey(t *testing.T) {
 	if cfg.APIFootballBaseURL != "https://v3.football.api-sports.io" {
 		t.Errorf("APIFootballBaseURL default = %q", cfg.APIFootballBaseURL)
 	}
+	if cfg.APIFootballSeason != "2026" {
+		t.Errorf("APIFootballSeason default = %q, want 2026", cfg.APIFootballSeason)
+	}
 
 	t.Setenv("APIFOOTBALL_KEY", "abc123")
+	t.Setenv("APIFOOTBALL_SEASON", "2022")
 	cfg, _ = Load()
 	if cfg.APIFootballKey != "abc123" {
 		t.Errorf("APIFootballKey = %q, want abc123", cfg.APIFootballKey)
+	}
+	if cfg.APIFootballSeason != "2022" {
+		t.Errorf("APIFootballSeason override = %q, want 2022", cfg.APIFootballSeason)
 	}
 }

@@ -80,3 +80,22 @@ func mustTime(t *testing.T, s string) time.Time {
 	}
 	return ts
 }
+
+func TestParseSurfacesAPIErrors(t *testing.T) {
+	// API-Football returns HTTP 200 with an `errors` object when a request is
+	// rejected (e.g. plan/quota). Both parsers must surface that as an error.
+	planErr := []byte(`{"errors":{"plan":"Free plans do not have access to this season, try from 2022 to 2024."},"response":[]}`)
+
+	if _, err := parseTeams(planErr); err == nil {
+		t.Error("parseTeams: expected error for API errors object, got nil")
+	}
+	if _, err := parseFixtures(planErr); err == nil {
+		t.Error("parseFixtures: expected error for API errors object, got nil")
+	}
+
+	// Empty errors (`[]`) must NOT be treated as an error.
+	ok := []byte(`{"errors":[],"response":[]}`)
+	if _, err := parseTeams(ok); err != nil {
+		t.Errorf("parseTeams: empty errors should be fine, got %v", err)
+	}
+}
