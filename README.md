@@ -53,7 +53,9 @@ seed are one-shot services the backend waits on, so a single command gives you a
 
 Open **http://localhost:8080** and sign in with a `@sayonetech.com` Google account → the Fixtures list
 (grouped by IST date, with group + venue; knockout placeholders show labels like `W73 vs W75`).
-Accounts in `SEED_ADMIN_EMAILS` become admins on first login. `make down` stops it; `make logs` tails.
+Accounts in `SEED_ADMIN_EMAILS` become admins on first login. `make up` runs in the **foreground with
+live logs** (Ctrl-C to stop) — handy for debugging; use **`make up-d`** to run detached and `make logs`
+to follow. `make down` stops and removes the stack.
 
 > **Sign-in prerequisite:** add `http://localhost:8080` (and `http://localhost:5173` for native dev)
 > as an **Authorized JavaScript origin** on your OAuth client — see

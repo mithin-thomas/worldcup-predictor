@@ -18,7 +18,7 @@ DB_PASSWORD ?= wcp
 DB_NAME ?= wcp
 
 .DEFAULT_GOAL := help
-.PHONY: help up down logs ps adminer migrate-up migrate-down migrate-new \
+.PHONY: help up up-d down logs ps adminer migrate-up migrate-down migrate-new \
         sqlc run dev seed-fixtures test test-frontend lint fmt tidy \
         build hooks hooks-tools
 
@@ -27,10 +27,14 @@ help: ## Show this help
 	  | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 ## ---- Docker / local stack ----
-up: ## Build + start the whole stack (MySQL, migrate, seed, backend, frontend) → :8080
+up: ## Build + run the whole stack in the FOREGROUND with live logs (Ctrl-C to stop) → :8080
+	@echo "Starting → app: http://localhost:8080 · docs: http://localhost:8000/docs · adminer: http://localhost:8081"
+	@set -a; [ -f frontend/.env ] && . ./frontend/.env; set +a; \
+	$(COMPOSE) up --build
+
+up-d: ## Same as up, but detached/background (use `make logs` to follow)
 	@set -a; [ -f frontend/.env ] && . ./frontend/.env; set +a; \
 	$(COMPOSE) up -d --build
-	@echo "App: http://localhost:8080   API docs: http://localhost:8000/docs   Adminer: http://localhost:8081"
 
 down: ## Stop and remove the local stack
 	$(COMPOSE) down
