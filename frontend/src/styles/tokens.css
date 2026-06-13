@@ -425,10 +425,13 @@ body {
   place-items: center;
   padding: var(--space-6);
   overflow: hidden;
-  /* Stadium-night mood: a warm brand glow up top, a cool indigo wash low,
-     over the dark canvas. Layered gradients, not a photo or a glass panel. */
+  /* Stadium-night mood. If a photo is dropped at /login-bg.jpg it sits behind a
+     heavy dark scrim (kept legible + on-brand); if absent, the gradients alone
+     render the same dark look. Layers are top→bottom. */
   background:
-    radial-gradient(900px 520px at 50% -12%, oklch(0.42 0.13 28 / 0.22), transparent 60%),
+    radial-gradient(900px 520px at 50% -12%, oklch(0.45 0.14 28 / 0.26), transparent 60%),
+    linear-gradient(180deg, oklch(0.12 0.02 280 / 0.82), oklch(0.10 0.02 280 / 0.93)),
+    url("/login-bg.jpg") center / cover no-repeat,
     radial-gradient(760px 620px at 88% 112%, oklch(0.34 0.10 280 / 0.55), transparent 60%),
     var(--bg);
 }
