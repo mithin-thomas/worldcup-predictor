@@ -12,11 +12,18 @@ import (
 	"github.com/sayonetech/worldcup-predictor/backend/internal/config"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/httpapi"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
+
+	// Load .env for local dev. godotenv does not override variables already set
+	// in the real environment, so production (env-injected) is unaffected and a
+	// missing .env file is a no-op.
+	_ = godotenv.Load()
 
 	cfg, err := config.Load()
 	if err != nil {
