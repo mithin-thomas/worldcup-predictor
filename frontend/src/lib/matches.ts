@@ -1,4 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+// Self-import so usePutPrediction dispatches through the module namespace; this
+// lets tests vi.spyOn(matches, "putPrediction") observe the call (ESM live binding
+// means a direct lexical call would bypass the spy).
+import * as self from "./matches";
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
@@ -78,7 +82,7 @@ export async function putPrediction(matchId: number, input: PredictionInput): Pr
 export function usePutPrediction(matchId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: PredictionInput) => putPrediction(matchId, input),
+    mutationFn: (input: PredictionInput) => self.putPrediction(matchId, input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["matches"] });
     },
