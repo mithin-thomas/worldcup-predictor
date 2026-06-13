@@ -419,16 +419,42 @@ body {
 }
 
 .auth {
+  position: relative;
   min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: var(--space-6);
-  /* faint brand glow from the top, not a glass panel */
+  overflow: hidden;
+  /* Stadium-night mood: a warm brand glow up top, a cool indigo wash low,
+     over the dark canvas. Layered gradients, not a photo or a glass panel. */
   background:
-    radial-gradient(70% 55% at 50% -5%, oklch(0.40 0.10 28 / 0.18), transparent 70%),
+    radial-gradient(900px 520px at 50% -12%, oklch(0.42 0.13 28 / 0.22), transparent 60%),
+    radial-gradient(760px 620px at 88% 112%, oklch(0.34 0.10 280 / 0.55), transparent 60%),
     var(--bg);
 }
+/* Faint pitch markings behind the card (recognizably football, barely there). */
+.auth::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400' fill='none' stroke='%23ffffff' stroke-width='2'%3E%3Crect x='3' y='3' width='594' height='394' rx='10'/%3E%3Cline x1='300' y1='3' x2='300' y2='397'/%3E%3Ccircle cx='300' cy='200' r='62'/%3E%3Ccircle cx='300' cy='200' r='4' fill='%23ffffff' stroke='none'/%3E%3Crect x='3' y='128' width='80' height='144'/%3E%3Crect x='517' y='128' width='80' height='144'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: min(680px, 92vw);
+  opacity: 0.05;
+  pointer-events: none;
+}
+/* Soft vignette so the card sits in a pool of light. */
+.auth::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(130% 100% at 50% 45%, transparent 52%, oklch(0.10 0.02 280 / 0.65));
+  pointer-events: none;
+}
 .auth__card {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 380px;
   display: flex;
@@ -440,6 +466,7 @@ body {
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  box-shadow: 0 24px 70px -24px rgba(0, 0, 0, 0.7);
   animation: auth-rise 460ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .auth__mark {
