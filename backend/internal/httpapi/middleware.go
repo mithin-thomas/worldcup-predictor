@@ -20,6 +20,7 @@ const userCtxKey ctxKey = iota
 // Deps holds everything the HTTP layer needs. Built in cmd/server.
 type Deps struct {
 	Store              store.Store
+	Matches            store.MatchStore
 	Sessions           *auth.SessionManager
 	Verifier           auth.TokenVerifier
 	AllowedEmailDomain string

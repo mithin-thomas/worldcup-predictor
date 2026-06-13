@@ -43,6 +43,7 @@ func main() {
 
 	deps := &httpapi.Deps{
 		Store:              st,
+		Matches:            st,
 		Sessions:           auth.NewSessionManager(cfg.SessionSecret),
 		Verifier:           auth.GoogleTokenVerifier{ClientID: cfg.GoogleClientID},
 		AllowedEmailDomain: cfg.AllowedEmailDomain,

@@ -43,3 +43,24 @@ func TestLoadRequiresGoogleClientID(t *testing.T) {
 		t.Fatal("Load() error = nil, want error for missing GOOGLE_CLIENT_ID")
 	}
 }
+
+func TestLoadAPIFootballDefaultsAndKey(t *testing.T) {
+	t.Setenv("SESSION_SECRET", "secret")
+	t.Setenv("GOOGLE_CLIENT_ID", "client-id")
+	t.Setenv("APIFOOTBALL_KEY", "")
+	t.Setenv("APIFOOTBALL_BASE_URL", "")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v (APIFOOTBALL_KEY must be optional)", err)
+	}
+	if cfg.APIFootballBaseURL != "https://v3.football.api-sports.io" {
+		t.Errorf("APIFootballBaseURL default = %q", cfg.APIFootballBaseURL)
+	}
+
+	t.Setenv("APIFOOTBALL_KEY", "abc123")
+	cfg, _ = Load()
+	if cfg.APIFootballKey != "abc123" {
+		t.Errorf("APIFootballKey = %q, want abc123", cfg.APIFootballKey)
+	}
+}

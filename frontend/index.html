@@ -5,7 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SayScore</title>
-    <script src="https://accounts.google.com/gsi/client" async></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- SRI note: Google Identity Services does not publish a stable SRI hash
+         (the script is dynamically versioned). crossorigin="anonymous" enables
+         CORS fetch mode; trust is anchored to HTTPS + Google's own CDN. -->
+    <script src="https://accounts.google.com/gsi/client" async crossorigin="anonymous"></script>
   </head>
   <body>
     <div id="root"></div>
