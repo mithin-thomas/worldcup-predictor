@@ -1,0 +1,18 @@
+# env / secrets
+.env
+*.env
+!*.env.example
+
+# Go
+backend/server
+backend/tmp/
+*.test
+*.out
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# OS / editor
+.DS_Store
