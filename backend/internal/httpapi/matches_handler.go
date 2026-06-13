@@ -47,6 +47,8 @@ type matchDTO struct {
 	Venue       *venueDTO `json:"venue"`
 	HomeScore   *int32    `json:"home_score"`
 	AwayScore   *int32    `json:"away_score"`
+
+	Prediction *predictionDTO `json:"prediction"`
 }
 
 type dayDTO struct {
@@ -65,7 +67,21 @@ func (d *Deps) GetMatches(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load matches")
 		return
 	}
-	writeJSON(w, http.StatusOK, matchesResponse{Days: groupByISTDate(rows, now())})
+	u, ok := userFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "not authenticated")
+		return
+	}
+	preds, err := d.Predictions.ListPredictionsByUser(r.Context(), u.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load predictions")
+		return
+	}
+	byMatch := make(map[int64]predictionDTO, len(preds))
+	for _, p := range preds {
+		byMatch[p.MatchID] = predictionDTO{HomeScore: p.HomeScore, AwayScore: p.AwayScore, PenaltyWinnerTeamID: p.PenaltyWinnerTeamID}
+	}
+	writeJSON(w, http.StatusOK, matchesResponse{Days: groupByISTDate(rows, now(), byMatch)})
 }
 
 func teamDTOf(t *store.TeamRef) *teamDTO {
@@ -77,7 +93,7 @@ func teamDTOf(t *store.TeamRef) *teamDTO {
 
 // groupByISTDate buckets matches (kickoff-ordered) by their IST calendar date
 // and computes locked = now >= kickoff. Pure: testable without HTTP.
-func groupByISTDate(rows []store.MatchWithTeams, nowUTC time.Time) []dayDTO {
+func groupByISTDate(rows []store.MatchWithTeams, nowUTC time.Time, preds map[int64]predictionDTO) []dayDTO {
 	var days []dayDTO
 	idx := map[string]int{}
 	for _, m := range rows {
@@ -95,6 +111,10 @@ func groupByISTDate(rows []store.MatchWithTeams, nowUTC time.Time) []dayDTO {
 			Status:     string(m.Status), Locked: !nowUTC.Before(m.KickoffUTC),
 			Home: teamDTOf(m.Home), Away: teamDTOf(m.Away), Venue: venue,
 			HomeScore: m.HomeScore, AwayScore: m.AwayScore,
+		}
+		if p, ok := preds[m.ID]; ok {
+			pc := p
+			dto.Prediction = &pc
 		}
 		if i, ok := idx[date]; ok {
 			days[i].Matches = append(days[i].Matches, dto)

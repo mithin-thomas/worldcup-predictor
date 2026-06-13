@@ -98,6 +98,7 @@ type SeedStore interface {
 
 type MatchStore interface {
 	ListMatchesWithTeams(ctx context.Context) ([]MatchWithTeams, error)
+	GetMatchByID(ctx context.Context, id int64) (MatchByID, error)
 }
 
 var (

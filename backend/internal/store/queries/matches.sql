@@ -28,3 +28,8 @@ LEFT JOIN teams ht ON ht.id = m.home_team_id
 LEFT JOIN teams at ON at.id = m.away_team_id
 LEFT JOIN venues v ON v.id = m.venue_id
 ORDER BY m.kickoff_utc, m.match_number;
+
+-- name: GetMatchByID :one
+SELECT id, stage, home_team_id, away_team_id, kickoff_utc, status
+FROM matches
+WHERE id = ?;

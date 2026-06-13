@@ -159,6 +159,19 @@ type Match struct {
 	UpdatedAt           time.Time     `json:"updated_at"`
 }
 
+type Prediction struct {
+	ID                  int64         `json:"id"`
+	UserID              int64         `json:"user_id"`
+	MatchID             int64         `json:"match_id"`
+	HomeScore           int32         `json:"home_score"`
+	AwayScore           int32         `json:"away_score"`
+	PenaltyWinnerTeamID sql.NullInt64 `json:"penalty_winner_team_id"`
+	Points              sql.NullInt32 `json:"points"`
+	PenaltyBonus        sql.NullInt32 `json:"penalty_bonus"`
+	CreatedAt           time.Time     `json:"created_at"`
+	UpdatedAt           time.Time     `json:"updated_at"`
+}
+
 type Team struct {
 	ID            int64  `json:"id"`
 	SourceID      int64  `json:"source_id"`
