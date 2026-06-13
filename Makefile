@@ -19,7 +19,7 @@ DB_NAME ?= wcp
 
 .DEFAULT_GOAL := help
 .PHONY: help up up-d down logs ps migrate-up migrate-down migrate-new \
-        sqlc run dev seed-fixtures test test-frontend lint fmt tidy \
+        sqlc run dev seed-fixtures load-seed dump-seed test test-frontend lint fmt tidy \
         build hooks hooks-tools
 
 help: ## Show this help
@@ -71,8 +71,19 @@ run: ## Run the backend (loads backend/.env)
 dev: ## Run the Vite frontend dev server
 	cd frontend && pnpm dev
 
-seed-fixtures: ## Seed teams, venues, and fixtures from the committed CSV dataset (data/)
+seed-fixtures: ## Apply the CSV dataset (data/) to a DB via the Go importer — used to author the seed
 	cd backend && SEED_DATA_DIR=../data go run ./cmd/seedfixtures
+
+load-seed: ## Load deploy/seed/seed.sql into the running compose MySQL (for native dev after migrate-up)
+	$(COMPOSE) exec -T -e MYSQL_PWD=wcp mysql mysql -uwcp wcp < deploy/seed/seed.sql
+	@echo "loaded deploy/seed/seed.sql"
+
+dump-seed: ## Regenerate deploy/seed/seed.sql from the running compose DB (run `make seed-fixtures` first if CSV changed)
+	$(COMPOSE) exec -T -e MYSQL_PWD=wcp mysql mysqldump -uwcp \
+	  --no-create-info --insert-ignore --complete-insert --skip-extended-insert \
+	  --single-transaction --no-tablespaces --skip-dump-date \
+	  wcp venues teams matches > deploy/seed/seed.sql
+	@echo "wrote deploy/seed/seed.sql"
 
 ## ---- Quality ----
 test: ## Backend tests

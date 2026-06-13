@@ -37,27 +37,17 @@ services:
       - "up"
     restart: on-failure
 
-  # One-shot: import the static CSV fixtures, then exit. Reuses the backend
-  # image (which also contains /seedfixtures). Backend waits for this to succeed.
+  # One-shot: load the committed SQL seed (data only — schema comes from migrate),
+  # then exit. INSERT IGNORE makes it idempotent, so re-running on an existing
+  # volume is a no-op and never clobbers admin edits. Regenerate the file with
+  # `make dump-seed`. Backend waits for this to succeed.
   seed:
-    image: sayscore-backend:local
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
-    entrypoint: ["/seedfixtures"]
-    env_file:
-      - path: ../backend/.env
-        required: false
+    image: mysql:8.0
     environment:
-      APP_ENV: development
-      DB_HOST: mysql
-      DB_PORT: "3306"
-      DB_USER: wcp
-      DB_PASSWORD: wcp
-      DB_NAME: wcp
-      SEED_DATA_DIR: /app/data
+      MYSQL_PWD: wcp
+    entrypoint: ["sh", "-c", "mysql --host=mysql --user=wcp wcp < /seed.sql"]
     volumes:
-      - ../data:/app/data:ro
+      - ./seed/seed.sql:/seed.sql:ro
     depends_on:
       mysql:
         condition: service_healthy
