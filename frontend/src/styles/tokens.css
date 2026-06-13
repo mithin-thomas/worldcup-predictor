@@ -425,12 +425,14 @@ body {
   place-items: center;
   padding: var(--space-6);
   overflow: hidden;
-  /* Stadium-night mood. If a photo is dropped at /login-bg.jpg it sits behind a
-     heavy dark scrim (kept legible + on-brand); if absent, the gradients alone
-     render the same dark look. Layers are top→bottom. */
+  /* Stadium-night mood. A photo at /login-bg.jpg shows through a light top→bottom
+     wash (just enough to unify tone + keep the bottom edge controlled); the card's
+     own opaque surface + shadow carry legibility, so the photo stays visible. The
+     two layers BELOW the photo (indigo radial + --bg) are the no-photo fallback —
+     an opaque cover photo hides them, the same dark look renders without it. */
   background:
-    radial-gradient(900px 520px at 50% -12%, oklch(0.45 0.14 28 / 0.26), transparent 60%),
-    linear-gradient(180deg, oklch(0.12 0.02 280 / 0.82), oklch(0.10 0.02 280 / 0.93)),
+    radial-gradient(900px 520px at 50% -12%, oklch(0.50 0.15 28 / 0.20), transparent 62%),
+    linear-gradient(180deg, oklch(0.10 0.02 280 / 0.24), oklch(0.08 0.02 280 / 0.58)),
     url("/login-bg.jpg") center / cover no-repeat,
     radial-gradient(760px 620px at 88% 112%, oklch(0.34 0.10 280 / 0.55), transparent 60%),
     var(--bg);
@@ -447,12 +449,13 @@ body {
   opacity: 0.05;
   pointer-events: none;
 }
-/* Soft vignette so the card sits in a pool of light. */
+/* Soft vignette: a wide clear center reveals the photo, darker corners draw the
+   eye inward to the card. */
 .auth::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(130% 100% at 50% 45%, transparent 52%, oklch(0.10 0.02 280 / 0.65));
+  background: radial-gradient(135% 105% at 50% 45%, transparent 60%, oklch(0.08 0.02 280 / 0.55));
   pointer-events: none;
 }
 .auth__card {
