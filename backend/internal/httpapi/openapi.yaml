@@ -148,19 +148,28 @@ components:
         id: { type: integer, format: int64 }
         name: { type: string }
         code: { type: string }
-        logo_url: { type: string }
+    Venue:
+      type: object
+      properties:
+        name: { type: string }
+        city: { type: string }
+        country: { type: string }
     Match:
       type: object
       properties:
         id: { type: integer, format: int64 }
+        match_number: { type: integer }
         stage: { type: string, enum: [group, knockout] }
         round: { type: string }
+        group: { type: string, description: "Group letter for group matches, else empty" }
+        label: { type: string, description: "e.g. 'Group A' or 'W73 vs W75'" }
         kickoff_utc: { type: string, format: date-time }
         kickoff_ist: { type: string, format: date-time }
         status: { type: string, enum: [scheduled, live, final] }
         locked: { type: boolean, description: "true once now >= kickoff_utc (server-authoritative)" }
-        home: { $ref: "#/components/schemas/Team" }
-        away: { $ref: "#/components/schemas/Team" }
+        home: { oneOf: [{ $ref: "#/components/schemas/Team" }, { type: "null" }] }
+        away: { oneOf: [{ $ref: "#/components/schemas/Team" }, { type: "null" }] }
+        venue: { oneOf: [{ $ref: "#/components/schemas/Venue" }, { type: "null" }] }
         home_score: { type: [integer, "null"], format: int32 }
         away_score: { type: [integer, "null"], format: int32 }
     Day:
