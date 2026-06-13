@@ -35,6 +35,9 @@ type SQLStore struct {
 
 func New(db *sql.DB) *SQLStore { return &SQLStore{db: db, q: sqlc.New(db)} }
 
+// Compile-time guard: *SQLStore must satisfy the Store interface.
+var _ Store = (*SQLStore)(nil)
+
 func (s *SQLStore) UpsertUser(ctx context.Context, p UpsertUserParams) (User, error) {
 	role := p.Role
 	if role == "" {

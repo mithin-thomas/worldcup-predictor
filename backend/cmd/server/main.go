@@ -48,6 +48,8 @@ func main() {
 		Addr:              ":" + cfg.HTTPPort,
 		Handler:           router,
 		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 	logger.Info("listening", "port", cfg.HTTPPort, "env", cfg.AppEnv)
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
