@@ -153,7 +153,12 @@ paths:
           description: Stored prediction
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Match" }
+              schema: { $ref: "#/components/schemas/Prediction" }
+        "400":
+          description: Bad request (invalid match id or JSON body)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "401":
           description: Not authenticated
           content:
@@ -194,6 +199,13 @@ components:
       type: object
       properties:
         error: { type: string }
+    Prediction:
+      type: object
+      required: [home_score, away_score]
+      properties:
+        home_score: { type: integer }
+        away_score: { type: integer }
+        penalty_winner_team_id: { type: [integer, "null"] }
     Team:
       type: object
       properties:
@@ -228,11 +240,7 @@ components:
           description: "The caller's prediction for this match, or null if none."
           oneOf:
             - type: "null"
-            - type: object
-              properties:
-                home_score: { type: integer }
-                away_score: { type: integer }
-                penalty_winner_team_id: { type: [integer, "null"] }
+            - { $ref: "#/components/schemas/Prediction" }
     Day:
       type: object
       properties:
