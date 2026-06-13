@@ -18,7 +18,7 @@ DB_PASSWORD ?= wcp
 DB_NAME ?= wcp
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-d down logs ps adminer migrate-up migrate-down migrate-new \
+.PHONY: help up up-d down logs ps migrate-up migrate-down migrate-new \
         sqlc run dev seed-fixtures test test-frontend lint fmt tidy \
         build hooks hooks-tools
 
@@ -28,7 +28,7 @@ help: ## Show this help
 
 ## ---- Docker / local stack ----
 up: ## Build + run the whole stack in the FOREGROUND with live logs (Ctrl-C to stop) → :8080
-	@echo "Starting → app: http://localhost:8080 · docs: http://localhost:8000/docs · adminer: http://localhost:8081"
+	@echo "Starting → app: http://localhost:8080 · docs: http://localhost:8000/docs"
 	@set -a; [ -f frontend/.env ] && . ./frontend/.env; set +a; \
 	$(COMPOSE) up --build
 
@@ -44,9 +44,6 @@ logs: ## Tail stack logs
 
 ps: ## Show stack containers
 	$(COMPOSE) ps
-
-adminer: ## Print the Adminer URL
-	@echo "Adminer: http://localhost:8081  (server: mysql, user: $(DB_USER), db: $(DB_NAME))"
 
 ## ---- Database migrations (golang-migrate) ----
 migrate-up: ## Apply all migrations

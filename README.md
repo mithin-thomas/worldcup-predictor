@@ -49,7 +49,8 @@ seed are one-shot services the backend waits on, so a single command gives you a
 | <http://localhost:8080> | the app (frontend → proxies `/api` to the backend) |
 | <http://localhost:8000/docs> | API reference (Scalar) |
 | <http://localhost:8000/healthz> | liveness probe |
-| <http://localhost:8081> | Adminer (DB inspection; server `mysql`, user/pass `wcp`) |
+
+MySQL is exposed on `localhost:3306` for inspection with a local client (e.g. MySQL Workbench).
 
 Open **http://localhost:8080** and sign in with a `@sayonetech.com` Google account → the Fixtures list
 (grouped by IST date, with group + venue; knockout placeholders show labels like `W73 vs W75`).
