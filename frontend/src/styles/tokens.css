@@ -1,3 +1,6 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+
+/* ─── Design tokens (dark-first, spec §7.2) ─────────────────────────────── */
 :root {
   --bg: oklch(0.17 0.020 280);
   --surface-1: oklch(0.21 0.022 280);
@@ -8,34 +11,403 @@
   --brand: oklch(0.64 0.190 28);
   --brand-hover: oklch(0.68 0.180 28);
   --on-brand: oklch(0.22 0.070 28);
+  --danger: oklch(0.55 0.22 15);
+  --danger-hover: oklch(0.60 0.21 15);
+
+  /* Countdown / live badge colours */
+  --live: oklch(0.72 0.18 145);
+  --live-bg: oklch(0.25 0.05 145);
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Focus ring */
+  --focus-ring: 0 0 0 2px var(--brand);
 }
 
-* { box-sizing: border-box; }
+/* ─── Reset ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
 
+/* ─── Base ───────────────────────────────────────────────────────────────── */
 body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
   font-family: Inter, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* ─── Typography utility ─────────────────────────────────────────────────── */
+.mono {
+  font-family: "JetBrains Mono", "Fira Mono", monospace;
+  font-feature-settings: "tnum";
+}
+
+.muted { color: var(--muted); }
+
+/* ─── Focus visible ──────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ─── Sign-in card (unchanged) ───────────────────────────────────────────── */
 .card {
   background: var(--surface-1);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
   max-width: 420px;
   margin: 15vh auto 0;
 }
 
+/* ─── Buttons ────────────────────────────────────────────────────────────── */
 .btn-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   background: var(--brand);
   color: var(--on-brand);
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 10px 16px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+  min-height: 44px;
+  transition: background 120ms ease;
 }
 .btn-brand:hover { background: var(--brand-hover); }
-.muted { color: var(--muted); }
+.btn-brand:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+.btn-brand:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 44px;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.btn-ghost:hover { color: var(--ink); border-color: var(--muted); }
+.btn-ghost:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+.btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ─── App shell ──────────────────────────────────────────────────────────── */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* ─── Topbar ─────────────────────────────────────────────────────────────── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border);
+  min-height: 56px;
+}
+
+.topbar__brand {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--brand);
+  letter-spacing: -0.3px;
+}
+
+.topbar__user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.topbar__name {
+  font-size: 13px;
+  color: var(--muted);
+  /* Hide on very small screens so the logout button fits */
+  display: none;
+}
+
+@media (min-width: 400px) {
+  .topbar__name { display: block; }
+}
+
+/* ─── Fixtures list ──────────────────────────────────────────────────────── */
+.fixtures {
+  flex: 1;
+  padding: var(--space-4) var(--space-4) var(--space-6);
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Wide screens: side-nav placeholder (single-screen for now) */
+@media (min-width: 900px) {
+  .fixtures { padding: var(--space-6) var(--space-6) var(--space-6); }
+}
+
+/* ─── Day section ────────────────────────────────────────────────────────── */
+.day-section {
+  margin-bottom: var(--space-6);
+}
+
+.day-header {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: var(--space-2) 0 var(--space-2);
+  margin: 0 0 var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.match-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.match-list__item {
+  /* list item wrapper — no extra styles needed */
+}
+
+/* ─── Match row ──────────────────────────────────────────────────────────── */
+.match-row {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  transition: border-color 120ms ease;
+  cursor: default;
+}
+
+.match-row:hover {
+  border-color: var(--muted);
+}
+
+.match-row:focus-within {
+  box-shadow: var(--focus-ring);
+}
+
+.match-row__round {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.match-row__body {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.match-row__team {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.match-row__team--away {
+  justify-content: flex-end;
+}
+
+.match-row__logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.match-row__code {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.match-row__centre {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+}
+
+.match-row__score {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.5px;
+}
+
+.match-row__score-sep {
+  color: var(--muted);
+}
+
+.match-row__vs {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.match-row__live-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--live);
+  background: var(--live-bg);
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  animation: pulse-live 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-row__live-badge { animation: none; }
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.match-row__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.match-row__time {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ─── Lock badge ─────────────────────────────────────────────────────────── */
+.match-row__lock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 2px 8px;
+  letter-spacing: 0.03em;
+}
+
+/* ─── Countdown ──────────────────────────────────────────────────────────── */
+.countdown {
+  font-size: 12px;
+  color: var(--brand);
+}
+
+.countdown--elapsed {
+  color: var(--muted);
+}
+
+/* ─── Skeletons ──────────────────────────────────────────────────────────── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.skeleton {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; opacity: 0.6; }
+}
+
+.skeleton--heading {
+  height: 14px;
+  width: 120px;
+  margin-bottom: var(--space-3);
+}
+
+.skeleton--text { height: 12px; }
+.skeleton--short  { width: 60px; }
+.skeleton--medium { width: 140px; }
+.skeleton--long   { width: 200px; }
+
+.skeleton-row {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-2);
+}
+
+.skeleton-row__inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ─── Empty state ────────────────────────────────────────────────────────── */
+.fixtures--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+  padding: var(--space-6);
+  max-width: 320px;
+}
+
+.empty-state__icon {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.empty-state__title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.empty-state__body {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.6;
+}

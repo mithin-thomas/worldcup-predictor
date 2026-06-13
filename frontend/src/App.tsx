@@ -1,4 +1,5 @@
 import { useMe, GoogleSignInButton, useLogout } from "./lib/auth";
+import { Fixtures } from "./routes/Fixtures";
 
 export default function App() {
   const { data: me, isLoading } = useMe();
@@ -17,11 +18,25 @@ export default function App() {
   }
 
   return (
-    <div className="card">
-      <h1>SayScore</h1>
-      <p>Signed in as <strong>{me.name || me.email}</strong> ({me.role})</p>
-      <p className="muted">{me.email}</p>
-      <button className="btn-brand" onClick={() => logout.mutate()}>Log out</button>
+    <div className="app-shell">
+      <header className="topbar" role="banner">
+        <span className="topbar__brand" aria-label="SayScore">SayScore</span>
+        <div className="topbar__user">
+          <span className="topbar__name" aria-label={`Signed in as ${me.name || me.email}`}>
+            {me.name || me.email}
+          </span>
+          <button
+            className="topbar__logout btn-ghost"
+            onClick={() => logout.mutate()}
+            disabled={logout.isPending}
+            aria-label="Log out"
+          >
+            {logout.isPending ? "…" : "Log out"}
+          </button>
+        </div>
+      </header>
+
+      <Fixtures />
     </div>
   );
 }
