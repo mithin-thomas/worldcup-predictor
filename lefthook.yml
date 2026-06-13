@@ -1,0 +1,57 @@
+# SayScore git hooks (Lefthook). Install once per clone: `make hooks`
+# (install the tool first with `make hooks-tools` if `lefthook` is missing).
+# Optional linters are guarded so a missing tool never blocks a commit.
+
+pre-commit:
+  parallel: true
+  commands:
+    backend-fmt:
+      root: backend/
+      glob: "*.go"
+      run: gofmt -w {staged_files} && go vet ./...
+      stage_fixed: true
+    backend-lint:
+      root: backend/
+      glob: "*.go"
+      run: >-
+        if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run;
+        else echo "golangci-lint not installed — skipping (make hooks-tools)"; fi
+    sqlc-diff:
+      root: backend/
+      glob: "{internal/store/queries/*.sql,sqlc.yaml,migrations/*.sql}"
+      run: >-
+        if command -v sqlc >/dev/null 2>&1; then sqlc diff;
+        else echo "sqlc not installed — skipping"; fi
+    frontend-lint:
+      root: frontend/
+      glob: "*.{ts,tsx}"
+      run: >-
+        if [ -x node_modules/.bin/eslint ]; then pnpm exec eslint {staged_files}; else echo "eslint not installed — skipping"; fi;
+        if [ -x node_modules/.bin/prettier ]; then pnpm exec prettier --write {staged_files}; else echo "prettier not installed — skipping"; fi
+      stage_fixed: true
+    frontend-types:
+      root: frontend/
+      glob: "*.{ts,tsx}"
+      run: >-
+        if [ -x node_modules/.bin/tsc ]; then pnpm exec tsc --noEmit;
+        else echo "typescript not installed — skipping"; fi
+
+pre-push:
+  parallel: true
+  commands:
+    backend-test:
+      root: backend/
+      run: go test ./...
+    frontend-test:
+      root: frontend/
+      run: >-
+        if [ -x node_modules/.bin/vitest ]; then pnpm exec vitest run --passWithNoTests;
+        else echo "vitest not configured yet — skipping"; fi
+
+# Dependency-free Conventional Commits check (no commitlint/node needed).
+commit-msg:
+  commands:
+    conventional:
+      run: >-
+        head -1 {1} | grep -Eq '^(feat|fix|chore|docs|test|refactor|perf|build|ci|style|revert)(\(.+\))?!?: .+'
+        || { echo "Commit message must follow Conventional Commits, e.g. 'feat(api): add X'"; exit 1; }
