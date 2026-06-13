@@ -51,7 +51,7 @@ Knockout penalty bonus:
 
 - Applies only to knockout matches that go to a penalty shootout.
 - If the user predicted a **draw** for the regulation/extra-time result *and* also correctly predicted the shootout winner, they earn **+1 point**, in addition to the score points above.
-- See §5 for the precise, implementable definition (and §17 for the one interpretation worth confirming).
+- See §5 for the precise, implementable definition (confirmed in §17).
 
 ### 3.4 Tournament bonus predictions
 
@@ -71,18 +71,20 @@ Maximum bonus = **100**. These are scored once, after the tournament concludes, 
 
 ### 3.5 Leaderboards
 
-- **Weekly**: every Monday, sum points from matches that *completed* in the previous IST week (Mon 00:00 → Sun 23:59 IST). Highest total(s) are the Weekly Winner(s). Ties produce multiple winners. Prize: ₹500 Amazon Gift Card.
-- **Overall**: all match points + bonus points combined, for the final standings. Prizes: 1st ₹5,000, 2nd ₹2,500.
+- **Weekly**: every Monday, sum points from matches whose **kickoff** falls in the previous IST week (Mon 00:00 → Sun 23:59 IST). Attribution is by kickoff timestamp (deterministic, so a late result-correction never shifts points between weeks). Highest total(s) are the Weekly Winner(s). **Weekly ties stand** — they produce multiple co-winners, each eligible for the prize. Prize: ₹500 Amazon Gift Card.
+- **Overall**: all match points + bonus points combined, for the final standings. **Final-standings ties are broken by the cascade in §5.1** (so 1st and 2nd are distinct winners). Prizes: 1st ₹5,000, 2nd ₹2,500.
 
 ### 3.6 Admin features
 
 Fixtures sync (initial seed + re-sync), manual match create/edit/delete, result and penalty-winner correction, settings management (cron time, bonus lock time, admin list), and a manual "recompute points" action. All destructive actions require an explicit confirm.
 
+**Debug-only job triggers** — for testing, admins can manually fire the scheduled jobs (`results-ingest`, `weekly-winner`) on demand. This is gated to non-production builds: the endpoint and its UI control exist **only when `APP_ENV != production`** and are not registered at all in production. It lets a developer run the daily ingest / weekly calc without waiting for the cron.
+
 ---
 
 ## 4. Privacy of predictions
 
-Other participants' predictions for a match are **hidden until that match locks** (kickoff). After lock, predictions and earned points may be shown. This prevents copying and keeps the game fair. (Confirm in §17 if you'd prefer always-hidden.)
+Other participants' predictions for a match are **hidden until that match locks** (kickoff). After lock, predictions and earned points may be shown. This prevents copying and keeps the game fair. (Decision recorded in §17.)
 
 ---
 
@@ -114,6 +116,18 @@ score(prediction, match):
 - Points are stored on the prediction row (`points`, `penalty_bonus`) when a match goes FINAL, so leaderboard queries are simple sums over a date window.
 - Bonus-prediction points are computed once at tournament end from the seven award outcomes.
 
+### 5.1 Final-standings tie-break (overall only)
+
+Weekly winners allow ties (co-winners). The **overall** final standings must produce distinct 1st/2nd, so equal total points are broken by this cascade — each step applied only if the previous is still tied:
+
+1. **Total points** (the rank metric: match points + penalty bonuses + tournament bonus points).
+2. **Most exact-score predictions** (count of 5-point matches).
+3. **Most correct-result predictions** (count of 3-point matches).
+4. **Most correct tournament bonus picks** (count of bonus categories scored).
+5. **Shared rank** — if still tied, the rank is shared (effectively impossible in practice; documented for completeness).
+
+This cascade is computed from stored per-prediction points, so it is deterministic and recompute-safe.
+
 ---
 
 ## 6. Scheduled jobs
@@ -125,11 +139,15 @@ Run in-process via a cron scheduler on a single backend instance (use a leader-l
 
 Kickoff **locking is real-time** (enforced on every prediction write) and is *not* part of these jobs.
 
+Both jobs are also invokable on demand via the **debug-only** admin trigger (§3.6), available only when `APP_ENV != production`, for local testing.
+
 ---
 
 ## 7. Design system
 
 Design serves the task: predict fast, glance at standings. The bar is earned familiarity — it should feel as trustworthy as Linear or Stripe, not decorated.
+
+> **Implementation note:** the frontend is built using the **`impeccable`** design skill, which realizes the tokens, layout, component states, and motion defined in this section. Treat §7 as the design contract that skill must satisfy.
 
 ### 7.1 Theme & rationale
 
@@ -224,7 +242,7 @@ Body text ≥ 4.5:1 contrast (verified for `--muted` on `--bg`); visible focus r
 
 ## 9. Architecture & monorepo layout
 
-Single GitHub repository:
+Single GitHub repository. The Go module lives inside `backend/`; module path: **`github.com/sayonetech/worldcup-predictor/backend`**.
 
 ```
 .
@@ -307,6 +325,7 @@ Admin (role=admin)
 - `GET/PUT /api/admin/settings`
 - `POST   /api/admin/recompute`
 - `POST   /api/admin/users/:id/role`
+- `POST   /api/admin/jobs/run` — body `{ "job": "results-ingest" | "weekly-winner" }`. **Debug-only**: registered only when `APP_ENV != production`; returns 404 in production.
 
 Ops
 - `GET /healthz`
@@ -321,6 +340,7 @@ Ops
 - No secrets in the repo: `.env` is git-ignored; CI/production use GitHub Actions secrets / RDS secrets.
 - Basic rate limiting on auth and prediction-write endpoints.
 - Others' predictions hidden until match lock (§4).
+- The debug job-trigger endpoint (`POST /api/admin/jobs/run`, §11) is registered only when `APP_ENV != production`, so manual cron invocation is impossible in production even for admins.
 
 ---
 
@@ -404,13 +424,20 @@ Frontend (Vite): `VITE_GOOGLE_CLIENT_ID`, `VITE_API_BASE_URL`.
 
 ---
 
-## 17. Assumptions & open questions
+## 17. Resolved decisions
 
-These are reasonable defaults I've baked in — flag any you want changed:
+All previously-open questions were resolved in the brainstorming session (2026-06-13). Recorded here as the locked decisions:
 
-1. **Penalty bonus interpretation** — the +1 requires: knockout match, went to shootout, user predicted a draw, user's score earned points (exact or correct-result), and correct shootout winner. Confirm this matches your intent.
-2. **Bonus lock time** — assumed 28 Jun 2026, 23:59 IST (configurable).
-3. **Prediction privacy** — others' predictions hidden until a match locks; revealed after. Confirm vs always-hidden.
-4. **Final-standings tie-break** — if two participants tie on total points for 1st/2nd, how do you want to break it (e.g. most exact scores, then earliest predictions)? Currently unspecified.
-5. **Deployment target** — assumed AWS (ECS Fargate or single Docker host) with RDS MySQL; confirm which.
-6. **Light theme** — dark-first only for v1; light theme deferred.
+1. **Penalty bonus interpretation** — ✅ **Confirmed as specified.** The +1 requires: knockout match, went to shootout, user predicted a draw, user's score earned points (exact or correct-result), and correct shootout winner. The penalty-winner pick is offered only when the predicted score is a draw (§3.2/§5).
+2. **Bonus lock time** — ✅ **Confirmed:** 28 Jun 2026, 23:59 IST (the knockout-stage cutoff), configurable via `BONUS_LOCK_AT`.
+3. **Prediction privacy** — ✅ **Confirmed:** others' predictions are hidden until a match locks at kickoff, then revealed (§4). Not always-hidden.
+4. **Final-standings tie-break** — ✅ **Specified** (§5.1): cascade of total points → most exact scores → most correct-result hits → most correct bonus picks → shared rank. Applies to **overall** standings only; **weekly** winners still allow co-winners on ties (§3.5).
+5. **Deployment target** — 🕒 **Deferred to deployment time.** The spec stays deployment-agnostic: Docker images for both tiers, MySQL via `DB_*` (RDS or container), single backend instance with in-process scheduler, add a leader lock before scaling out (§14). Choose ECS Fargate vs single Docker host at deploy time.
+6. **Light theme** — ✅ **Confirmed:** dark-first is canonical for v1; light theme deferred, to be derived from the same §7.2 tokens later.
+
+### 17.1 Additional decisions from the 2026-06-13 session
+
+- **Weekly attribution by kickoff** (§3.5) — a match's points count toward the IST week containing its kickoff, so a late result-correction never shifts points across weeks.
+- **Debug-only manual cron trigger** (§3.6, §6, §11) — admins can fire `results-ingest` / `weekly-winner` on demand, but only when `APP_ENV != production`.
+- **Go module path** (§9) — `github.com/sayonetech/worldcup-predictor/backend`, confirmed.
+- **Frontend design skill** (§7) — the frontend is implemented with the `impeccable` design skill, treating §7 as its design contract.
