@@ -1,0 +1,10 @@
+{"response":[
+  {"fixture":{"id":1001,"date":"2026-06-11T19:00:00+00:00","status":{"short":"NS"}},
+   "league":{"round":"Group A - 1"},
+   "teams":{"home":{"id":10},"away":{"id":20}},
+   "goals":{"home":null,"away":null}},
+  {"fixture":{"id":1002,"date":"2026-07-19T19:00:00+00:00","status":{"short":"NS"}},
+   "league":{"round":"Final"},
+   "teams":{"home":{"id":10},"away":{"id":20}},
+   "goals":{"home":null,"away":null}}
+]}
