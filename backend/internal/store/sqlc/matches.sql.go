@@ -11,6 +11,35 @@ import (
 	"time"
 )
 
+const getMatchByID = `-- name: GetMatchByID :one
+SELECT id, stage, home_team_id, away_team_id, kickoff_utc, status
+FROM matches
+WHERE id = ?
+`
+
+type GetMatchByIDRow struct {
+	ID         int64         `json:"id"`
+	Stage      MatchesStage  `json:"stage"`
+	HomeTeamID sql.NullInt64 `json:"home_team_id"`
+	AwayTeamID sql.NullInt64 `json:"away_team_id"`
+	KickoffUtc time.Time     `json:"kickoff_utc"`
+	Status     MatchesStatus `json:"status"`
+}
+
+func (q *Queries) GetMatchByID(ctx context.Context, id int64) (GetMatchByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getMatchByID, id)
+	var i GetMatchByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Stage,
+		&i.HomeTeamID,
+		&i.AwayTeamID,
+		&i.KickoffUtc,
+		&i.Status,
+	)
+	return i, err
+}
+
 const listMatchesWithTeams = `-- name: ListMatchesWithTeams :many
 SELECT
     m.id, m.source_id, m.match_number, m.stage, m.round, m.group_letter, m.match_label,
