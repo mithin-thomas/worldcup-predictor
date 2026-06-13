@@ -35,3 +35,11 @@ func TestLoadRequiresSessionSecret(t *testing.T) {
 		t.Fatal("Load() error = nil, want error for missing SESSION_SECRET")
 	}
 }
+
+func TestLoadRequiresGoogleClientID(t *testing.T) {
+	t.Setenv("SESSION_SECRET", "secret")
+	t.Setenv("GOOGLE_CLIENT_ID", "")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() error = nil, want error for missing GOOGLE_CLIENT_ID")
+	}
+}

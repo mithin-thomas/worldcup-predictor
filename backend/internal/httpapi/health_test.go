@@ -18,4 +18,7 @@ func TestHealthz(t *testing.T) {
 	if got := rec.Body.String(); got != `{"status":"ok"}` {
 		t.Errorf("body = %q, want healthz json", got)
 	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
 }
