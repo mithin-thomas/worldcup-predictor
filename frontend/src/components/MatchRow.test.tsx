@@ -95,6 +95,27 @@ describe("MatchRow editor", () => {
     expect(screen.queryByRole("group", { name: /shootout winner/i })).toBeNull();
   });
 
+  it("flips the row to a locked state when the server returns 409", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: "match is locked" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    renderRow(baseGroup);
+
+    await user.click(screen.getByRole("button", { name: /predict|edit/i }));
+    const editor = screen.getByRole("group", { name: /your prediction/i });
+    await user.click(within(editor).getByRole("button", { name: /increase mexico/i }));
+    await user.click(within(editor).getByRole("button", { name: /save prediction/i }));
+
+    // The 409 surfaces a locked alert and disables Save.
+    await screen.findByRole("alert");
+    expect(screen.getByRole("alert")).toHaveTextContent(/locked/i);
+    expect(within(editor).getByRole("button", { name: /save prediction/i })).toBeDisabled();
+  });
+
   it("renders TBD matches non-editable", () => {
     renderRow({ ...baseGroup, id: 100, stage: "knockout", group: "", label: "W74 vs W77", home: null, away: null });
     expect(screen.queryByRole("button", { name: /predict|edit/i })).toBeNull();
