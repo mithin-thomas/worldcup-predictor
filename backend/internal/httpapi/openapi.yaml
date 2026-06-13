@@ -13,6 +13,7 @@ servers:
 tags:
   - name: Ops
   - name: Auth
+  - name: Fixtures
 
 paths:
   /healthz:
@@ -102,6 +103,26 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
+  /api/matches:
+    get:
+      tags: [Fixtures]
+      summary: All matches grouped by IST date
+      description: >
+        Returns every match grouped by its IST calendar date (kickoff-ordered),
+        with a server-computed `locked` flag (true once `now >= kickoff_utc`).
+        Times are stored UTC and returned both as UTC and IST.
+      responses:
+        "200":
+          description: Matches grouped by IST day
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MatchesResponse" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -121,6 +142,40 @@ components:
       type: object
       properties:
         error: { type: string }
+    Team:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        code: { type: string }
+        logo_url: { type: string }
+    Match:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        stage: { type: string, enum: [group, knockout] }
+        round: { type: string }
+        kickoff_utc: { type: string, format: date-time }
+        kickoff_ist: { type: string, format: date-time }
+        status: { type: string, enum: [scheduled, live, final] }
+        locked: { type: boolean, description: "true once now >= kickoff_utc (server-authoritative)" }
+        home: { $ref: "#/components/schemas/Team" }
+        away: { $ref: "#/components/schemas/Team" }
+        home_score: { type: [integer, "null"], format: int32 }
+        away_score: { type: [integer, "null"], format: int32 }
+    Day:
+      type: object
+      properties:
+        date: { type: string, description: "IST calendar date (YYYY-MM-DD)" }
+        matches:
+          type: array
+          items: { $ref: "#/components/schemas/Match" }
+    MatchesResponse:
+      type: object
+      properties:
+        days:
+          type: array
+          items: { $ref: "#/components/schemas/Day" }
 
 # Authenticated endpoints require the session cookie; per-operation `security: []`
 # marks the public ones (healthz, sign-in).
