@@ -411,3 +411,11 @@ body {
   margin: 0;
   line-height: 1.6;
 }
+
+/* ─── Fixtures: venue + knockout placeholder ────────────────────────────── */
+.match-row__venue { color: var(--muted); }
+.match-row__placeholder {
+  flex: 1;
+  text-align: center;
+  font-weight: 500;
+}
