@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components -- this auth module
+   intentionally co-locates the sign-in button with its session hooks. */
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMe, loginWithGoogle, logout } from "./api";
@@ -43,8 +45,8 @@ export function GoogleSignInButton() {
           width: 280,
         });
         setStatus("ready");
-      } else if (++tries >= 25) {
-        // ~5s with no GIS script available
+      } else if (++tries >= 50) {
+        // ~10s with no GIS script available
         window.clearInterval(timer);
         setStatus("unavailable");
       }
@@ -62,8 +64,10 @@ export function GoogleSignInButton() {
 
       {status === "unavailable" && (
         <p className="auth__hint" role="status">
-          Couldn’t load Google sign-in. Check your connection, and that this origin is an authorized
-          JavaScript origin for the OAuth client.
+          Couldn’t load Google sign-in. This is usually an ad/privacy blocker stopping
+          <code> accounts.google.com</code>, or a network issue. Disable the blocker for this site and
+          reload. (For sign-in to complete, this origin must also be an authorized JavaScript origin
+          on the OAuth client.)
         </p>
       )}
 
