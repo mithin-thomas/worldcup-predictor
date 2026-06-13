@@ -1,17 +1,7 @@
 import { useMe, GoogleSignInButton, useLogout } from "./lib/auth";
 import { Fixtures } from "./routes/Fixtures";
-
-// BallMark — the SayScore product mark: a minimal football on a brand roundel.
-function BallMark() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7 15.3 9.4 14 13.2 10 13.2 8.7 9.4Z" fill="currentColor" stroke="none" />
-      <path d="M12 3.2V7M5 9l3.4 2.4M19 9l-3.4 2.4M8 19.4l1.9-3M16 19.4l-1.9-3" />
-    </svg>
-  );
-}
+import sayscoreLogo from "./assets/sayscore-logo-dark.png";
+import sayscoreMark from "./assets/sayscore-logo-transparent.png";
 
 export default function App() {
   const { data: me, isLoading } = useMe();
@@ -29,10 +19,8 @@ export default function App() {
     return (
       <main className="auth">
         <section className="auth__card" aria-labelledby="auth-title">
-          <span className="auth__mark" aria-hidden="true">
-            <BallMark />
-          </span>
-          <h1 id="auth-title" className="auth__title">SayScore</h1>
+          <h1 id="auth-title" className="sr-only">SayScore</h1>
+          <img className="auth__logo" src={sayscoreLogo} alt="SayScore, by SayOne" />
           <p className="auth__tagline">
             Predict every FIFA World Cup 2026 match and climb the SayOne leaderboard.
           </p>
@@ -42,11 +30,6 @@ export default function App() {
           <p className="auth__note">
             Restricted to <strong>sayonetech.com</strong> accounts.
           </p>
-
-          <footer className="auth__org">
-            <span>from</span>
-            <img className="auth__org-logo" src="/sayone-logo.svg" alt="SayOne" height={18} />
-          </footer>
         </section>
       </main>
     );
@@ -55,7 +38,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="topbar" role="banner">
-        <span className="topbar__brand" aria-label="SayScore">SayScore</span>
+        <img className="topbar__logo" src={sayscoreMark} alt="SayScore" height={24} />
         <div className="topbar__user">
           <span className="topbar__name" aria-label={`Signed in as ${me.name || me.email}`}>
             {me.name || me.email}
