@@ -18,6 +18,10 @@ func (f fakeMatchStore) ListMatchesWithTeams(context.Context) ([]store.MatchWith
 	return f.matches, nil
 }
 
+func (f fakeMatchStore) GetMatchByID(context.Context, int64) (store.MatchByID, error) {
+	return store.MatchByID{}, store.ErrNotFound
+}
+
 func authedMatchesDeps(t *testing.T, matches []store.MatchWithTeams) (*Deps, *http.Cookie) {
 	t.Helper()
 	fs := newFakeStore() // from auth_test.go
