@@ -7,82 +7,42 @@ package sqlc
 
 import (
 	"context"
-	"database/sql"
 )
 
-const getTeamByAPIID = `-- name: GetTeamByAPIID :one
-SELECT id, api_team_id, name, code, logo_url
-FROM teams WHERE api_team_id = ?
+const getTeamIDBySourceID = `-- name: GetTeamIDBySourceID :one
+SELECT id FROM teams WHERE source_id = ?
 `
 
-func (q *Queries) GetTeamByAPIID(ctx context.Context, apiTeamID int64) (Team, error) {
-	row := q.db.QueryRowContext(ctx, getTeamByAPIID, apiTeamID)
-	var i Team
-	err := row.Scan(
-		&i.ID,
-		&i.ApiTeamID,
-		&i.Name,
-		&i.Code,
-		&i.LogoUrl,
-	)
-	return i, err
+func (q *Queries) GetTeamIDBySourceID(ctx context.Context, sourceID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getTeamIDBySourceID, sourceID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
-const listTeams = `-- name: ListTeams :many
-SELECT id, api_team_id, name, code, logo_url
-FROM teams ORDER BY name
-`
-
-func (q *Queries) ListTeams(ctx context.Context) ([]Team, error) {
-	rows, err := q.db.QueryContext(ctx, listTeams)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Team
-	for rows.Next() {
-		var i Team
-		if err := rows.Scan(
-			&i.ID,
-			&i.ApiTeamID,
-			&i.Name,
-			&i.Code,
-			&i.LogoUrl,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const upsertTeam = `-- name: UpsertTeam :execresult
-INSERT INTO teams (api_team_id, name, code, logo_url)
-VALUES (?, ?, ?, ?)
+const upsertTeam = `-- name: UpsertTeam :exec
+INSERT INTO teams (source_id, name, code, group_letter, is_placeholder)
+VALUES (?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
-    name = VALUES(name),
-    code = VALUES(code),
-    logo_url = VALUES(logo_url)
+    name = VALUES(name), code = VALUES(code),
+    group_letter = VALUES(group_letter), is_placeholder = VALUES(is_placeholder)
 `
 
 type UpsertTeamParams struct {
-	ApiTeamID int64  `json:"api_team_id"`
-	Name      string `json:"name"`
-	Code      string `json:"code"`
-	LogoUrl   string `json:"logo_url"`
+	SourceID      int64  `json:"source_id"`
+	Name          string `json:"name"`
+	Code          string `json:"code"`
+	GroupLetter   string `json:"group_letter"`
+	IsPlaceholder bool   `json:"is_placeholder"`
 }
 
-func (q *Queries) UpsertTeam(ctx context.Context, arg UpsertTeamParams) (sql.Result, error) {
-	return q.db.ExecContext(ctx, upsertTeam,
-		arg.ApiTeamID,
+func (q *Queries) UpsertTeam(ctx context.Context, arg UpsertTeamParams) error {
+	_, err := q.db.ExecContext(ctx, upsertTeam,
+		arg.SourceID,
 		arg.Name,
 		arg.Code,
-		arg.LogoUrl,
+		arg.GroupLetter,
+		arg.IsPlaceholder,
 	)
+	return err
 }

@@ -1,15 +1,9 @@
--- name: UpsertTeam :execresult
-INSERT INTO teams (api_team_id, name, code, logo_url)
-VALUES (?, ?, ?, ?)
+-- name: UpsertTeam :exec
+INSERT INTO teams (source_id, name, code, group_letter, is_placeholder)
+VALUES (?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
-    name = VALUES(name),
-    code = VALUES(code),
-    logo_url = VALUES(logo_url);
+    name = VALUES(name), code = VALUES(code),
+    group_letter = VALUES(group_letter), is_placeholder = VALUES(is_placeholder);
 
--- name: GetTeamByAPIID :one
-SELECT id, api_team_id, name, code, logo_url
-FROM teams WHERE api_team_id = ?;
-
--- name: ListTeams :many
-SELECT id, api_team_id, name, code, logo_url
-FROM teams ORDER BY name;
+-- name: GetTeamIDBySourceID :one
+SELECT id FROM teams WHERE source_id = ?;
