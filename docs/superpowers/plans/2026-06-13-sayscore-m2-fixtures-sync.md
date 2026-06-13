@@ -1104,10 +1104,14 @@ import (
 	"github.com/sayonetech/worldcup-predictor/backend/internal/fixtures"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/sportsapi"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	_ = godotenv.Load() // load backend/.env in dev (matches cmd/server)
 
 	cfg, err := config.Load()
 	if err != nil {

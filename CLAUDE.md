@@ -70,34 +70,37 @@ Store **UTC**, display **IST (Asia/Kolkata)**. Scheduler/process `TZ=Asia/Kolkat
 
 ## Commands (Makefile)
 
+Run `make help` for the full list (compose runs under project name **sayscore**). Common:
+
 ```text
-make up            # docker compose up -d (MySQL + Adminer) for local dev
-make down          # stop the local stack
-make migrate-up    # apply DB migrations (needs golang-migrate CLI + DB_* env)
-make migrate-down  # roll back the last migration
+make up / down     # MySQL + Adminer local stack (compose -p sayscore)
+make migrate-up    # apply DB migrations (reads backend/.env for DB_*)
 make sqlc          # regenerate type-safe DB code from internal/store/queries/*.sql
-make test          # backend: go test ./...   (add frontend vitest in M9)
-make lint          # backend: go vet ./...     (golangci-lint wired via hooks)
+make run           # run the backend (auto-loads backend/.env via godotenv)
+make dev           # Vite frontend dev server
+make test          # backend: go test ./...
+make hooks         # install lefthook git hooks (make hooks-tools first if needed)
 ```
 
-Backend dev run: `cd backend && go run ./cmd/server` (with `DB_*`, `SESSION_SECRET`,
-`GOOGLE_CLIENT_ID`, `ALLOWED_EMAIL_DOMAIN` set). Frontend dev: `cd frontend && pnpm dev`
-(Vite proxies `/api` → `http://localhost:8000`). Adminer for DB inspection: <http://localhost:8081>.
+**Local env:** copy `.env.example` → `backend/.env` and `frontend/.env` (both gitignored). The
+backend auto-loads `backend/.env` in dev via godotenv (`make run` or `go run ./cmd/server`); Vite
+auto-loads `frontend/.env`. **No Google client secret / redirect URI** — the GIS ID-token flow uses
+only the client ID. Frontend dev proxies `/api` → `http://localhost:8000`; Adminer at
+<http://localhost:8081>.
 
 ## Pre-commit hooks (Lefthook) — spec §13
 
-Hooks run on both stacks via **Lefthook** (`lefthook.yml`); install once per clone with
-`lefthook install` (wired into the Makefile in Milestone 9). They enforce:
+Hooks are **active** (`lefthook.yml`, committed). Install per clone with `make hooks` (install the
+tool first with `make hooks-tools` if `lefthook` is missing). Optional linters are guarded — a
+missing tool logs "skipping" rather than blocking the commit. They enforce:
 
-- **pre-commit (staged files, parallel):** Go `gofmt -w` + `go vet` + `golangci-lint run` +
-  `sqlc diff` (fails if generated code is stale — run `make sqlc` and commit); frontend
-  `eslint --fix` + `prettier --write` + `tsc --noEmit`.
-- **pre-push:** `go test ./...` and `pnpm vitest run`.
-- **commit-msg:** `commitlint` against Conventional Commits.
+- **pre-commit (staged files, parallel):** Go `gofmt -w` + `go vet`; `golangci-lint run` and
+  `sqlc diff` *if installed* (stale sqlc → run `make sqlc` and re-stage); frontend `eslint` +
+  `prettier --write` + `tsc --noEmit` *if present*.
+- **pre-push:** `go test ./...`, and `vitest` if configured.
+- **commit-msg:** a dependency-free Conventional Commits regex check (no commitlint needed).
 
-If a hook fails, fix the cause — don't `--no-verify`. A stale-sqlc failure means you edited SQL but
-didn't regenerate: `make sqlc`, then re-stage. (Lefthook config itself lands in Milestone 9; follow
-these rules from the start.)
+If a hook fails, fix the cause — don't `--no-verify`.
 
 ## Database & query optimisation
 
@@ -201,9 +204,12 @@ faster and give structural context. Fall back to file tools when the graph doesn
 
 ## Milestone roadmap & status
 
-Order (each its own plan → execute): (1) **scaffold + SSO** ← *M1 plan written, not yet executed*,
-(2) fixtures sync + IST list, (3) predictions + kickoff lock, (4) scoring engine, (5) results cron +
-points, (6) leaderboards, (7) tournament bonus + lock, (8) admin tools, (9) Docker/compose +
-Lefthook + CI.
+Order (each its own plan → execute): (1) ✅ **scaffold + SSO** — merged to `main`,
+(2) **fixtures sync + IST list** ← *plan written, next to execute*, (3) predictions + kickoff lock,
+(4) scoring engine, (5) results cron + points, (6) leaderboards, (7) tournament bonus + lock,
+(8) admin tools, (9) Docker/compose + Lefthook + CI.
 
-Current state: greenfield. `docs/REQUIREMENTS.md` (spec) and the M1 plan exist; no app code yet.
+Current state: **Milestone 1 complete and on `main`** — Google SSO (`/api/auth/google`,
+`/api/auth/logout`, `/api/me`), users table, signed session cookie, seed admins, Vite sign-in UI.
+Lefthook hooks, Dockerfiles, nginx config, and CI were pulled forward into the M1 skeleton. The
+Milestone 2 plan (`docs/superpowers/plans/2026-06-13-sayscore-m2-fixtures-sync.md`) is ready to execute.
