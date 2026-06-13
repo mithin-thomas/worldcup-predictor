@@ -4,58 +4,84 @@ Internal, mobile-first web app for SayOne employees to predict FIFA World Cup 20
 scores, earn points, and compete on weekly and overall leaderboards.
 
 **Stack:** Go 1.26 (chi · sqlc · golang-migrate) · React 18 + TypeScript + Vite · MySQL 8 ·
-Google Workspace SSO (`sayonetech.com`) · API-Football.
+Google Workspace SSO (`sayonetech.com`). Fixtures come from a committed static dataset
+(`data/*.csv`) — no external sports API.
 
 - **Requirements / spec (source of truth):** [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
 - **Project overview:** [`docs/README.md`](docs/README.md)
 - **Implementation plans (per milestone):** [`docs/superpowers/plans/`](docs/superpowers/plans/)
 - **Contributor guide:** [`CLAUDE.md`](CLAUDE.md)
-- **API reference:** runs at **`/docs`** (Scalar) when the backend is up — e.g. http://localhost:8000/docs
+- **API reference:** runs at **`/docs`** (Scalar) when the backend is up — e.g. <http://localhost:8000/docs>
 
 ---
 
 ## Prerequisites
 
 - **Docker** + **Docker Compose v2** — the only hard requirement to run the whole app.
-- For native dev / tooling: **Go 1.26+**, **Node 20+** with **pnpm 10**, and (optional) **lefthook**.
-- A **Google Workspace OAuth Client ID** (Web application) and, from Milestone 2, an **API-Football key**.
+- For native dev / tooling: **Go 1.26+**, **Node 20+** with **pnpm 10**, plus `sqlc` and
+  `golang-migrate` (`go install`), and (optional) **lefthook**.
+- A **Google Workspace OAuth Client ID** (Web application). **No API key needed** — fixtures are
+  seeded from the committed CSV dataset.
 
 ---
 
-## Quick start (Docker — runs the whole stack)
+## Run it (native — simplest for dev)
 
 ```bash
-# 1. Clone
+# 1. Clone + env files (gitignored)
 git clone git@github.com:sayonetech/worldcup-predictor.git
 cd worldcup-predictor
+cp .env.example backend/.env      # set GOOGLE_CLIENT_ID; SESSION_SECRET=$(openssl rand -base64 48)
+cp .env.example frontend/.env     # set VITE_GOOGLE_CLIENT_ID (same id)
 
-# 2. Create local env files (gitignored) from the template
-cp .env.example backend/.env      # then edit: GOOGLE_CLIENT_ID, (later) APIFOOTBALL_KEY
-cp .env.example frontend/.env     # set VITE_GOOGLE_CLIENT_ID to the same client id
-#   SESSION_SECRET in backend/.env: generate one with  openssl rand -base64 48
+# 2. Database (MySQL in Docker) + schema + seed the fixed WC2026 schedule
+docker compose -p sayscore -f deploy/docker-compose.yml up -d mysql
+make migrate-up        # applies users + teams/venues/matches schema
+make seed-fixtures     # imports data/*.csv → 16 venues / 48 teams / 104 matches
 
-# 3. Build + start everything (MySQL + auto-migrate + backend + frontend + Adminer)
-#    The frontend bakes VITE_* at build time, so pass the client id for the build:
-VITE_GOOGLE_CLIENT_ID="<your-client-id>.apps.googleusercontent.com" make up --build   # or: docker compose -f deploy/docker-compose.yml up --build
+# 3. Run the apps (two terminals)
+make run               # backend  → http://localhost:8000
+make dev               # frontend → http://localhost:5173  (Vite proxies /api → :8000)
 ```
 
-Then open:
+Open **http://localhost:5173** and sign in with a `@sayonetech.com` Google account → the Fixtures
+list (grouped by IST date, with group + venue; knockout placeholders show labels like `W73 vs W75`).
+Accounts in `SEED_ADMIN_EMAILS` become admins on first login.
+
+> **Sign-in prerequisite:** add `http://localhost:5173` (and `http://localhost:8080` for Docker) as
+> an **Authorized JavaScript origin** on your OAuth client — see [Google sign-in setup](#google-sign-in-setup).
+
+---
+
+## Run it (full Docker stack)
+
+Runs MySQL + auto-migrate + backend + frontend + Adminer together (project `sayscore`):
+
+```bash
+# Vite bakes VITE_* at build time, so pass the client id to the build:
+VITE_GOOGLE_CLIENT_ID="<your-client-id>.apps.googleusercontent.com" \
+  docker compose -p sayscore -f deploy/docker-compose.yml up --build
+make seed-fixtures     # one-time: load the fixtures (mounts data/ into the backend)
+```
 
 | URL | What |
 |---|---|
-| http://localhost:8080 | the app (frontend → proxies `/api` to the backend) |
-| http://localhost:8000/docs | API reference (Scalar) |
-| http://localhost:8000/healthz | liveness probe |
-| http://localhost:8081 | Adminer (DB inspection; server `mysql`, user/pass `wcp`) |
+| <http://localhost:8080> | the app (frontend → proxies `/api` to the backend) |
+| <http://localhost:8000/docs> | API reference (Scalar) |
+| <http://localhost:8000/healthz> | liveness probe |
+| <http://localhost:8081> | Adminer (DB inspection; server `mysql`, user/pass `wcp`) |
 
-DB migrations run automatically on `up` (the one-shot `migrate` service); the backend waits for
-them. From Milestone 2 you can also seed fixtures:
+Migrations run automatically on `up` (the one-shot `migrate` service); the backend waits for them.
 
-```bash
-make seed-fixtures      # needs APIFOOTBALL_KEY in backend/.env
-```
+---
 
-Sign in with a `@sayonetech.com` Google account. Accounts in `SEED_ADMIN_EMAILS` become admins.
+## Fixtures data
+
+The WC 2026 schedule is fixed, so SayScore ships it as committed CSVs in [`data/`](data/) —
+`teams.csv`, `host_cities.csv` (venues), `tournament_stages.csv`, `matches.csv`. `make seed-fixtures`
+imports them idempotently (it never overwrites a row an admin has corrected — `manual_override`).
+Kickoffs are stored UTC (the CSV times are venue-local with an offset, normalized on import) and shown
+in IST. Rare corrections are made via the admin dashboard (Milestone 8), not by re-importing.
 
 ---
 
@@ -72,21 +98,6 @@ SayScore uses **Google Identity Services (ID-token flow)** — it needs **only a
 
 ---
 
-## Local development without Docker (native, hot-reload)
-
-Run MySQL in Docker but backend + frontend natively:
-
-```bash
-make up                 # just need MySQL+Adminer? this starts the full stack; or run only mysql:
-                        #   docker compose -f deploy/docker-compose.yml up -d mysql
-make migrate-up         # apply migrations (reads backend/.env)
-
-make run                # backend on :8000 (auto-loads backend/.env)
-make dev                # frontend on :5173 (Vite proxies /api → :8000)
-```
-
----
-
 ## Common commands
 
 Run `make help` for the full list. Highlights:
@@ -97,7 +108,7 @@ make migrate-up         # apply DB migrations
 make migrate-new name=x # scaffold a new migration pair
 make sqlc               # regenerate type-safe DB code from SQL
 make run / dev          # run backend / frontend locally
-make seed-fixtures      # sync teams + fixtures from API-Football
+make seed-fixtures      # import teams, venues, and fixtures from data/*.csv
 make test               # backend tests
 make build              # build backend binary + frontend bundle
 make hooks              # install git hooks (lefthook); hooks-tools installs the tooling
@@ -108,8 +119,10 @@ make hooks              # install git hooks (lefthook); hooks-tools installs the
 ## Project structure
 
 ```text
-backend/    Go service — cmd/server, internal/{config,auth,httpapi,store,sportsapi,fixtures}, migrations/
+backend/    Go service — cmd/server, cmd/seedfixtures,
+            internal/{config,auth,httpapi,store,importer}, migrations/
 frontend/   React + Vite SPA — src/{routes,components,lib,styles}, nginx.conf
+data/       committed WC2026 dataset (teams, host_cities, tournament_stages, matches CSVs)
 deploy/     docker-compose.yml (full local stack)
 docs/       REQUIREMENTS.md (spec), README.md (overview), superpowers/plans/ (milestone plans)
 .github/    CI workflow
@@ -130,9 +143,10 @@ make hooks-tools   # installs lefthook + golangci-lint (once)
 make hooks         # wires the git hooks
 ```
 
-On commit: Go `gofmt` + `go vet` (+ `golangci-lint`/`sqlc diff` if installed), frontend
-`eslint`/`prettier`/`tsc`. On push: `go test` + frontend tests. Commit messages must follow
-Conventional Commits. (Optional tools are skipped gracefully if not installed.)
+- **On commit (fast):** Go `gofmt`; frontend `eslint` + `prettier` on staged files;
+  `sqlc diff`; `golangci-lint` — optional tools are skipped gracefully if not installed.
+- **On push:** `go vet ./...`, `go test ./...`, frontend `tsc --noEmit` + `vitest`.
+- Commit messages must follow **Conventional Commits**.
 
 ---
 
@@ -141,7 +155,7 @@ Conventional Commits. (Optional tools are skipped gracefully if not installed.)
 SayScore is built with the [Superpowers](https://github.com/obra/superpowers) workflow:
 **brainstorm → plan → TDD execution**, one milestone at a time. `docs/REQUIREMENTS.md` is the locked
 spec; each milestone gets a plan in `docs/superpowers/plans/` and is executed task-by-task with
-review gates. Milestone order: (1) scaffold + SSO ✅ · (2) fixtures sync + IST list · (3) predictions
+review gates. Milestone order: (1) scaffold + SSO ✅ · (2) fixtures + IST list ✅ · (3) predictions
 + kickoff lock · (4) scoring engine · (5) results cron · (6) leaderboards · (7) bonus + lock ·
 (8) admin tools · (9) Docker/CI hardening.
 
@@ -153,8 +167,9 @@ review gates. Milestone order: (1) scaffold + SSO ✅ · (2) fixtures sync + IST
   OAuth client, and your origin is an authorized JavaScript origin in Google Cloud.
 - **Frontend can't reach the API** — in Docker, the frontend proxies `/api` to the `backend` service;
   natively, Vite proxies to `http://localhost:8000`. Ensure the backend is running.
-- **`make up` frontend build fails on package "release age"** — `frontend/.npmrc` sets
+- **No fixtures shown** — run `make seed-fixtures` (needs MySQL up + migrations applied).
+- **`make ... up --build` frontend build fails on package "release age"** — `frontend/.npmrc` sets
   `minimum-release-age=0` for reproducible builds; ensure it's present.
 - **Port already in use** — adjust host ports in `deploy/docker-compose.yml`.
-- **Wrong kickoff/score** — an admin can correct it (Milestone 8); corrections set `manual_override`
-  and aren't overwritten by the sync.
+- **Wrong kickoff/teams** — an admin can correct it (Milestone 8); corrections set `manual_override`
+  and aren't overwritten by re-seeding.
