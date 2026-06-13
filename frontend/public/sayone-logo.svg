@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="22" viewBox="0 0 96 22" role="img" aria-label="SayOne">
+  <!-- Placeholder wordmark — replace with the official SayOne logo SVG. -->
+  <text x="0" y="17" font-family="system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif" font-size="20" font-weight="600" letter-spacing="-0.6">
+    <tspan fill="#3B82F6">say</tspan><tspan fill="#E9531F">&#8250;</tspan><tspan fill="#3B82F6">one</tspan>
+  </text>
+</svg>
