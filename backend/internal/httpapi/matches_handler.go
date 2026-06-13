@@ -67,7 +67,11 @@ func (d *Deps) GetMatches(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load matches")
 		return
 	}
-	u, _ := userFromContext(r.Context())
+	u, ok := userFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "not authenticated")
+		return
+	}
 	preds, err := d.Predictions.ListPredictionsByUser(r.Context(), u.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load predictions")
