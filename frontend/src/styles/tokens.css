@@ -1,0 +1,41 @@
+:root {
+  --bg: oklch(0.17 0.020 280);
+  --surface-1: oklch(0.21 0.022 280);
+  --surface-2: oklch(0.25 0.020 280);
+  --border: oklch(0.32 0.020 280);
+  --ink: oklch(0.96 0.010 280);
+  --muted: oklch(0.72 0.015 280);
+  --brand: oklch(0.64 0.190 28);
+  --brand-hover: oklch(0.68 0.180 28);
+  --on-brand: oklch(0.22 0.070 28);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 420px;
+  margin: 15vh auto 0;
+}
+
+.btn-brand {
+  background: var(--brand);
+  color: var(--on-brand);
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn-brand:hover { background: var(--brand-hover); }
+.muted { color: var(--muted); }
