@@ -19,4 +19,4 @@ frontend/.vite/
 
 # Static dataset: commit CSVs, not the redundant sqlite
 data/worldcup2026.db
-.playwright-mcp.playwright-mcp/
+.playwright-mcp/
