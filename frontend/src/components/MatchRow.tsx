@@ -1,4 +1,4 @@
-import type { MatchDTO } from "../lib/matches";
+import type { MatchDTO, TeamDTO } from "../lib/matches";
 import { Countdown } from "./Countdown";
 
 type Props = {
@@ -15,7 +15,7 @@ function formatISTTime(kickoffIst: string): string {
   });
 }
 
-function teamLabel(team: MatchDTO["home"]): string {
+function teamLabel(team: TeamDTO): string {
   return team.code?.trim() ? team.code : team.name;
 }
 
@@ -23,77 +23,69 @@ export function MatchRow({ match }: Props) {
   const {
     home,
     away,
+    venue,
+    group,
     kickoff_utc,
     kickoff_ist,
     status,
     locked,
     home_score,
     away_score,
-    stage,
+    label,
     round,
   } = match;
 
   const isFinal = status === "final";
   const isLive = status === "live";
+  const decided = home !== null && away !== null;
+
+  // Header: group letter for group matches, else the round name; plus venue city.
+  const stageTag = group ? `Group ${group}` : round;
+  const ariaLabel = decided ? `${home!.name} vs ${away!.name}` : label;
 
   return (
-    <article className="match-row" aria-label={`${home.name} vs ${away.name}`}>
-      {/* Round label */}
-      <div className="match-row__round" aria-label={`Round: ${round}`}>
-        {stage === "knockout" ? round : round.replace(/^Group [A-Z] - /, "R")}
+    <article className="match-row" aria-label={ariaLabel}>
+      <div className="match-row__round">
+        {stageTag}
+        {venue ? <span className="match-row__venue"> · {venue.city}</span> : null}
       </div>
 
-      {/* Teams + Score */}
       <div className="match-row__body">
-        <div className="match-row__team match-row__team--home">
-          {home.logo_url && (
-            <img
-              className="match-row__logo"
-              src={home.logo_url}
-              alt=""
-              aria-hidden="true"
-              width={24}
-              height={24}
-            />
-          )}
-          <span className="match-row__code">{teamLabel(home)}</span>
-        </div>
+        {decided ? (
+          <>
+            <div className="match-row__team match-row__team--home">
+              <span className="match-row__code">{teamLabel(home!)}</span>
+            </div>
 
-        <div className="match-row__centre">
-          {isFinal && home_score !== null && away_score !== null ? (
-            <span className="match-row__score mono" aria-label={`Score: ${home_score} to ${away_score}`}>
-              {home_score}
-              <span className="match-row__score-sep" aria-hidden="true"> – </span>
-              {away_score}
-            </span>
-          ) : isLive ? (
-            <span className="match-row__live-badge" aria-label="Match is live">
-              LIVE
-            </span>
-          ) : (
-            <span className="match-row__vs mono" aria-hidden="true">vs</span>
-          )}
-        </div>
+            <div className="match-row__centre">
+              {isFinal && home_score !== null && away_score !== null ? (
+                <span className="match-row__score mono" aria-label={`Score: ${home_score} to ${away_score}`}>
+                  {home_score}
+                  <span className="match-row__score-sep" aria-hidden="true"> – </span>
+                  {away_score}
+                </span>
+              ) : isLive ? (
+                <span className="match-row__live-badge" aria-label="Match is live">
+                  LIVE
+                </span>
+              ) : (
+                <span className="match-row__vs mono" aria-hidden="true">vs</span>
+              )}
+            </div>
 
-        <div className="match-row__team match-row__team--away">
-          <span className="match-row__code">{teamLabel(away)}</span>
-          {away.logo_url && (
-            <img
-              className="match-row__logo"
-              src={away.logo_url}
-              alt=""
-              aria-hidden="true"
-              width={24}
-              height={24}
-            />
-          )}
-        </div>
+            <div className="match-row__team match-row__team--away">
+              <span className="match-row__code">{teamLabel(away!)}</span>
+            </div>
+          </>
+        ) : (
+          // Knockout placeholder — teams not yet decided (e.g. "W73 vs W75").
+          <div className="match-row__placeholder muted">{label}</div>
+        )}
       </div>
 
-      {/* Kickoff time + lock/countdown */}
       <div className="match-row__footer">
         <span className="match-row__time mono" aria-label={`Kickoff at ${formatISTTime(kickoff_ist)} IST`}>
-          {formatISTTime(kickoff_ist)}
+          {formatISTTime(kickoff_ist)} IST
         </span>
 
         {locked ? (

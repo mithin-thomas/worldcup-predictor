@@ -18,7 +18,7 @@ DB_PASSWORD ?= wcp
 DB_NAME ?= wcp
 
 .DEFAULT_GOAL := help
-.PHONY: help up down logs ps adminer migrate-up migrate-down migrate-new \
+.PHONY: help up up-d down logs ps adminer migrate-up migrate-down migrate-new \
         sqlc run dev seed-fixtures test test-frontend lint fmt tidy \
         build hooks hooks-tools
 
@@ -27,8 +27,14 @@ help: ## Show this help
 	  | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 ## ---- Docker / local stack ----
-up: ## Start MySQL + Adminer (compose project: sayscore)
-	$(COMPOSE) up -d
+up: ## Build + run the whole stack in the FOREGROUND with live logs (Ctrl-C to stop) → :8080
+	@echo "Starting → app: http://localhost:8080 · docs: http://localhost:8000/docs · adminer: http://localhost:8081"
+	@set -a; [ -f frontend/.env ] && . ./frontend/.env; set +a; \
+	$(COMPOSE) up --build
+
+up-d: ## Same as up, but detached/background (use `make logs` to follow)
+	@set -a; [ -f frontend/.env ] && . ./frontend/.env; set +a; \
+	$(COMPOSE) up -d --build
 
 down: ## Stop and remove the local stack
 	$(COMPOSE) down
@@ -68,8 +74,8 @@ run: ## Run the backend (loads backend/.env)
 dev: ## Run the Vite frontend dev server
 	cd frontend && pnpm dev
 
-seed-fixtures: ## Sync teams + fixtures from API-Football (needs APIFOOTBALL_KEY; Milestone 2+)
-	cd backend && go run ./cmd/seedfixtures
+seed-fixtures: ## Seed teams, venues, and fixtures from the committed CSV dataset (data/)
+	cd backend && SEED_DATA_DIR=../data go run ./cmd/seedfixtures
 
 ## ---- Quality ----
 test: ## Backend tests

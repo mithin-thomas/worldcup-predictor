@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/sayonetech/worldcup-predictor/backend/internal/config"
-	"github.com/sayonetech/worldcup-predictor/backend/internal/fixtures"
-	"github.com/sayonetech/worldcup-predictor/backend/internal/sportsapi"
+	"github.com/sayonetech/worldcup-predictor/backend/internal/importer"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
 
 	"github.com/joho/godotenv"
@@ -24,10 +23,6 @@ func main() {
 		logger.Error("config", "err", err)
 		os.Exit(1)
 	}
-	if cfg.APIFootballKey == "" {
-		logger.Error("APIFOOTBALL_KEY is required for seed-fixtures")
-		os.Exit(1)
-	}
 
 	db, err := store.OpenMySQL(cfg.DSN())
 	if err != nil {
@@ -36,18 +31,14 @@ func main() {
 	}
 	defer db.Close()
 
-	syncer := &fixtures.Syncer{
-		API:   sportsapi.NewHTTPClient(cfg.APIFootballBaseURL, cfg.APIFootballKey),
-		Store: store.New(db),
-	}
-
+	logger.Info("seeding fixtures from CSV", "dir", cfg.SeedDataDir)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	res, err := syncer.Run(ctx)
+	res, err := (&importer.Importer{Store: store.New(db)}).Run(ctx, cfg.SeedDataDir)
 	if err != nil {
 		logger.Error("seed-fixtures failed", "err", err)
 		os.Exit(1)
 	}
-	logger.Info("seed-fixtures complete", "teams", res.Teams, "matches", res.Matches)
+	logger.Info("seed-fixtures complete", "venues", res.Venues, "teams", res.Teams, "matches", res.Matches)
 }

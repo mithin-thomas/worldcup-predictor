@@ -1,22 +1,22 @@
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
-export type TeamDTO = {
-  id: number;
-  name: string;
-  code: string;
-  logo_url: string;
-};
+export type TeamDTO = { id: number; name: string; code: string };
+export type VenueDTO = { name: string; city: string; country: string };
 
 export type MatchDTO = {
   id: number;
+  match_number: number;
   stage: "group" | "knockout";
   round: string;
+  group: string;
+  label: string;
   kickoff_utc: string;
   kickoff_ist: string;
   status: "scheduled" | "live" | "final";
   locked: boolean;
-  home: TeamDTO;
-  away: TeamDTO;
+  home: TeamDTO | null;
+  away: TeamDTO | null;
+  venue: VenueDTO | null;
   home_score: number | null;
   away_score: number | null;
 };

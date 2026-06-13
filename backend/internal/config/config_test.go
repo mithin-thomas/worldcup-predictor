@@ -44,23 +44,22 @@ func TestLoadRequiresGoogleClientID(t *testing.T) {
 	}
 }
 
-func TestLoadAPIFootballDefaultsAndKey(t *testing.T) {
+func TestLoadSeedDataDirDefault(t *testing.T) {
 	t.Setenv("SESSION_SECRET", "secret")
 	t.Setenv("GOOGLE_CLIENT_ID", "client-id")
-	t.Setenv("APIFOOTBALL_KEY", "")
-	t.Setenv("APIFOOTBALL_BASE_URL", "")
+	t.Setenv("SEED_DATA_DIR", "")
 
 	cfg, err := Load()
 	if err != nil {
-		t.Fatalf("Load() error = %v (APIFOOTBALL_KEY must be optional)", err)
+		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.APIFootballBaseURL != "https://v3.football.api-sports.io" {
-		t.Errorf("APIFootballBaseURL default = %q", cfg.APIFootballBaseURL)
+	if cfg.SeedDataDir != "./data" {
+		t.Errorf("SeedDataDir default = %q, want ./data", cfg.SeedDataDir)
 	}
 
-	t.Setenv("APIFOOTBALL_KEY", "abc123")
+	t.Setenv("SEED_DATA_DIR", "/srv/data")
 	cfg, _ = Load()
-	if cfg.APIFootballKey != "abc123" {
-		t.Errorf("APIFootballKey = %q, want abc123", cfg.APIFootballKey)
+	if cfg.SeedDataDir != "/srv/data" {
+		t.Errorf("SeedDataDir override = %q, want /srv/data", cfg.SeedDataDir)
 	}
 }

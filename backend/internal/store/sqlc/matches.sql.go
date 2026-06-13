@@ -13,37 +13,44 @@ import (
 
 const listMatchesWithTeams = `-- name: ListMatchesWithTeams :many
 SELECT
-    m.id, m.api_fixture_id, m.stage, m.round,
+    m.id, m.source_id, m.match_number, m.stage, m.round, m.group_letter, m.match_label,
     m.kickoff_utc, m.status, m.home_score, m.away_score,
     m.went_to_penalties, m.penalty_winner_team_id, m.manual_override,
-    ht.id AS home_id, ht.name AS home_name, ht.code AS home_code, ht.logo_url AS home_logo,
-    at.id AS away_id, at.name AS away_name, at.code AS away_code, at.logo_url AS away_logo
+    m.home_team_id, ht.name AS home_name, ht.code AS home_code,
+    m.away_team_id, at.name AS away_name, at.code AS away_code,
+    m.venue_id, v.venue_name AS venue_name, v.city_name AS venue_city, v.country AS venue_country
 FROM matches m
-JOIN teams ht ON ht.id = m.home_team_id
-JOIN teams at ON at.id = m.away_team_id
-ORDER BY m.kickoff_utc
+LEFT JOIN teams ht ON ht.id = m.home_team_id
+LEFT JOIN teams at ON at.id = m.away_team_id
+LEFT JOIN venues v ON v.id = m.venue_id
+ORDER BY m.kickoff_utc, m.match_number
 `
 
 type ListMatchesWithTeamsRow struct {
-	ID                  int64         `json:"id"`
-	ApiFixtureID        int64         `json:"api_fixture_id"`
-	Stage               MatchesStage  `json:"stage"`
-	Round               string        `json:"round"`
-	KickoffUtc          time.Time     `json:"kickoff_utc"`
-	Status              MatchesStatus `json:"status"`
-	HomeScore           sql.NullInt32 `json:"home_score"`
-	AwayScore           sql.NullInt32 `json:"away_score"`
-	WentToPenalties     bool          `json:"went_to_penalties"`
-	PenaltyWinnerTeamID sql.NullInt64 `json:"penalty_winner_team_id"`
-	ManualOverride      bool          `json:"manual_override"`
-	HomeID              int64         `json:"home_id"`
-	HomeName            string        `json:"home_name"`
-	HomeCode            string        `json:"home_code"`
-	HomeLogo            string        `json:"home_logo"`
-	AwayID              int64         `json:"away_id"`
-	AwayName            string        `json:"away_name"`
-	AwayCode            string        `json:"away_code"`
-	AwayLogo            string        `json:"away_logo"`
+	ID                  int64          `json:"id"`
+	SourceID            int64          `json:"source_id"`
+	MatchNumber         int32          `json:"match_number"`
+	Stage               MatchesStage   `json:"stage"`
+	Round               string         `json:"round"`
+	GroupLetter         string         `json:"group_letter"`
+	MatchLabel          string         `json:"match_label"`
+	KickoffUtc          time.Time      `json:"kickoff_utc"`
+	Status              MatchesStatus  `json:"status"`
+	HomeScore           sql.NullInt32  `json:"home_score"`
+	AwayScore           sql.NullInt32  `json:"away_score"`
+	WentToPenalties     bool           `json:"went_to_penalties"`
+	PenaltyWinnerTeamID sql.NullInt64  `json:"penalty_winner_team_id"`
+	ManualOverride      bool           `json:"manual_override"`
+	HomeTeamID          sql.NullInt64  `json:"home_team_id"`
+	HomeName            sql.NullString `json:"home_name"`
+	HomeCode            sql.NullString `json:"home_code"`
+	AwayTeamID          sql.NullInt64  `json:"away_team_id"`
+	AwayName            sql.NullString `json:"away_name"`
+	AwayCode            sql.NullString `json:"away_code"`
+	VenueID             sql.NullInt64  `json:"venue_id"`
+	VenueName           sql.NullString `json:"venue_name"`
+	VenueCity           sql.NullString `json:"venue_city"`
+	VenueCountry        sql.NullString `json:"venue_country"`
 }
 
 func (q *Queries) ListMatchesWithTeams(ctx context.Context) ([]ListMatchesWithTeamsRow, error) {
@@ -57,9 +64,12 @@ func (q *Queries) ListMatchesWithTeams(ctx context.Context) ([]ListMatchesWithTe
 		var i ListMatchesWithTeamsRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.ApiFixtureID,
+			&i.SourceID,
+			&i.MatchNumber,
 			&i.Stage,
 			&i.Round,
+			&i.GroupLetter,
+			&i.MatchLabel,
 			&i.KickoffUtc,
 			&i.Status,
 			&i.HomeScore,
@@ -67,14 +77,16 @@ func (q *Queries) ListMatchesWithTeams(ctx context.Context) ([]ListMatchesWithTe
 			&i.WentToPenalties,
 			&i.PenaltyWinnerTeamID,
 			&i.ManualOverride,
-			&i.HomeID,
+			&i.HomeTeamID,
 			&i.HomeName,
 			&i.HomeCode,
-			&i.HomeLogo,
-			&i.AwayID,
+			&i.AwayTeamID,
 			&i.AwayName,
 			&i.AwayCode,
-			&i.AwayLogo,
+			&i.VenueID,
+			&i.VenueName,
+			&i.VenueCity,
+			&i.VenueCountry,
 		); err != nil {
 			return nil, err
 		}
@@ -89,50 +101,51 @@ func (q *Queries) ListMatchesWithTeams(ctx context.Context) ([]ListMatchesWithTe
 	return items, nil
 }
 
-const upsertMatch = `-- name: UpsertMatch :execresult
+const upsertMatch = `-- name: UpsertMatch :exec
 INSERT INTO matches (
-    api_fixture_id, stage, round, home_team_id, away_team_id,
-    kickoff_utc, status, home_score, away_score, went_to_penalties, penalty_winner_team_id
+    source_id, match_number, stage, round, group_letter, match_label,
+    home_team_id, away_team_id, venue_id, kickoff_utc, status
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
-    stage                  = IF(manual_override = 1, stage, VALUES(stage)),
-    round                  = IF(manual_override = 1, round, VALUES(round)),
-    home_team_id           = IF(manual_override = 1, home_team_id, VALUES(home_team_id)),
-    away_team_id           = IF(manual_override = 1, away_team_id, VALUES(away_team_id)),
-    kickoff_utc            = IF(manual_override = 1, kickoff_utc, VALUES(kickoff_utc)),
-    status                 = IF(manual_override = 1, status, VALUES(status)),
-    home_score             = IF(manual_override = 1, home_score, VALUES(home_score)),
-    away_score             = IF(manual_override = 1, away_score, VALUES(away_score)),
-    went_to_penalties      = IF(manual_override = 1, went_to_penalties, VALUES(went_to_penalties)),
-    penalty_winner_team_id = IF(manual_override = 1, penalty_winner_team_id, VALUES(penalty_winner_team_id))
+    match_number = IF(manual_override=1, match_number, VALUES(match_number)),
+    stage        = IF(manual_override=1, stage, VALUES(stage)),
+    round        = IF(manual_override=1, round, VALUES(round)),
+    group_letter = IF(manual_override=1, group_letter, VALUES(group_letter)),
+    match_label  = IF(manual_override=1, match_label, VALUES(match_label)),
+    home_team_id = IF(manual_override=1, home_team_id, VALUES(home_team_id)),
+    away_team_id = IF(manual_override=1, away_team_id, VALUES(away_team_id)),
+    venue_id     = IF(manual_override=1, venue_id, VALUES(venue_id)),
+    kickoff_utc  = IF(manual_override=1, kickoff_utc, VALUES(kickoff_utc)),
+    status       = IF(manual_override=1, status, VALUES(status))
 `
 
 type UpsertMatchParams struct {
-	ApiFixtureID        int64         `json:"api_fixture_id"`
-	Stage               MatchesStage  `json:"stage"`
-	Round               string        `json:"round"`
-	HomeTeamID          int64         `json:"home_team_id"`
-	AwayTeamID          int64         `json:"away_team_id"`
-	KickoffUtc          time.Time     `json:"kickoff_utc"`
-	Status              MatchesStatus `json:"status"`
-	HomeScore           sql.NullInt32 `json:"home_score"`
-	AwayScore           sql.NullInt32 `json:"away_score"`
-	WentToPenalties     bool          `json:"went_to_penalties"`
-	PenaltyWinnerTeamID sql.NullInt64 `json:"penalty_winner_team_id"`
+	SourceID    int64         `json:"source_id"`
+	MatchNumber int32         `json:"match_number"`
+	Stage       MatchesStage  `json:"stage"`
+	Round       string        `json:"round"`
+	GroupLetter string        `json:"group_letter"`
+	MatchLabel  string        `json:"match_label"`
+	HomeTeamID  sql.NullInt64 `json:"home_team_id"`
+	AwayTeamID  sql.NullInt64 `json:"away_team_id"`
+	VenueID     sql.NullInt64 `json:"venue_id"`
+	KickoffUtc  time.Time     `json:"kickoff_utc"`
+	Status      MatchesStatus `json:"status"`
 }
 
-func (q *Queries) UpsertMatch(ctx context.Context, arg UpsertMatchParams) (sql.Result, error) {
-	return q.db.ExecContext(ctx, upsertMatch,
-		arg.ApiFixtureID,
+func (q *Queries) UpsertMatch(ctx context.Context, arg UpsertMatchParams) error {
+	_, err := q.db.ExecContext(ctx, upsertMatch,
+		arg.SourceID,
+		arg.MatchNumber,
 		arg.Stage,
 		arg.Round,
+		arg.GroupLetter,
+		arg.MatchLabel,
 		arg.HomeTeamID,
 		arg.AwayTeamID,
+		arg.VenueID,
 		arg.KickoffUtc,
 		arg.Status,
-		arg.HomeScore,
-		arg.AwayScore,
-		arg.WentToPenalties,
-		arg.PenaltyWinnerTeamID,
 	)
+	return err
 }

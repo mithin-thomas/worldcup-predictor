@@ -45,7 +45,36 @@ services:
       - "up"
     restart: on-failure
 
+  # One-shot: import the static CSV fixtures, then exit. Reuses the backend
+  # image (which also contains /seedfixtures). Backend waits for this to succeed.
+  seed:
+    image: sayscore-backend:local
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    entrypoint: ["/seedfixtures"]
+    env_file:
+      - path: ../backend/.env
+        required: false
+    environment:
+      APP_ENV: development
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: wcp
+      DB_PASSWORD: wcp
+      DB_NAME: wcp
+      SEED_DATA_DIR: /app/data
+    volumes:
+      - ../data:/app/data:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: on-failure
+
   backend:
+    image: sayscore-backend:local
     build:
       context: ../backend
       dockerfile: Dockerfile
@@ -67,7 +96,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      migrate:
+      seed:
         condition: service_completed_successfully
 
   frontend:

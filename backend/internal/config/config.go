@@ -19,8 +19,7 @@ type Config struct {
 	GoogleClientID     string
 	AllowedEmailDomain string
 	SeedAdminEmails    []string
-	APIFootballKey     string
-	APIFootballBaseURL string
+	SeedDataDir        string
 }
 
 func (c Config) IsProduction() bool { return c.AppEnv == "production" }
@@ -44,8 +43,8 @@ func Load() (Config, error) {
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		AllowedEmailDomain: getenv("ALLOWED_EMAIL_DOMAIN", "sayonetech.com"),
 		SeedAdminEmails:    splitTrim(os.Getenv("SEED_ADMIN_EMAILS")),
-		APIFootballKey:     os.Getenv("APIFOOTBALL_KEY"),
-		APIFootballBaseURL: getenv("APIFOOTBALL_BASE_URL", "https://v3.football.api-sports.io"),
+		// Static WC dataset (committed CSVs). Override only if data/ moves.
+		SeedDataDir: getenv("SEED_DATA_DIR", "./data"),
 	}
 	if c.SessionSecret == "" {
 		return Config{}, fmt.Errorf("config: SESSION_SECRET is required")

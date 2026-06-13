@@ -140,11 +140,15 @@ func (ns NullUsersRole) Value() (driver.Value, error) {
 
 type Match struct {
 	ID                  int64         `json:"id"`
-	ApiFixtureID        int64         `json:"api_fixture_id"`
+	SourceID            int64         `json:"source_id"`
+	MatchNumber         int32         `json:"match_number"`
 	Stage               MatchesStage  `json:"stage"`
 	Round               string        `json:"round"`
-	HomeTeamID          int64         `json:"home_team_id"`
-	AwayTeamID          int64         `json:"away_team_id"`
+	GroupLetter         string        `json:"group_letter"`
+	MatchLabel          string        `json:"match_label"`
+	HomeTeamID          sql.NullInt64 `json:"home_team_id"`
+	AwayTeamID          sql.NullInt64 `json:"away_team_id"`
+	VenueID             sql.NullInt64 `json:"venue_id"`
 	KickoffUtc          time.Time     `json:"kickoff_utc"`
 	Status              MatchesStatus `json:"status"`
 	HomeScore           sql.NullInt32 `json:"home_score"`
@@ -156,11 +160,12 @@ type Match struct {
 }
 
 type Team struct {
-	ID        int64  `json:"id"`
-	ApiTeamID int64  `json:"api_team_id"`
-	Name      string `json:"name"`
-	Code      string `json:"code"`
-	LogoUrl   string `json:"logo_url"`
+	ID            int64  `json:"id"`
+	SourceID      int64  `json:"source_id"`
+	Name          string `json:"name"`
+	Code          string `json:"code"`
+	GroupLetter   string `json:"group_letter"`
+	IsPlaceholder bool   `json:"is_placeholder"`
 }
 
 type User struct {
@@ -170,4 +175,14 @@ type User struct {
 	AvatarUrl string    `json:"avatar_url"`
 	Role      UsersRole `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type Venue struct {
+	ID            int64  `json:"id"`
+	SourceID      int64  `json:"source_id"`
+	CityName      string `json:"city_name"`
+	Country       string `json:"country"`
+	VenueName     string `json:"venue_name"`
+	RegionCluster string `json:"region_cluster"`
+	AirportCode   string `json:"airport_code"`
 }
