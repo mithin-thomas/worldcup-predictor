@@ -1,3 +1,10 @@
+# SayScore local stack — full app via Docker.
+#   docker compose -f deploy/docker-compose.yml up --build      (or: make up)
+# Then open http://localhost:8080 (frontend → proxies /api to backend).
+# Requires backend/.env (copy from .env.example). Build args read VITE_* from
+# your shell/env for the frontend bundle.
+name: sayscore
+
 services:
   mysql:
     image: mysql:8.0
@@ -23,6 +30,57 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+
+  # One-shot: apply DB migrations, then exit. Backend waits for this to succeed.
+  migrate:
+    image: migrate/migrate:v4.17.1
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ../backend/migrations:/migrations:ro
+    command:
+      - "-path=/migrations"
+      - "-database=mysql://wcp:wcp@tcp(mysql:3306)/wcp"
+      - "up"
+    restart: on-failure
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    env_file:
+      - path: ../backend/.env
+        required: false
+    environment:
+      APP_ENV: development
+      HTTP_PORT: "8000"
+      # Inside the network the DB host is the compose service name, not localhost.
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: wcp
+      DB_PASSWORD: wcp
+      DB_NAME: wcp
+      TZ: Asia/Kolkata
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_GOOGLE_CLIENT_ID: "${VITE_GOOGLE_CLIENT_ID:-}"
+        VITE_API_BASE_URL: "/api"
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
 
 volumes:
   mysql_data:

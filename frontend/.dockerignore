@@ -1,0 +1,7 @@
+# Exclude heavy/local artifacts from the build context.
+node_modules
+dist
+.vite
+.env
+*.env
+!*.env.example
