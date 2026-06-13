@@ -25,7 +25,9 @@ Google Workspace SSO (`sayonetech.com`). Fixtures come from a committed static d
 
 ---
 
-## Run it (native — simplest for dev)
+## Run it (Docker — one command)
+
+Everything runs in Docker; you don't need Go or Node installed.
 
 ```bash
 # 1. Clone + env files (gitignored)
@@ -34,35 +36,13 @@ cd worldcup-predictor
 cp .env.example backend/.env      # set GOOGLE_CLIENT_ID; SESSION_SECRET=$(openssl rand -base64 48)
 cp .env.example frontend/.env     # set VITE_GOOGLE_CLIENT_ID (same id)
 
-# 2. Database (MySQL in Docker) + schema + seed the fixed WC2026 schedule
-docker compose -p sayscore -f deploy/docker-compose.yml up -d mysql
-make migrate-up        # applies users + teams/venues/matches schema
-make seed-fixtures     # imports data/*.csv → 16 venues / 48 teams / 104 matches
-
-# 3. Run the apps (two terminals)
-make run               # backend  → http://localhost:8000
-make dev               # frontend → http://localhost:5173  (Vite proxies /api → :8000)
+# 2. Build + run the whole stack
+make up
 ```
 
-Open **http://localhost:5173** and sign in with a `@sayonetech.com` Google account → the Fixtures
-list (grouped by IST date, with group + venue; knockout placeholders show labels like `W73 vs W75`).
-Accounts in `SEED_ADMIN_EMAILS` become admins on first login.
-
-> **Sign-in prerequisite:** add `http://localhost:5173` (and `http://localhost:8080` for Docker) as
-> an **Authorized JavaScript origin** on your OAuth client — see [Google sign-in setup](#google-sign-in-setup).
-
----
-
-## Run it (full Docker stack)
-
-Runs MySQL + auto-migrate + backend + frontend + Adminer together (project `sayscore`):
-
-```bash
-# Vite bakes VITE_* at build time, so pass the client id to the build:
-VITE_GOOGLE_CLIENT_ID="<your-client-id>.apps.googleusercontent.com" \
-  docker compose -p sayscore -f deploy/docker-compose.yml up --build
-make seed-fixtures     # one-time: load the fixtures (mounts data/ into the backend)
-```
+`make up` builds the images and starts the stack in order: **MySQL → migrate → seed (loads
+`data/*.csv`: 16 venues / 48 teams / 104 matches) → backend → frontend**. Migrations and the fixture
+seed are one-shot services the backend waits on, so a single command gives you a fully working app.
 
 | URL | What |
 |---|---|
@@ -71,7 +51,27 @@ make seed-fixtures     # one-time: load the fixtures (mounts data/ into the back
 | <http://localhost:8000/healthz> | liveness probe |
 | <http://localhost:8081> | Adminer (DB inspection; server `mysql`, user/pass `wcp`) |
 
-Migrations run automatically on `up` (the one-shot `migrate` service); the backend waits for them.
+Open **http://localhost:8080** and sign in with a `@sayonetech.com` Google account → the Fixtures list
+(grouped by IST date, with group + venue; knockout placeholders show labels like `W73 vs W75`).
+Accounts in `SEED_ADMIN_EMAILS` become admins on first login. `make down` stops it; `make logs` tails.
+
+> **Sign-in prerequisite:** add `http://localhost:8080` (and `http://localhost:5173` for native dev)
+> as an **Authorized JavaScript origin** on your OAuth client — see
+> [Google sign-in setup](#google-sign-in-setup).
+
+---
+
+## Run it (native — hot-reload dev)
+
+Run only MySQL in Docker; run backend + frontend natively for fast iteration (needs Go + pnpm):
+
+```bash
+docker compose -p sayscore -f deploy/docker-compose.yml up -d mysql
+make migrate-up        # applies users + teams/venues/matches schema
+make seed-fixtures     # imports data/*.csv → 16 venues / 48 teams / 104 matches
+make run               # backend  → http://localhost:8000
+make dev               # frontend → http://localhost:5173  (Vite proxies /api → :8000)
+```
 
 ---
 
