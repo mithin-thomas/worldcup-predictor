@@ -25,6 +25,7 @@ func NewRouter(d *Deps, debug bool) chi.Router {
 		api.Group(func(priv chi.Router) {
 			priv.Use(d.RequireAuth)
 			priv.Get("/me", d.GetMe)
+			priv.Get("/matches", d.GetMatches)
 		})
 	})
 
