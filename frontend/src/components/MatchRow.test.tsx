@@ -26,6 +26,26 @@ const baseGroup: MatchDTO = {
 afterEach(() => vi.restoreAllMocks());
 
 describe("MatchRow editor", () => {
+  it("saves a new 0-0 prediction without any change (Save enabled at the default)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ home_score: 0, away_score: 0, penalty_winner_team_id: null }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    renderRow(baseGroup); // no existing prediction; editor opens at 0-0
+
+    await user.click(screen.getByRole("button", { name: /predict|edit/i }));
+    const editor = screen.getByRole("group", { name: /your prediction/i });
+    const save = within(editor).getByRole("button", { name: /save prediction/i });
+    expect(save).toBeEnabled(); // a brand-new 0-0 must be saveable
+    await user.click(save);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ home_score: 0, away_score: 0 });
+  });
+
   it("expands on tap and saves the entered score", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
