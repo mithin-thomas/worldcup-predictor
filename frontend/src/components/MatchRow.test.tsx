@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MatchRow } from "./MatchRow";
 import type { MatchDTO } from "../lib/matches";
-import * as matches from "../lib/matches";
 
 function renderRow(match: MatchDTO) {
   const qc = new QueryClient();
@@ -28,17 +27,49 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("MatchRow editor", () => {
   it("expands on tap and saves the entered score", async () => {
-    const put = vi.spyOn(matches, "putPrediction").mockResolvedValue({ home_score: 1, away_score: 0, penalty_winner_team_id: null });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ home_score: 1, away_score: 0, penalty_winner_team_id: null }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
     renderRow(baseGroup);
 
     await user.click(screen.getByRole("button", { name: /predict|edit/i }));
     const editor = screen.getByRole("group", { name: /your prediction/i });
-    const incHome = within(editor).getByRole("button", { name: /increase mexico/i });
-    await user.click(incHome);
+    await user.click(within(editor).getByRole("button", { name: /increase mexico/i }));
     await user.click(within(editor).getByRole("button", { name: /save prediction/i }));
 
-    expect(put).toHaveBeenCalledWith(1, expect.objectContaining({ home_score: 1, away_score: 0 }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toContain("/matches/1/prediction");
+    expect(opts.method).toBe("PUT");
+    expect(JSON.parse(opts.body)).toMatchObject({ home_score: 1, away_score: 0 });
+  });
+
+  it("sends the picked shootout winner on a knockout draw", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ home_score: 1, away_score: 1, penalty_winner_team_id: 2 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    const ko: MatchDTO = {
+      ...baseGroup, id: 90, stage: "knockout", round: "Round of 16", group: "", label: "Round of 16",
+      home: { id: 1, name: "Brazil", code: "BRA" }, away: { id: 2, name: "Spain", code: "ESP" },
+    };
+    renderRow(ko);
+
+    await user.click(screen.getByRole("button", { name: /predict|edit/i }));
+    const editor = screen.getByRole("group", { name: /your prediction/i });
+    // 0-0 default is a draw → shootout control visible; pick the away team (Spain, id 2).
+    await user.click(within(screen.getByRole("group", { name: /shootout winner/i })).getByRole("button", { name: "ESP" }));
+    await user.click(within(editor).getByRole("button", { name: /save prediction/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ home_score: 0, away_score: 0, penalty_winner_team_id: 2 });
   });
 
   it("renders a locked match read-only with no Save button", () => {
