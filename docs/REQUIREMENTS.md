@@ -1,0 +1,416 @@
+# SayScore — Requirements & Design Specification
+
+**SayScore** is an internal, mobile-first web app for SayOne employees to predict FIFA World Cup 2026 match scores, earn points, and compete on weekly and overall leaderboards. (Repository slug: `worldcup-predictor`.) This document is the single source of truth for scope, scoring rules, the design system, the technical stack, and the dev/ops setup. Frontend and backend live in one GitHub repository (monorepo), and the build is driven with the Superpowers plugin for Claude Code (see the README).
+
+---
+
+## 1. Overview & goals
+
+Employees predict the score of every World Cup match before kickoff. Predictions are editable until kickoff, then locked. Points are awarded automatically once results settle. Winners are recognised weekly and at the end of the tournament. The app must be fast, mobile-friendly, and require near-zero manual operation once fixtures are seeded.
+
+All times are displayed to users in **IST (Asia/Kolkata)**. Internally, timestamps are stored in **UTC**.
+
+---
+
+## 2. User roles
+
+There are two roles. Role is stored on the user record and enforced by server-side middleware.
+
+- **User** — signs in, makes/edits match predictions before kickoff, makes tournament bonus predictions before the bonus lock, views fixtures and leaderboards.
+- **Admin** — everything a user can do, plus all elevated operations: trigger the fixtures sync from the sports API, add / edit / remove matches and the schedule, correct match results and penalty-shootout winners, edit configurable settings (e.g. the results-cron time, bonus lock time), promote/demote other users, and force a points recompute.
+
+Any admin edit to a match (fixture detail or result) sets a `manual_override` flag on that match so the scheduled results job never overwrites a human correction.
+
+---
+
+## 3. Functional requirements
+
+### 3.1 Authentication — Google Workspace SSO, domain-restricted
+
+- Sign-in is Google only, restricted to the `sayonetech.com` Workspace domain.
+- Frontend uses Google Identity Services to obtain an ID token; the backend verifies the token (signature, audience = our client ID, `email_verified = true`) and **gates on the `hd` (hosted-domain) claim equal to `sayonetech.com`**. The email-string check is a secondary guard, not the gate.
+- On success the backend issues an httpOnly, Secure, SameSite session cookie. No passwords are ever stored.
+- First sign-in auto-provisions a `User` record. Initial admins are seeded by email via configuration.
+
+### 3.2 Fixtures & predictions
+
+- The fixtures list is grouped by IST date. Each match shows both teams, kickoff time in IST, and a live countdown.
+- A user enters a predicted score per match. Predictions can be changed any number of times **until kickoff**.
+- **Locking is enforced server-side** from the stored kickoff timestamp: any write where `now >= kickoff_utc` is rejected, regardless of client state. The UI also reflects the locked state, but the server is authoritative.
+- For knockout matches where the user's predicted score is a **draw**, the user may additionally pick the penalty-shootout winner (see 3.3).
+
+### 3.3 Scoring rules
+
+Per match:
+
+- **Exact score** (both numbers correct): **5 points**
+- **Correct result** (right winner, or correctly predicted a draw) but wrong score: **3 points**
+- **Incorrect**: **0 points**
+
+Knockout penalty bonus:
+
+- Applies only to knockout matches that go to a penalty shootout.
+- If the user predicted a **draw** for the regulation/extra-time result *and* also correctly predicted the shootout winner, they earn **+1 point**, in addition to the score points above.
+- See §5 for the precise, implementable definition (and §17 for the one interpretation worth confirming).
+
+### 3.4 Tournament bonus predictions
+
+On or before the **bonus lock** (28 June 2026, end of day IST — configurable), users may predict:
+
+| Category | Points if correct |
+|---|---|
+| World Cup Winner | 30 |
+| Runner-Up | 20 |
+| Golden Ball Winner | 10 |
+| Golden Boot Winner | 10 |
+| Golden Glove Winner | 10 |
+| Young Player Award Winner | 10 |
+| Fair Play Trophy Winner | 10 |
+
+Maximum bonus = **100**. These are scored once, after the tournament concludes, and added to each participant's total.
+
+### 3.5 Leaderboards
+
+- **Weekly**: every Monday, sum points from matches that *completed* in the previous IST week (Mon 00:00 → Sun 23:59 IST). Highest total(s) are the Weekly Winner(s). Ties produce multiple winners. Prize: ₹500 Amazon Gift Card.
+- **Overall**: all match points + bonus points combined, for the final standings. Prizes: 1st ₹5,000, 2nd ₹2,500.
+
+### 3.6 Admin features
+
+Fixtures sync (initial seed + re-sync), manual match create/edit/delete, result and penalty-winner correction, settings management (cron time, bonus lock time, admin list), and a manual "recompute points" action. All destructive actions require an explicit confirm.
+
+---
+
+## 4. Privacy of predictions
+
+Other participants' predictions for a match are **hidden until that match locks** (kickoff). After lock, predictions and earned points may be shown. This prevents copying and keeps the game fair. (Confirm in §17 if you'd prefer always-hidden.)
+
+---
+
+## 5. Scoring engine specification
+
+The engine is pure and **idempotent**: it recomputes points from the stored result rather than incrementing, so re-running it (or the daily job running twice) can never double-count.
+
+```
+score(prediction, match):
+  if match.status != FINAL: return 0, penalty=0
+  ph, pa = prediction.home, prediction.away          # predicted
+  ah, aa = match.home_score, match.away_score         # actual (full/extra time)
+
+  if ph == ah and pa == aa:           pts = 5         # exact
+  elif sign(ph - pa) == sign(ah - aa): pts = 3        # correct result (incl. draw==draw)
+  else:                                pts = 0
+
+  bonus = 0
+  if match.stage == KNOCKOUT and match.went_to_penalties
+     and ph == pa                                     # user predicted a draw
+     and pts > 0                                       # user earned score points
+     and prediction.penalty_winner == match.penalty_winner:
+        bonus = 1
+
+  return pts, bonus
+```
+
+- `sign(0)` represents a draw; a predicted draw matching an actual draw scores the correct-result path.
+- Points are stored on the prediction row (`points`, `penalty_bonus`) when a match goes FINAL, so leaderboard queries are simple sums over a date window.
+- Bonus-prediction points are computed once at tournament end from the seven award outcomes.
+
+---
+
+## 6. Scheduled jobs
+
+Run in-process via a cron scheduler on a single backend instance (use a leader-lock if you later scale to multiple instances). The process timezone is `Asia/Kolkata`.
+
+- **results-ingest** — default `0 13 * * *` (13:00 IST daily), stored as a configurable setting. Pulls finished matches from the sports API for the previous IST day, updates score + `went_to_penalties` + `penalty_winner` for matches *not* flagged `manual_override`, then recomputes points idempotently for affected predictions.
+- **weekly-winner** — Mondays shortly after ingest (e.g. `30 13 * * 1`). Computes the previous Mon–Sun IST window, writes `weekly_results`, and marks winner(s), allowing ties.
+
+Kickoff **locking is real-time** (enforced on every prediction write) and is *not* part of these jobs.
+
+---
+
+## 7. Design system
+
+Design serves the task: predict fast, glance at standings. The bar is earned familiarity — it should feel as trustworthy as Linear or Stripe, not decorated.
+
+### 7.1 Theme & rationale
+
+Dark-first. The usage scene is an employee on their phone, late evening IST, locking a scoreline minutes before a North-America kickoff near midnight their time — often in a dim room. That justifies a dark default (by use, not fashion). A light theme can be added later from the same tokens; dark is canonical for v1.
+
+Color strategy is **Restrained**: an indigo-ink canvas plus a single warm brand accent. No cream/sand backgrounds, no grass-green-and-gold football cliché, no scoreboard-terminal look.
+
+### 7.2 Color tokens (OKLCH)
+
+The SayOne brand color `#E95145` is the single warm accent. Because it is warm and close to danger-red, it carries **both** primary actions **and** achievement; the danger red is deepened and always icon-paired so it never reads as the primary coral.
+
+```css
+:root {
+  /* Surfaces — dark indigo canvas (not navy, not terminal-black) */
+  --bg:        oklch(0.17 0.020 280);
+  --surface-1: oklch(0.21 0.022 280);   /* rows, panels */
+  --surface-2: oklch(0.25 0.020 280);   /* elevated, inputs */
+  --border:    oklch(0.32 0.020 280);
+
+  /* Text */
+  --ink:   oklch(0.96 0.010 280);       /* primary */
+  --muted: oklch(0.72 0.015 280);       /* secondary — passes 4.5:1 on --bg */
+  --faint: oklch(0.55 0.015 280);       /* hints, disabled labels */
+
+  /* Brand — SayOne #E95145 — primary action + current selection + achievement */
+  --brand:        oklch(0.64 0.190 28); /* ≈ #E95145 */
+  --brand-hover:  oklch(0.68 0.180 28);
+  --brand-active: oklch(0.58 0.180 28);
+  --brand-tint:   oklch(0.40 0.100 28); /* selected / chip background on dark */
+  --on-brand:     oklch(0.22 0.070 28); /* text & icons ON a brand fill */
+
+  /* Semantics */
+  --success: oklch(0.72 0.150 150);     /* correct-result badge, positive */
+  --warning: oklch(0.80 0.130 75);
+  --danger:  oklch(0.55 0.200 20);      /* destructive — deepened, always icon-paired */
+}
+```
+
+Rules: `--brand` solid fill is reserved for **safe** primary actions and achievement only. Destructive actions use `--danger` with a leading icon (`trash`/`alert`) and a confirm step — never a coral solid fill. Body text never uses coral; coral is for accents, fills, and small emphasis.
+
+### 7.3 Typography
+
+One UI sans plus a monospace for all numerics — a real contrast axis, not two similar sans fonts.
+
+- **UI / body**: Inter (with tabular figures `font-feature-settings: "tnum"` where numbers align).
+- **Numerics**: JetBrains Mono — score inputs, kickoff countdowns, leaderboard point columns. Gives a quiet scoreboard character.
+- Fixed `rem` scale (not fluid), ratio ≈ 1.2: 12 / 13 / 14 (UI base) / 16 (reading) / 18 / 22 / 28 px. Weights: 400 and 500 (use 600 only for the rare strong heading). Sentence case everywhere.
+
+### 7.4 Layout
+
+- Mobile-first. Bottom tab bar for thumb reach: Fixtures · Ranks · Bonus · Profile (plus an Admin tab visible only to admins). On wider screens the tabs become a left side-nav.
+- Fixtures are a **vertical list grouped by IST date** — not an identical-card grid. Each row: teams, IST kickoff + countdown, inline score inputs, prediction state.
+- Leaderboard is a true **ranked table**; rank 1 gets the brand-accent highlight.
+- Admin screens use a slightly different neutral surface layer but the same component vocabulary.
+
+### 7.5 Components & states
+
+Every interactive component defines: default, hover, focus (visible ring), active, disabled, loading, error. Loading uses **skeletons**, not centered spinners. Empty states **teach** ("Fixtures load on first setup", "No predictions yet — tap a match"). Affordances are consistent across screens (same button shape, same form controls, same icon set). Icons: a single outline set (e.g. Tabler/Lucide outline).
+
+A semantic z-index scale: dropdown → sticky → modal-backdrop → modal → toast → tooltip (no arbitrary 9999).
+
+### 7.6 Motion
+
+150–250 ms, conveying state not decoration; ease-out curves, no bounce. One earned moment: the achievement chip counts up in brand color when a finished match settles. Every animation has a `@media (prefers-reduced-motion: reduce)` fallback (crossfade/instant). No orchestrated page-load sequences.
+
+### 7.7 Accessibility
+
+Body text ≥ 4.5:1 contrast (verified for `--muted` on `--bg`); visible focus rings; full keyboard navigation; `aria-label`s on icon-only buttons; touch targets ≥ 44px.
+
+---
+
+## 8. Tech stack
+
+**Backend**
+- Go 1.22+, router `chi`
+- MySQL 8 on AWS RDS; access via `database/sql` + `sqlc` (type-safe generated queries); driver `go-sql-driver/mysql`
+- Migrations: `golang-migrate` (versioned SQL)
+- Auth: `google.golang.org/api/idtoken` for ID-token verification; signed httpOnly session cookie
+- Scheduler: `robfig/cron/v3` (in-process)
+- Sports data: API-Football (api-sports.io), league `1`, season `2026`
+- Logging: stdlib `slog`; config via env (12-factor)
+
+**Frontend**
+- React 18 + TypeScript + Vite
+- Tailwind CSS (tokens above wired as CSS variables) + shadcn/ui (Radix primitives)
+- TanStack Query (data/cache), React Router, react-hook-form + zod (forms/validation)
+- Google Identity Services for sign-in
+
+**Why API-Football**: `fixtures?league=1&season=2026` returns all 104 matches with UTC kickoff, status, and venue; `teams?league=1&season=2026` returns the 48 teams. It exposes match status and shootout data needed for the penalty bonus, and has a free / low-cost tier sufficient for once-daily polling.
+
+---
+
+## 9. Architecture & monorepo layout
+
+Single GitHub repository:
+
+```
+.
+├── backend/                 # Go service
+│   ├── cmd/server/          # main entrypoint
+│   ├── internal/
+│   │   ├── http/            # chi routes, middleware (auth, role, CSRF)
+│   │   ├── auth/            # Google ID-token verify, sessions
+│   │   ├── scoring/         # pure scoring engine (heavily unit-tested)
+│   │   ├── sportsapi/       # API-Football client
+│   │   ├── jobs/            # results-ingest, weekly-winner
+│   │   ├── store/           # sqlc-generated queries + db
+│   │   └── config/
+│   ├── migrations/          # golang-migrate SQL
+│   ├── sqlc.yaml
+│   └── Dockerfile
+├── frontend/                # React + Vite app
+│   ├── src/
+│   │   ├── routes/          # Fixtures, Ranks, Bonus, Profile, Admin
+│   │   ├── components/      # shared UI
+│   │   ├── lib/             # api client, auth, query hooks
+│   │   └── styles/tokens.css
+│   ├── nginx.conf           # serves SPA, proxies /api
+│   └── Dockerfile
+├── deploy/
+│   ├── docker-compose.yml   # local: mysql + backend + frontend(+adminer)
+│   └── ...
+├── docs/
+│   └── REQUIREMENTS.md      # this file
+├── .github/workflows/ci.yml
+├── lefthook.yml             # pre-commit/pre-push for both stacks
+├── Makefile
+├── .env.example
+└── README.md
+```
+
+The backend serves the JSON API; the frontend is a static SPA served by nginx, which also reverse-proxies `/api` to the backend (so the session cookie is first-party).
+
+---
+
+## 10. Data model (MySQL)
+
+Indicative columns; refine in migrations.
+
+- **users**: `id`, `email` (unique), `name`, `avatar_url`, `role` ENUM('user','admin'), `created_at`.
+- **teams**: `id`, `api_team_id` (unique), `name`, `code`, `logo_url`.
+- **matches**: `id`, `api_fixture_id` (unique), `stage` ENUM('group','knockout'), `round`, `home_team_id`, `away_team_id`, `kickoff_utc`, `status` ENUM('scheduled','live','final'), `home_score`, `away_score`, `went_to_penalties` BOOL, `penalty_winner_team_id` NULL, `manual_override` BOOL DEFAULT 0, `updated_at`.
+- **predictions**: `id`, `user_id`, `match_id`, `home_score`, `away_score`, `penalty_winner_team_id` NULL, `points` NULL, `penalty_bonus` NULL, `created_at`, `updated_at`. **UNIQUE(user_id, match_id)**.
+- **bonus_predictions**: `id`, `user_id`, `category` ENUM(winner, runner_up, golden_ball, golden_boot, golden_glove, young_player, fair_play), `value` (team or player ref / free text id), `points` NULL. **UNIQUE(user_id, category)**.
+- **bonus_results**: `category`, `value` (the actual outcome), set by admin after the tournament.
+- **weekly_results**: `id`, `user_id`, `week_start` (IST date), `points`, `is_winner` BOOL. **UNIQUE(user_id, week_start)**.
+- **settings**: `key`, `value` — e.g. `results_cron`, `bonus_lock_at`, `weekly_cron`.
+- **audit_log** (optional): admin actions for traceability.
+
+---
+
+## 11. API (REST, JSON)
+
+Auth & session
+- `POST /api/auth/google` — body: Google ID token → verifies, sets cookie, returns user.
+- `POST /api/auth/logout`
+- `GET  /api/me`
+
+Predictions & fixtures
+- `GET  /api/matches` — matches grouped by IST date, with the caller's predictions and lock state.
+- `GET  /api/matches/:id`
+- `PUT  /api/matches/:id/prediction` — create/update; **rejected if locked**.
+
+Leaderboards
+- `GET /api/leaderboard?period=week&week=YYYY-MM-DD`
+- `GET /api/leaderboard?period=overall`
+
+Bonus
+- `GET /api/bonus` — categories, options, caller's picks, lock time.
+- `PUT /api/bonus` — upsert picks; rejected after `bonus_lock_at`.
+
+Admin (role=admin)
+- `POST   /api/admin/fixtures/sync`
+- `POST   /api/admin/matches` · `PUT /api/admin/matches/:id` · `DELETE /api/admin/matches/:id`
+- `GET/PUT /api/admin/settings`
+- `POST   /api/admin/recompute`
+- `POST   /api/admin/users/:id/role`
+
+Ops
+- `GET /healthz`
+
+---
+
+## 12. Security & privacy
+
+- httpOnly + Secure + SameSite=Lax session cookie; short-lived, refreshed on activity.
+- CSRF protection for state-changing requests (SameSite plus a CSRF token).
+- Domain-restricted SSO via the `hd` claim (see 3.1).
+- No secrets in the repo: `.env` is git-ignored; CI/production use GitHub Actions secrets / RDS secrets.
+- Basic rate limiting on auth and prediction-write endpoints.
+- Others' predictions hidden until match lock (§4).
+
+---
+
+## 13. Pre-commit hooks (frontend + backend)
+
+Use **Lefthook** — one fast binary that runs Go and JS linters on staged files in a single repo. `lefthook.yml`:
+
+```yaml
+pre-commit:
+  parallel: true
+  commands:
+    backend-fmt:
+      root: backend/
+      glob: "*.go"
+      run: gofmt -l -w {staged_files} && go vet ./...
+    backend-lint:
+      root: backend/
+      glob: "*.go"
+      run: golangci-lint run
+    sqlc-check:
+      root: backend/
+      glob: "{queries/*.sql,sqlc.yaml}"
+      run: sqlc diff
+    frontend-lint:
+      root: frontend/
+      glob: "*.{ts,tsx}"
+      run: pnpm eslint --fix {staged_files} && pnpm prettier --write {staged_files}
+    frontend-types:
+      root: frontend/
+      glob: "*.{ts,tsx}"
+      run: pnpm tsc --noEmit
+
+pre-push:
+  parallel: true
+  commands:
+    backend-test:
+      root: backend/
+      run: go test ./...
+    frontend-test:
+      root: frontend/
+      run: pnpm vitest run
+
+commit-msg:
+  commands:
+    conventional:
+      run: pnpm commitlint --edit {1}
+```
+
+Install once per clone with `lefthook install` (wired into the Makefile / postinstall). This keeps formatting, linting, type-checks, and sqlc consistency enforced before code lands, with tests gated on push.
+
+---
+
+## 14. Docker & deployment
+
+**Local & deploy both use Docker.** Local development runs the full stack via `deploy/docker-compose.yml` (MySQL + backend + frontend/nginx, plus optional Adminer for DB inspection). See `README.md` for step-by-step.
+
+- **backend/Dockerfile** — multi-stage: build a static binary on `golang:1.22`, run on a minimal base (distroless/alpine). Migrations run via a one-shot command or an init step.
+- **frontend/Dockerfile** — multi-stage: `node` build → static assets served by `nginx`, which also proxies `/api` to the backend.
+- **Production** — the same images deploy to AWS (ECS Fargate or a single Docker host), pointing `DB_*` at **RDS MySQL** instead of the compose MySQL container. The scheduler runs in the single backend instance; if you scale out, add a leader lock. Set `TZ=Asia/Kolkata`.
+
+### Environment variables
+
+Backend: `APP_ENV`, `HTTP_PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `ALLOWED_EMAIL_DOMAIN=sayonetech.com`, `SEED_ADMIN_EMAILS`, `APIFOOTBALL_KEY`, `APIFOOTBALL_BASE_URL`, `RESULTS_CRON=0 13 * * *`, `WEEKLY_CRON=30 13 * * 1`, `BONUS_LOCK_AT=2026-06-28T23:59:00+05:30`, `TZ=Asia/Kolkata`.
+
+Frontend (Vite): `VITE_GOOGLE_CLIENT_ID`, `VITE_API_BASE_URL`.
+
+---
+
+## 15. CI (GitHub Actions)
+
+`.github/workflows/ci.yml` runs on PRs and main: backend (`golangci-lint`, `go test`, `sqlc diff`) and frontend (`eslint`, `tsc --noEmit`, `vitest`) in parallel, then builds both Docker images. Secrets are provided via repository/environment secrets.
+
+---
+
+## 16. Testing strategy
+
+- **Scoring engine**: exhaustive table-driven unit tests (exact, correct-result, draw, knockout penalty bonus, idempotency). This is the highest-value test surface.
+- **Locking**: tests that writes after `kickoff_utc` are rejected.
+- **API**: handler tests with a test DB.
+- **Frontend**: component tests (Vitest + Testing Library) for the prediction form and lock states; optional Playwright e2e for the predict → lock → score flow.
+
+---
+
+## 17. Assumptions & open questions
+
+These are reasonable defaults I've baked in — flag any you want changed:
+
+1. **Penalty bonus interpretation** — the +1 requires: knockout match, went to shootout, user predicted a draw, user's score earned points (exact or correct-result), and correct shootout winner. Confirm this matches your intent.
+2. **Bonus lock time** — assumed 28 Jun 2026, 23:59 IST (configurable).
+3. **Prediction privacy** — others' predictions hidden until a match locks; revealed after. Confirm vs always-hidden.
+4. **Final-standings tie-break** — if two participants tie on total points for 1st/2nd, how do you want to break it (e.g. most exact scores, then earliest predictions)? Currently unspecified.
+5. **Deployment target** — assumed AWS (ECS Fargate or single Docker host) with RDS MySQL; confirm which.
+6. **Light theme** — dark-first only for v1; light theme deferred.
