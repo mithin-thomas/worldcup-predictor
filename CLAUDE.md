@@ -73,7 +73,7 @@ Store **UTC**, display **IST (Asia/Kolkata)**. Scheduler/process `TZ=Asia/Kolkat
 Run `make help` for the full list (compose runs under project name **sayscore**). Common:
 
 ```text
-make up / down     # MySQL + Adminer local stack (compose -p sayscore)
+make up / down     # full Docker stack: MySQL + migrate + seed + backend + frontend (compose -p sayscore)
 make migrate-up    # apply DB migrations (reads backend/.env for DB_*)
 make sqlc          # regenerate type-safe DB code from internal/store/queries/*.sql
 make run           # run the backend (auto-loads backend/.env via godotenv)
@@ -85,8 +85,8 @@ make hooks         # install lefthook git hooks (make hooks-tools first if neede
 **Local env:** copy `.env.example` → `backend/.env` and `frontend/.env` (both gitignored). The
 backend auto-loads `backend/.env` in dev via godotenv (`make run` or `go run ./cmd/server`); Vite
 auto-loads `frontend/.env`. **No Google client secret / redirect URI** — the GIS ID-token flow uses
-only the client ID. Frontend dev proxies `/api` → `http://localhost:8000`; Adminer at
-<http://localhost:8081>.
+only the client ID. Frontend dev proxies `/api` → `http://localhost:8000`. Inspect MySQL
+(`localhost:3306`) with a local client such as MySQL Workbench.
 
 ## Pre-commit hooks (Lefthook) — spec §13
 

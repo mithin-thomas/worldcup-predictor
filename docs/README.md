@@ -52,7 +52,7 @@ cp .env.example .env
 docker compose -f deploy/docker-compose.yml up --build
 ```
 
-The app is then available at **http://localhost:8080** (frontend/nginx, which proxies `/api` to the backend). MySQL is exposed on `localhost:3306`; optional Adminer on **http://localhost:8081**.
+The app is then available at **http://localhost:8080** (frontend/nginx, which proxies `/api` to the backend). MySQL is exposed on `localhost:3306` for inspection with a local client (e.g. MySQL Workbench).
 
 ### First-run: migrate and seed fixtures
 
