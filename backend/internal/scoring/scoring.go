@@ -45,7 +45,16 @@ func Compute(p Prediction, r Result) Score {
 		points = 3 // correct result (incl. draw == draw)
 	}
 
-	return Score{Points: points}
+	bonus := 0
+	if r.Knockout && r.WentToPenalties &&
+		p.Home == p.Away && // user predicted a draw
+		points > 0 && // the prediction earned score points
+		p.PenaltyWinner != nil && r.PenaltyWinner != nil &&
+		*p.PenaltyWinner == *r.PenaltyWinner {
+		bonus = 1
+	}
+
+	return Score{Points: points, PenaltyBonus: bonus}
 }
 
 // sign returns 1, -1, or 0; 0 represents a draw.

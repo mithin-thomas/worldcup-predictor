@@ -52,3 +52,63 @@ func TestComputeIdempotent(t *testing.T) {
 		t.Fatalf("Compute not idempotent: %+v != %+v", first, second)
 	}
 }
+
+// pw returns a pointer to a team id, for the penalty-winner fields.
+func pw(id int64) *int64 { return &id }
+
+func TestComputePenaltyBonus(t *testing.T) {
+	// All cases are knockout matches that went to penalties unless the name says otherwise.
+	cases := []struct {
+		name string
+		p    Prediction
+		r    Result
+		want Score
+	}{
+		// Bonus earned: predicted draw, earned points, correct shootout winner.
+		{"exact draw + correct winner → +1",
+			Prediction{1, 1, pw(7)},
+			Result{Final: true, Knockout: true, Home: 1, Away: 1, WentToPenalties: true, PenaltyWinner: pw(7)},
+			Score{Points: 5, PenaltyBonus: 1}},
+		{"correct-result draw + correct winner → +1",
+			Prediction{1, 1, pw(7)},
+			Result{Final: true, Knockout: true, Home: 2, Away: 2, WentToPenalties: true, PenaltyWinner: pw(7)},
+			Score{Points: 3, PenaltyBonus: 1}},
+
+		// No bonus: every guard.
+		{"wrong winner pick → no bonus",
+			Prediction{1, 1, pw(7)},
+			Result{Final: true, Knockout: true, Home: 1, Away: 1, WentToPenalties: true, PenaltyWinner: pw(8)},
+			Score{Points: 5}},
+		{"nil winner pick → no bonus",
+			Prediction{1, 1, nil},
+			Result{Final: true, Knockout: true, Home: 1, Away: 1, WentToPenalties: true, PenaltyWinner: pw(7)},
+			Score{Points: 5}},
+		{"nil actual winner → no bonus",
+			Prediction{1, 1, pw(7)},
+			Result{Final: true, Knockout: true, Home: 1, Away: 1, WentToPenalties: true, PenaltyWinner: nil},
+			Score{Points: 5}},
+		{"not knockout → no bonus",
+			Prediction{1, 1, pw(7)},
+			Result{Final: true, Knockout: false, Home: 1, Away: 1, WentToPenalties: true, PenaltyWinner: pw(7)},
+			Score{Points: 5}},
+		{"knockout but no shootout → no bonus",
+			Prediction{1, 1, pw(7)},
+			Result{Final: true, Knockout: true, Home: 1, Away: 1, WentToPenalties: false, PenaltyWinner: pw(7)},
+			Score{Points: 5}},
+		{"non-draw prediction → no bonus",
+			Prediction{2, 1, pw(7)},
+			Result{Final: true, Knockout: true, Home: 1, Away: 1, WentToPenalties: true, PenaltyWinner: pw(7)},
+			Score{}}, // points 0 (2-1 vs 1-1 is wrong) and not a draw prediction
+		{"points==0 guard (draw pred scores 0) → no bonus",
+			Prediction{0, 0, pw(7)},
+			Result{Final: true, Knockout: true, Home: 1, Away: 0, WentToPenalties: true, PenaltyWinner: pw(7)},
+			Score{}}, // 0-0 vs 1-0 is wrong → points 0, so no bonus despite the draw prediction
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := Compute(tc.p, tc.r); got != tc.want {
+				t.Errorf("Compute(%+v, %+v) = %+v, want %+v", tc.p, tc.r, got, tc.want)
+			}
+		})
+	}
+}
