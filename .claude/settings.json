@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git commit -q -m ' *)"
+      "Bash(git commit -q -m ' *)",
+      "Bash(make -n up)",
+      "Bash(git commit -m ' *)",
+      "Bash(make -n test)",
+      "Bash(git *)"
     ]
   }
 }
