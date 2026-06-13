@@ -5,10 +5,96 @@
 package sqlc
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"time"
 )
+
+type MatchesStage string
+
+const (
+	MatchesStageGroup    MatchesStage = "group"
+	MatchesStageKnockout MatchesStage = "knockout"
+)
+
+func (e *MatchesStage) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MatchesStage(s)
+	case string:
+		*e = MatchesStage(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MatchesStage: %T", src)
+	}
+	return nil
+}
+
+type NullMatchesStage struct {
+	MatchesStage MatchesStage `json:"matches_stage"`
+	Valid        bool         `json:"valid"` // Valid is true if MatchesStage is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMatchesStage) Scan(value interface{}) error {
+	if value == nil {
+		ns.MatchesStage, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MatchesStage.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMatchesStage) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MatchesStage), nil
+}
+
+type MatchesStatus string
+
+const (
+	MatchesStatusScheduled MatchesStatus = "scheduled"
+	MatchesStatusLive      MatchesStatus = "live"
+	MatchesStatusFinal     MatchesStatus = "final"
+)
+
+func (e *MatchesStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MatchesStatus(s)
+	case string:
+		*e = MatchesStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MatchesStatus: %T", src)
+	}
+	return nil
+}
+
+type NullMatchesStatus struct {
+	MatchesStatus MatchesStatus `json:"matches_status"`
+	Valid         bool          `json:"valid"` // Valid is true if MatchesStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMatchesStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.MatchesStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MatchesStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMatchesStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MatchesStatus), nil
+}
 
 type UsersRole string
 
@@ -50,6 +136,31 @@ func (ns NullUsersRole) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.UsersRole), nil
+}
+
+type Match struct {
+	ID                  int64         `json:"id"`
+	ApiFixtureID        int64         `json:"api_fixture_id"`
+	Stage               MatchesStage  `json:"stage"`
+	Round               string        `json:"round"`
+	HomeTeamID          int64         `json:"home_team_id"`
+	AwayTeamID          int64         `json:"away_team_id"`
+	KickoffUtc          time.Time     `json:"kickoff_utc"`
+	Status              MatchesStatus `json:"status"`
+	HomeScore           sql.NullInt32 `json:"home_score"`
+	AwayScore           sql.NullInt32 `json:"away_score"`
+	WentToPenalties     bool          `json:"went_to_penalties"`
+	PenaltyWinnerTeamID sql.NullInt64 `json:"penalty_winner_team_id"`
+	ManualOverride      bool          `json:"manual_override"`
+	UpdatedAt           time.Time     `json:"updated_at"`
+}
+
+type Team struct {
+	ID        int64  `json:"id"`
+	ApiTeamID int64  `json:"api_team_id"`
+	Name      string `json:"name"`
+	Code      string `json:"code"`
+	LogoUrl   string `json:"logo_url"`
 }
 
 type User struct {
