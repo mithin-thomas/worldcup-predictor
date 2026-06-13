@@ -7,3 +7,6 @@ ON DUPLICATE KEY UPDATE
 
 -- name: GetTeamIDBySourceID :one
 SELECT id FROM teams WHERE source_id = ?;
+
+-- name: ListTeamsByCode :many
+SELECT id, code FROM teams WHERE is_placeholder = 0;

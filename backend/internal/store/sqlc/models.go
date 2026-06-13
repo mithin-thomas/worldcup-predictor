@@ -157,6 +157,7 @@ type Match struct {
 	PenaltyWinnerTeamID sql.NullInt64 `json:"penalty_winner_team_id"`
 	ManualOverride      bool          `json:"manual_override"`
 	UpdatedAt           time.Time     `json:"updated_at"`
+	ApiFixtureID        sql.NullInt64 `json:"api_fixture_id"`
 }
 
 type Prediction struct {
