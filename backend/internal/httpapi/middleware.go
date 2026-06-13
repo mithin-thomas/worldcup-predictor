@@ -21,6 +21,7 @@ const userCtxKey ctxKey = iota
 type Deps struct {
 	Store              store.Store
 	Matches            store.MatchStore
+	Predictions        store.PredictionStore
 	Sessions           *auth.SessionManager
 	Verifier           auth.TokenVerifier
 	AllowedEmailDomain string

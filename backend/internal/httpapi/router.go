@@ -26,6 +26,7 @@ func NewRouter(d *Deps, debug bool) chi.Router {
 			priv.Use(d.RequireAuth)
 			priv.Get("/me", d.GetMe)
 			priv.Get("/matches", d.GetMatches)
+			priv.Put("/matches/{id}/prediction", d.PutPrediction)
 		})
 	})
 
