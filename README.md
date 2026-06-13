@@ -21,7 +21,7 @@ Google Workspace SSO (`sayonetech.com`). Fixtures come from a committed static d
 - For native dev / tooling: **Go 1.26+**, **Node 20+** with **pnpm 10**, plus `sqlc` and
   `golang-migrate` (`go install`), and (optional) **lefthook**.
 - A **Google Workspace OAuth Client ID** (Web application). **No API key needed** — fixtures are
-  seeded from the committed CSV dataset.
+  seeded from a committed SQL dump (`deploy/seed/seed.sql`).
 
 ---
 
@@ -71,7 +71,7 @@ Run only MySQL in Docker; run backend + frontend natively for fast iteration (ne
 ```bash
 docker compose -p sayscore -f deploy/docker-compose.yml up -d mysql
 make migrate-up        # applies users + teams/venues/matches schema
-make seed-fixtures     # imports data/*.csv → 16 venues / 48 teams / 104 matches
+make load-seed         # loads deploy/seed/seed.sql → 16 venues / 48 teams / 104 matches
 make run               # backend  → http://localhost:8000
 make dev               # frontend → http://localhost:5173  (Vite proxies /api → :8000)
 ```
@@ -80,11 +80,17 @@ make dev               # frontend → http://localhost:5173  (Vite proxies /api 
 
 ## Fixtures data
 
-The WC 2026 schedule is fixed, so SayScore ships it as committed CSVs in [`data/`](data/) —
-`teams.csv`, `host_cities.csv` (venues), `tournament_stages.csv`, `matches.csv`. `make seed-fixtures`
-imports them idempotently (it never overwrites a row an admin has corrected — `manual_override`).
-Kickoffs are stored UTC (the CSV times are venue-local with an offset, normalized on import) and shown
-in IST. Rare corrections are made via the admin dashboard (Milestone 8), not by re-importing.
+The WC 2026 schedule is fixed, so SayScore seeds it from a committed SQL dump,
+[`deploy/seed/seed.sql`](deploy/seed/seed.sql), loaded straight into MySQL right after migrations —
+no parsing at runtime. The seed uses `INSERT IGNORE`, so re-running it (every `docker compose up`)
+is a no-op that never clobbers a row an admin has corrected. Kickoffs are stored UTC and shown in IST.
+Rare corrections go through the admin dashboard (Milestone 8).
+
+The dump is **generated from** the canonical CSV source in [`data/`](data/) (`teams.csv`,
+`host_cities.csv`, `tournament_stages.csv`, `matches.csv`) via the Go importer. To change a fixture:
+edit the CSV, run `make seed-fixtures` (normalizes venue-local times to UTC and upserts into a running
+DB), then `make dump-seed` to rewrite `seed.sql`. `data/source/` holds the public-domain openfootball
+dataset and `scripts/gen_fixtures.py` regenerates the CSVs from it.
 
 ---
 
@@ -111,7 +117,9 @@ make migrate-up         # apply DB migrations
 make migrate-new name=x # scaffold a new migration pair
 make sqlc               # regenerate type-safe DB code from SQL
 make run / dev          # run backend / frontend locally
-make seed-fixtures      # import teams, venues, and fixtures from data/*.csv
+make load-seed          # load deploy/seed/seed.sql into a running MySQL
+make seed-fixtures      # author: apply data/*.csv to a DB via the Go importer
+make dump-seed          # author: regenerate deploy/seed/seed.sql from the DB
 make test               # backend tests
 make build              # build backend binary + frontend bundle
 make hooks              # install git hooks (lefthook); hooks-tools installs the tooling

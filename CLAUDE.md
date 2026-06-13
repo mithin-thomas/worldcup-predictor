@@ -41,7 +41,8 @@ Internal use only; Google Workspace SSO restricted to `sayonetech.com`.
 - **Backend:** Go 1.22+ · module **`github.com/sayonetech/worldcup-predictor/backend`** (lives in
   `backend/`) · `go-chi/chi/v5` · MySQL 8 via `database/sql` + **sqlc** + `go-sql-driver/mysql` ·
   migrations with **golang-migrate** · auth via `google.golang.org/api/idtoken` + HMAC-signed
-  session cookie · scheduler `robfig/cron/v3` (in-process) · `slog` · API-Football for data.
+  session cookie · scheduler `robfig/cron/v3` (in-process) · `slog` · fixtures seeded from a
+  committed SQL dump (`deploy/seed/seed.sql`), regenerated from the `data/` CSVs via the Go importer.
 - **Frontend:** React 18 + TS + Vite · Tailwind + shadcn/ui · TanStack Query · React Router ·
   react-hook-form + zod · Google Identity Services.
 - **Monorepo:** `backend/` `frontend/` `deploy/` `docs/`. See spec §9 for the full tree.
