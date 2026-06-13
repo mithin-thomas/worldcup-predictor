@@ -27,8 +27,10 @@ help: ## Show this help
 	  | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 ## ---- Docker / local stack ----
-up: ## Start MySQL + Adminer (compose project: sayscore)
-	$(COMPOSE) up -d
+up: ## Build + start the whole stack (MySQL, migrate, seed, backend, frontend) → :8080
+	@set -a; [ -f frontend/.env ] && . ./frontend/.env; set +a; \
+	$(COMPOSE) up -d --build
+	@echo "App: http://localhost:8080   API docs: http://localhost:8000/docs   Adminer: http://localhost:8081"
 
 down: ## Stop and remove the local stack
 	$(COMPOSE) down
