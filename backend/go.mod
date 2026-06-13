@@ -3,6 +3,7 @@ module github.com/sayonetech/worldcup-predictor/backend
 go 1.26.4
 
 require (
+	github.com/go-chi/chi/v5 v5.3.0
 	github.com/go-sql-driver/mysql v1.10.0
 	google.golang.org/api v0.284.0
 )
