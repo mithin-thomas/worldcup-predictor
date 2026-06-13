@@ -63,10 +63,13 @@ function Editor({ match }: { match: MatchDTO }) {
   const isDraw = h === a;
   const showPenalty = match.stage === "knockout" && isDraw;
 
+  // A brand-new prediction is always saveable (any scoreline, incl. 0-0).
+  // For an existing pick, only enable Save when something actually changed.
   const dirty =
-    h !== (match.prediction?.home_score ?? 0) ||
-    a !== (match.prediction?.away_score ?? 0) ||
-    (showPenalty ? pen : null) !== (match.prediction?.penalty_winner_team_id ?? null);
+    !match.prediction ||
+    h !== match.prediction.home_score ||
+    a !== match.prediction.away_score ||
+    (showPenalty ? pen : null) !== (match.prediction.penalty_winner_team_id ?? null);
 
   const onSave = () => {
     mut.mutate({
