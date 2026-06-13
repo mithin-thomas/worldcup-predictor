@@ -62,6 +62,10 @@ services:
       DB_PASSWORD: wcp
       DB_NAME: wcp
       TZ: Asia/Kolkata
+      # Static CSV dataset is mounted read-only below; seed via `make seed-fixtures`.
+      SEED_DATA_DIR: /app/data
+    volumes:
+      - ../data:/app/data:ro
     ports:
       - "8000:8000"
     depends_on:

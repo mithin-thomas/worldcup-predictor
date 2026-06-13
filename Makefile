@@ -68,8 +68,8 @@ run: ## Run the backend (loads backend/.env)
 dev: ## Run the Vite frontend dev server
 	cd frontend && pnpm dev
 
-seed-fixtures: ## Sync teams + fixtures from API-Football (needs APIFOOTBALL_KEY; Milestone 2+)
-	cd backend && go run ./cmd/seedfixtures
+seed-fixtures: ## Seed teams, venues, and fixtures from the committed CSV dataset (data/)
+	cd backend && SEED_DATA_DIR=../data go run ./cmd/seedfixtures
 
 ## ---- Quality ----
 test: ## Backend tests

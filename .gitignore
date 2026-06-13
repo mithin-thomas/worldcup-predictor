@@ -16,3 +16,6 @@ frontend/.vite/
 
 # OS / editor
 .DS_Store
+
+# Static dataset: commit CSVs, not the redundant sqlite
+data/worldcup2026.db
