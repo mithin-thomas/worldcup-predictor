@@ -71,7 +71,7 @@ Maximum bonus = **100**. These are scored once, after the tournament concludes, 
 
 ### 3.5 Leaderboards
 
-- **Weekly**: every Monday, sum points from matches whose **kickoff** falls in the previous IST week (Mon 00:00 → Sun 23:59 IST). Attribution is by kickoff timestamp (deterministic, so a late result-correction never shifts points between weeks). Highest total(s) are the Weekly Winner(s). **Weekly ties stand** — they produce multiple co-winners, each eligible for the prize. Prize: ₹500 Amazon Gift Card.
+- **Weekly**: every Monday, sum points from matches whose **kickoff** falls in the previous IST week (Mon 00:00 → Sun 23:59 IST). Attribution is by kickoff timestamp (deterministic, so a late result-correction never shifts points between weeks). Highest total(s) are the Weekly Winner(s). **Weekly ties stand** — they produce multiple co-winners, and **every co-winner is paid the full prize** (the §5.1 tie-break does **not** apply to the weekly prize; it only decides distinct 1st/2nd for the overall standings). Prize: ₹500 Amazon Gift Card per weekly winner.
 - **Overall**: all match points + bonus points combined, for the final standings. **Final-standings ties are broken by the cascade in §5.1** (so 1st and 2nd are distinct winners). Prizes: 1st ₹5,000, 2nd ₹2,500.
 - **Hall of Fame**: past weekly champions are retained and shown to **all** users (newest week first) — each week lists its co-winner(s), their points, and the ₹500 gift-card payout status. Read-only for regular users; admins additionally toggle the payout status (§3.6).
 
