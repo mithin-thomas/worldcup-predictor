@@ -56,6 +56,9 @@ func TestAdminRoutes_NoSession_Returns401(t *testing.T) {
 		{http.MethodDelete, "/api/admin/matches/1", ""},
 		{http.MethodGet, "/api/admin/users", ""},
 		{http.MethodPost, "/api/admin/users/1/role", `{"role":"admin"}`},
+		{http.MethodGet, "/api/admin/settings", ""},
+		{http.MethodPut, "/api/admin/settings", `{"results_cron":"0 4 * * *"}`},
+		{http.MethodPost, "/api/admin/recompute", ""},
 	}
 
 	for _, tc := range cases {
@@ -96,6 +99,9 @@ func TestAdminRoutes_NonAdmin_Returns403(t *testing.T) {
 		{http.MethodDelete, "/api/admin/matches/1", ""},
 		{http.MethodGet, "/api/admin/users", ""},
 		{http.MethodPost, "/api/admin/users/1/role", `{"role":"admin"}`},
+		{http.MethodGet, "/api/admin/settings", ""},
+		{http.MethodPut, "/api/admin/settings", `{"results_cron":"0 4 * * *"}`},
+		{http.MethodPost, "/api/admin/recompute", ""},
 	}
 
 	for _, tc := range cases {
