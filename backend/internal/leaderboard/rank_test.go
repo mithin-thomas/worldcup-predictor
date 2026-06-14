@@ -47,6 +47,18 @@ func TestPage(t *testing.T) {
 	}
 }
 
+func TestOverallSameRank_BonusBreaksTie(t *testing.T) {
+	a := Row{Points: 50, Exact: 5, Correct: 5, BonusHits: 3}
+	b := Row{Points: 50, Exact: 5, Correct: 5, BonusHits: 1}
+	if OverallSameRank(a, b) {
+		t.Error("rows tied on total/exact/correct but differing bonus hits must NOT share a rank")
+	}
+	c := Row{Points: 50, Exact: 5, Correct: 5, BonusHits: 3}
+	if !OverallSameRank(a, c) {
+		t.Error("identical rows must share a rank")
+	}
+}
+
 func TestFind(t *testing.T) {
 	r := Rank(rows(9, 8, 7), WeeklySameRank) // user ids 1,2,3
 	got, ok := Find(r, 3)

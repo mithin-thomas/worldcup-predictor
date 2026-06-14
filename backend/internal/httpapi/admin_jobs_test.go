@@ -24,6 +24,11 @@ func (f *fakeJobRunner) RunWeeklyWinner(context.Context) (any, error) {
 	return map[string]int{"winners": 1}, nil
 }
 
+func (f *fakeJobRunner) RunBonusScore(context.Context) (any, error) {
+	f.called++
+	return map[string]int{"scored": 0}, nil
+}
+
 func adminJobsDeps(t *testing.T, role store.Role) (*Deps, *http.Cookie, *fakeJobRunner) {
 	t.Helper()
 	fs := newFakeStore()
@@ -85,6 +90,23 @@ func TestRunJobWeeklyWinner(t *testing.T) {
 	rec := postJob(t, d, true, cookie, `{"job":"weekly-winner"}`)
 	if rec.Code != http.StatusOK || jr.called == 0 {
 		t.Fatalf("status=%d called=%d", rec.Code, jr.called)
+	}
+}
+
+func TestRunJobBonusScore(t *testing.T) {
+	d, cookie, jr := adminJobsDeps(t, store.RoleAdmin)
+	rec := postJob(t, d, true, cookie, `{"job":"bonus-score"}`)
+	if rec.Code != http.StatusOK || jr.called == 0 {
+		t.Fatalf("status=%d called=%d, want 200 + dispatched", rec.Code, jr.called)
+	}
+}
+
+func TestRunJobBonusScoreNilRunner(t *testing.T) {
+	d, cookie, _ := adminJobsDeps(t, store.RoleAdmin)
+	d.JobRunner = nil
+	rec := postJob(t, d, true, cookie, `{"job":"bonus-score"}`)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", rec.Code)
 	}
 }
 

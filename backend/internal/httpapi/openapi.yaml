@@ -16,6 +16,7 @@ tags:
   - name: Fixtures
   - name: Predictions
   - name: Leaderboards
+  - name: Bonus
   - name: Admin
 
 paths:
@@ -204,6 +205,170 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
+  /api/bonus:
+    get:
+      tags: [Bonus]
+      summary: The caller's tournament bonus picks and lock state
+      description: >
+        Returns the authenticated user's seven-category tournament bonus picks
+        plus the server-authoritative lock state. `lock_at` is the configured
+        `BONUS_LOCK_AT` (RFC3339); `locked` is true once `now >= lock_at`. Each
+        pick's `ref_type` is `team` (winner/runner_up/fair_play) or `player`
+        (golden_ball/golden_boot/golden_glove/young_player); `label` is the
+        resolved team/player name; `points` is present only once scored.
+        Categories with no pick are omitted.
+      responses:
+        "200":
+          description: The caller's picks and lock state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BonusResponse" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    put:
+      tags: [Bonus]
+      summary: Upsert the caller's tournament bonus picks
+      description: >
+        Upserts any subset of the seven bonus picks. Each `ref_id` is validated
+        against the correct table for the category's ref-type (team vs player).
+        The server is authoritative for the bonus lock and rejects all writes
+        once `now >= BONUS_LOCK_AT`. Returns the same shape as `GET /api/bonus`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [picks]
+              properties:
+                picks:
+                  type: array
+                  items:
+                    type: object
+                    required: [category, ref_id]
+                    properties:
+                      category: { $ref: "#/components/schemas/BonusCategory" }
+                      ref_id: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Updated picks and lock state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BonusResponse" }
+        "400":
+          description: Bad request (invalid category, missing/wrong-type ref, or invalid JSON body)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Bonus predictions are locked (now >= BONUS_LOCK_AT)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/teams:
+    get:
+      tags: [Bonus]
+      summary: All teams for the bonus team-award dropdowns
+      responses:
+        "200":
+          description: Teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Team" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/players:
+    get:
+      tags: [Bonus]
+      summary: Search players for the bonus player-award typeahead
+      description: >
+        Name search over the seeded squads, capped at 20 rows, for the player
+        award comboboxes (golden ball/boot/glove, young player).
+      parameters:
+        - in: query
+          name: q
+          required: false
+          schema: { type: string }
+          description: Name search term.
+      responses:
+        "200":
+          description: Matching players (capped at 20)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Player" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/admin/bonus/results:
+    put:
+      tags: [Admin]
+      summary: Set tournament-award outcomes
+      description: >
+        Upserts one or more bonus-award outcomes (the actual winner, golden ball,
+        etc.), each validated like a pick (known category, `ref_id` exists in the
+        correct table). A standard admin route (`RequireAdmin`) registered in all
+        environments. Scoring is then materialized via the `bonus-score` debug job.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [results]
+              properties:
+                results:
+                  type: array
+                  items:
+                    type: object
+                    required: [category, ref_id]
+                    properties:
+                      category: { $ref: "#/components/schemas/BonusCategory" }
+                      ref_id: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Outcomes saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  saved: { type: integer, description: "Number of outcomes upserted" }
+        "400":
+          description: Bad request (invalid category, wrong-type ref, or invalid JSON body)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Not an admin
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   /api/admin/winners/paid:
     put:
       tags: [Admin]
@@ -291,6 +456,32 @@ components:
         id: { type: integer, format: int64 }
         name: { type: string }
         code: { type: string }
+    Player:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        team_code: { type: string }
+        position: { type: string }
+    BonusCategory:
+      type: string
+      enum: [winner, runner_up, golden_ball, golden_boot, golden_glove, young_player, fair_play]
+    BonusPick:
+      type: object
+      properties:
+        category: { $ref: "#/components/schemas/BonusCategory" }
+        ref_type: { type: string, enum: [team, player], description: "team for winner/runner_up/fair_play, player otherwise" }
+        ref_id: { type: integer, format: int64, description: "team id or player id per ref_type" }
+        label: { type: string, description: "Resolved team/player name for display" }
+        points: { type: integer, description: "Materialized once scored; omitted until then" }
+    BonusResponse:
+      type: object
+      properties:
+        lock_at: { type: string, format: date-time, description: "BONUS_LOCK_AT (RFC3339)" }
+        locked: { type: boolean, description: "true once now >= lock_at (server-authoritative)" }
+        picks:
+          type: array
+          items: { $ref: "#/components/schemas/BonusPick" }
     Venue:
       type: object
       properties:

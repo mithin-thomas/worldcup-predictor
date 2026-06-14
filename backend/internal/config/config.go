@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -25,6 +26,8 @@ type Config struct {
 	FootballDataBaseURL string
 	ResultsCron         string
 	WeeklyCron          string
+
+	BonusLockAt time.Time
 }
 
 func (c Config) IsProduction() bool { return c.AppEnv == "production" }
@@ -56,6 +59,13 @@ func Load() (Config, error) {
 		ResultsCron:         getenv("RESULTS_CRON", "0 3,8,13 * * *"),
 		WeeklyCron:          getenv("WEEKLY_CRON", "30 13 * * 1"),
 	}
+	lockStr := getenv("BONUS_LOCK_AT", "2026-06-28T23:59:00+05:30")
+	lockAt, err := time.Parse(time.RFC3339, lockStr)
+	if err != nil {
+		return Config{}, fmt.Errorf("config: BONUS_LOCK_AT must be RFC3339: %w", err)
+	}
+	c.BonusLockAt = lockAt
+
 	if c.SessionSecret == "" {
 		return Config{}, fmt.Errorf("config: SESSION_SECRET is required")
 	}

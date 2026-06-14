@@ -43,6 +43,18 @@ func (d *Deps) PostRunJob(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusOK, summary)
+	case "bonus-score":
+		if d.JobRunner == nil {
+			writeError(w, http.StatusServiceUnavailable, "job runner not configured")
+			return
+		}
+		summary, err := d.JobRunner.RunBonusScore(r.Context())
+		if err != nil {
+			slog.Error("admin job failed", "job", req.Job, "err", err)
+			writeError(w, http.StatusInternalServerError, "job failed")
+			return
+		}
+		writeJSON(w, http.StatusOK, summary)
 	default:
 		writeError(w, http.StatusBadRequest, "unknown job")
 	}

@@ -40,5 +40,5 @@ func main() {
 		logger.Error("seed-fixtures failed", "err", err)
 		os.Exit(1)
 	}
-	logger.Info("seed-fixtures complete", "venues", res.Venues, "teams", res.Teams, "matches", res.Matches)
+	logger.Info("seed-fixtures complete", "venues", res.Venues, "teams", res.Teams, "matches", res.Matches, "players", res.Players)
 }

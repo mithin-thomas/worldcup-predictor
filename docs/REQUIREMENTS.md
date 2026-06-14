@@ -123,10 +123,10 @@ score(prediction, match):
 
 Weekly winners allow ties (co-winners). The **overall** final standings must produce distinct 1st/2nd, so equal total points are broken by this cascade — each step applied only if the previous is still tied:
 
-1. **Total points** (the rank metric: match points + penalty bonuses + tournament bonus points).
+1. **Total points** (the rank metric: match points + penalty bonuses + tournament bonus points). As of M7 the overall total is **live**, summing `predictions.points + penalty_bonus` plus each user's `SUM(bonus_predictions.points)`.
 2. **Most exact-score predictions** (count of 5-point matches).
 3. **Most correct-result predictions** (count of 3-point matches).
-4. **Most correct tournament bonus picks** (count of bonus categories scored).
+4. **Most correct tournament bonus picks** (count of bonus categories scored — `COUNT(bonus_predictions WHERE points > 0)`). **Live as of M7** (previously contributed 0 while the bonus feature was unbuilt).
 5. **Shared rank** — if still tied, the rank is shared (effectively impossible in practice; documented for completeness).
 
 This cascade is computed from stored per-prediction points, so it is deterministic and recompute-safe.
@@ -309,10 +309,11 @@ Indicative columns; refine in migrations.
 
 - **users**: `id`, `email` (unique), `name`, `avatar_url`, `role` ENUM('user','admin'), `created_at`.
 - **teams**: `id`, `api_team_id` (unique), `name`, `code`, `logo_url`.
+- **players**: `id`, `source_id` (unique, football-data player id), `team_id` FK→`teams(id)`, `name`, `position`. Squad data backing the player-award bonus picks (golden ball/boot/glove, young player); seeded from a committed `data/players.csv`. Indexed on `name` for typeahead search.
 - **matches**: `id`, `api_fixture_id` (unique), `stage` ENUM('group','knockout'), `round`, `home_team_id`, `away_team_id`, `kickoff_utc`, `status` ENUM('scheduled','live','final'), `home_score`, `away_score`, `went_to_penalties` BOOL, `penalty_winner_team_id` NULL, `manual_override` BOOL DEFAULT 0, `updated_at`.
 - **predictions**: `id`, `user_id`, `match_id`, `home_score`, `away_score`, `penalty_winner_team_id` NULL, `points` NULL, `penalty_bonus` NULL, `created_at`, `updated_at`. **UNIQUE(user_id, match_id)**.
-- **bonus_predictions**: `id`, `user_id`, `category` ENUM(winner, runner_up, golden_ball, golden_boot, golden_glove, young_player, fair_play), `value` (team or player ref / free text id), `points` NULL. **UNIQUE(user_id, category)**.
-- **bonus_results**: `category`, `value` (the actual outcome), set by admin after the tournament.
+- **bonus_predictions**: `id`, `user_id`, `category` ENUM(winner, runner_up, golden_ball, golden_boot, golden_glove, young_player, fair_play), `ref_id` BIGINT (a team id for team awards — winner/runner_up/fair_play — or a player id for player awards — golden_ball/golden_boot/golden_glove/young_player; the category→ref-type mapping is a fixed code constant, so there is **no FK** on `ref_id` and integrity is validated server-side), `points` NULL (materialized once at tournament end). **UNIQUE(user_id, category)**.
+- **bonus_results**: `category` (PK), `ref_id` (the actual outcome, same polymorphic-by-category semantics as `bonus_predictions.ref_id`), set by admin after the tournament.
 - **weekly_results**: `id`, `user_id`, `week_start` (IST date), `points`, `is_winner` BOOL, `prize_paid` BOOL DEFAULT 0, `paid_at` DATETIME NULL. **UNIQUE(user_id, week_start)**.
 - **settings**: `key`, `value` — e.g. `results_cron`, `bonus_lock_at`, `weekly_cron`.
 - **audit_log** (optional): admin actions for traceability.
@@ -337,8 +338,10 @@ Leaderboards
 - `GET /api/winners` — past weekly champions for the Hall of Fame, grouped by week, newest first: `{ "weeks": [ { "week_start": "YYYY-MM-DD", "winners": [ { "user_id", "name", "avatar_url", "points", "prize_paid" } ] } ] }`. `week_start` is the IST calendar Monday; empty → `{ "weeks": [] }`.
 
 Bonus
-- `GET /api/bonus` — categories, options, caller's picks, lock time.
-- `PUT /api/bonus` — upsert picks; rejected after `bonus_lock_at`.
+- `GET /api/bonus` — the caller's picks + lock state: `{ "lock_at": RFC3339, "locked": bool, "picks": [ { "category", "ref_type": "team"|"player", "ref_id", "label", "points"? } ] }`. `label` is the resolved team/player name; `points` is present once scored; categories with no pick are omitted.
+- `PUT /api/bonus` — upsert picks; body `{ "picks": [ { "category", "ref_id" } ] }` (any subset of the 7). Validates each category and that `ref_id` exists in the correct table for the category's ref-type; returns the same shape as `GET /api/bonus`. **403 when `now >= BONUS_LOCK_AT`** (server-authoritative; the client clock is never trusted); 400 on a bad category / missing or wrong-type ref / invalid JSON.
+- `GET /api/teams` — `[{ id, name, code }]` for the team-award dropdowns.
+- `GET /api/players?q=<term>` — `[{ id, name, team_code, position }]`, name search, capped (20 rows) for the player-award typeahead.
 
 Admin (role=admin)
 - `POST   /api/admin/fixtures/sync`
@@ -347,7 +350,8 @@ Admin (role=admin)
 - `POST   /api/admin/recompute`
 - `POST   /api/admin/users/:id/role`
 - `PUT    /api/admin/winners/paid` — body `{ "week_start": "YYYY-MM-DD", "user_id", "paid": bool }` → 200 `{ "week_start", "user_id", "prize_paid" }`. Marks a weekly winner's ₹500 gift card paid/unpaid. 400 on a bad date / non-positive `user_id` / bad JSON; 404 when no matching winner row. A **standard `RequireAdmin` route, registered in all environments** (not debug-gated).
-- `POST   /api/admin/jobs/run` — body `{ "job": "results-ingest" | "weekly-winner" }`. **Debug-only**: registered only when `APP_ENV != production`; returns 404 in production.
+- `PUT    /api/admin/bonus/results` — body `{ "results": [ { "category", "ref_id" } ] }` → 200 `{ "saved": N }`. Upserts one or more tournament-award outcomes (validated like bonus picks: known category, `ref_id` exists in the correct table). 400 on a bad category / wrong-type ref / invalid JSON. A **standard `RequireAdmin` route, registered in all environments** (not debug-gated); the polished outcomes UI is deferred.
+- `POST   /api/admin/jobs/run` — body `{ "job": "results-ingest" | "weekly-winner" | "bonus-score" }`. **Debug-only**: registered only when `APP_ENV != production`; returns 404 in production. `bonus-score` idempotently materializes `bonus_predictions.points` from `bonus_results` (recompute, never increment).
 
 Ops
 - `GET /healthz`

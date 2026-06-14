@@ -10,6 +10,7 @@ type Row struct {
 	Points    int64
 	Exact     int64
 	Correct   int64
+	BonusHits int64 // §5.1 fourth tier: most correct bonus picks (weekly leaves this 0)
 	IsWinner  bool
 }
 
@@ -22,10 +23,11 @@ type Ranked struct {
 // WeeklySameRank: co-winners share a rank on equal total points (§3.5).
 func WeeklySameRank(a, b Row) bool { return a.Points == b.Points }
 
-// OverallSameRank: §5.1 — same rank only when total, exact, and correct all tie
-// (the bonus tier is 0 until M7).
+// OverallSameRank: §5.1 — same rank only when total, exact, correct, and bonus
+// hits all tie (four-tier cascade: total → exact → correct → bonus hits).
 func OverallSameRank(a, b Row) bool {
-	return a.Points == b.Points && a.Exact == b.Exact && a.Correct == b.Correct
+	return a.Points == b.Points && a.Exact == b.Exact &&
+		a.Correct == b.Correct && a.BonusHits == b.BonusHits
 }
 
 // Rank assigns 1-based competition ranks to PRE-ORDERED rows (e.g. 1,1,3).

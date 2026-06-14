@@ -96,6 +96,45 @@ func TestParseStages(t *testing.T) {
 	}
 }
 
+func TestParsePlayers(t *testing.T) {
+	t.Run("valid rows", func(t *testing.T) {
+		input := "source_id,team_fifa_code,name,position\n" +
+			"1001,MEX,Guillermo Ochoa,Goalkeeper\n" +
+			"2001,RSA,Ronwen Williams,\n"
+		players, err := parsePlayers(strings.NewReader(input))
+		if err != nil {
+			t.Fatalf("parsePlayers err = %v", err)
+		}
+		if len(players) != 2 {
+			t.Fatalf("got %d players, want 2", len(players))
+		}
+		if players[0].SourceID != 1001 || players[0].TeamFifaCode != "MEX" || players[0].Name != "Guillermo Ochoa" || players[0].Position != "Goalkeeper" {
+			t.Errorf("player[0] = %+v", players[0])
+		}
+		if players[1].SourceID != 2001 || players[1].TeamFifaCode != "RSA" || players[1].Name != "Ronwen Williams" || players[1].Position != "" {
+			t.Errorf("player[1] = %+v", players[1])
+		}
+	})
+
+	t.Run("header only yields empty slice", func(t *testing.T) {
+		players, err := parsePlayers(strings.NewReader("source_id,team_fifa_code,name,position\n"))
+		if err != nil {
+			t.Fatalf("err = %v", err)
+		}
+		if len(players) != 0 {
+			t.Errorf("want empty, got %d", len(players))
+		}
+	})
+
+	t.Run("short row returns error", func(t *testing.T) {
+		input := "source_id,team_fifa_code,name,position\n1001,MEX,Ochoa\n" // only 3 fields
+		_, err := parsePlayers(strings.NewReader(input))
+		if err == nil {
+			t.Error("expected error for short row, got nil")
+		}
+	})
+}
+
 func TestParseMatchesHandlesPlaceholdersAndGroup(t *testing.T) {
 	stages := map[int64]string{1: "Group Stage", 3: "Round of 16"}
 	csv := "id,match_number,home_team_id,away_team_id,city_id,stage_id,kickoff_at,match_label\n" +

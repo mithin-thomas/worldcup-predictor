@@ -47,7 +47,7 @@ func main() {
 	seedAdmins(context.Background(), st, cfg.SeedAdminEmails, logger)
 
 	weekly := jobs.WeeklyWinner{Store: st, Now: func() time.Time { return time.Now().UTC() }}
-	sj := serverJobs{weekly: weekly}
+	sj := serverJobs{weekly: weekly, bonus: jobs.BonusScore{Store: st}}
 	if cfg.FootballDataAPIKey != "" {
 		if alias, err := loadAliasFile(cfg.SeedDataDir + "/fd_team_aliases.csv"); err == nil {
 			ingest := jobs.ResultsIngest{
@@ -68,6 +68,9 @@ func main() {
 		Matches:            st,
 		Predictions:        st,
 		Leaderboard:        st,
+		Bonus:              st,
+		Players:            st,
+		BonusLockAt:        cfg.BonusLockAt,
 		JobRunner:          jobRunner,
 		Sessions:           auth.NewSessionManager(cfg.SessionSecret),
 		Verifier:           auth.GoogleTokenVerifier{ClientID: cfg.GoogleClientID},
@@ -184,10 +187,12 @@ func loadAliasFile(path string) (map[int64]string, error) {
 }
 
 // serverJobs adapts the background jobs to httpapi.JobRunner. ingest is nil when
-// no results API key is configured; weekly-winner always works (no external API).
+// no results API key is configured; weekly-winner and bonus-score always work
+// (no external API).
 type serverJobs struct {
 	ingest *jobs.ResultsIngest
 	weekly jobs.WeeklyWinner
+	bonus  jobs.BonusScore
 }
 
 func (s serverJobs) RunResultsIngest(ctx context.Context) (any, error) {
@@ -199,6 +204,10 @@ func (s serverJobs) RunResultsIngest(ctx context.Context) (any, error) {
 
 func (s serverJobs) RunWeeklyWinner(ctx context.Context) (any, error) {
 	return s.weekly.Run(ctx)
+}
+
+func (s serverJobs) RunBonusScore(ctx context.Context) (any, error) {
+	return s.bonus.Run(ctx)
 }
 
 // seedAdmins promotes any already-existing user in the seed list to admin and

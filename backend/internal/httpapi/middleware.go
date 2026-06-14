@@ -23,6 +23,9 @@ type Deps struct {
 	Matches            store.MatchStore
 	Predictions        store.PredictionStore
 	Leaderboard        store.LeaderboardStore
+	Bonus              store.BonusStore
+	Players            store.PlayerStore
+	BonusLockAt        time.Time
 	JobRunner          JobRunner
 	Sessions           *auth.SessionManager
 	Verifier           auth.TokenVerifier
@@ -62,6 +65,7 @@ func (d *Deps) RequireAuth(next http.Handler) http.Handler {
 type JobRunner interface {
 	RunResultsIngest(ctx context.Context) (any, error)
 	RunWeeklyWinner(ctx context.Context) (any, error)
+	RunBonusScore(ctx context.Context) (any, error)
 }
 
 // RequireAdmin must follow RequireAuth; it 403s non-admin users.

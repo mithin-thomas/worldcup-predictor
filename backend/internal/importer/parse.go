@@ -116,6 +116,26 @@ func parseStages(r io.Reader) (map[int64]string, error) {
 	return out, nil
 }
 
+func parsePlayers(r io.Reader) ([]PlayerRow, error) {
+	rows, err := readCSV(r)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]PlayerRow, 0, len(rows))
+	for i, c := range rows { // source_id,team_fifa_code,name,position
+		if len(c) < 4 {
+			return nil, fmt.Errorf("importer: players.csv row %d: got %d fields, want 4", i+2, len(c))
+		}
+		out = append(out, PlayerRow{
+			SourceID:     atoi64(c[0]),
+			TeamFifaCode: strings.TrimSpace(c[1]),
+			Name:         strings.TrimSpace(c[2]),
+			Position:     strings.TrimSpace(c[3]),
+		})
+	}
+	return out, nil
+}
+
 func parseMatches(r io.Reader, stages map[int64]string) ([]MatchRow, error) {
 	rows, err := readCSV(r)
 	if err != nil {
