@@ -35,3 +35,15 @@ ON DUPLICATE KEY UPDATE points = VALUES(points), is_winner = VALUES(is_winner);
 SELECT user_id, points, is_winner
 FROM weekly_results
 WHERE week_start = ?;
+
+-- name: ListWinners :many
+SELECT w.week_start, w.user_id, u.name, u.avatar_url, w.points, w.prize_paid, w.paid_at
+FROM weekly_results w
+JOIN users u ON u.id = w.user_id
+WHERE w.is_winner = 1
+ORDER BY w.week_start DESC, w.points DESC, u.id ASC;
+
+-- name: MarkWinnerPaid :execrows
+UPDATE weekly_results
+SET prize_paid = ?, paid_at = ?
+WHERE week_start = ? AND user_id = ? AND is_winner = 1;

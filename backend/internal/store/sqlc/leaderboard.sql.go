@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
@@ -43,6 +44,81 @@ func (q *Queries) ListWeeklyResults(ctx context.Context, weekStart time.Time) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const listWinners = `-- name: ListWinners :many
+SELECT w.week_start, w.user_id, u.name, u.avatar_url, w.points, w.prize_paid, w.paid_at
+FROM weekly_results w
+JOIN users u ON u.id = w.user_id
+WHERE w.is_winner = 1
+ORDER BY w.week_start DESC, w.points DESC, u.id ASC
+`
+
+type ListWinnersRow struct {
+	WeekStart time.Time    `json:"week_start"`
+	UserID    int64        `json:"user_id"`
+	Name      string       `json:"name"`
+	AvatarUrl string       `json:"avatar_url"`
+	Points    int32        `json:"points"`
+	PrizePaid bool         `json:"prize_paid"`
+	PaidAt    sql.NullTime `json:"paid_at"`
+}
+
+func (q *Queries) ListWinners(ctx context.Context) ([]ListWinnersRow, error) {
+	rows, err := q.db.QueryContext(ctx, listWinners)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListWinnersRow
+	for rows.Next() {
+		var i ListWinnersRow
+		if err := rows.Scan(
+			&i.WeekStart,
+			&i.UserID,
+			&i.Name,
+			&i.AvatarUrl,
+			&i.Points,
+			&i.PrizePaid,
+			&i.PaidAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markWinnerPaid = `-- name: MarkWinnerPaid :execrows
+UPDATE weekly_results
+SET prize_paid = ?, paid_at = ?
+WHERE week_start = ? AND user_id = ? AND is_winner = 1
+`
+
+type MarkWinnerPaidParams struct {
+	PrizePaid bool         `json:"prize_paid"`
+	PaidAt    sql.NullTime `json:"paid_at"`
+	WeekStart time.Time    `json:"week_start"`
+	UserID    int64        `json:"user_id"`
+}
+
+func (q *Queries) MarkWinnerPaid(ctx context.Context, arg MarkWinnerPaidParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markWinnerPaid,
+		arg.PrizePaid,
+		arg.PaidAt,
+		arg.WeekStart,
+		arg.UserID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const overallLeaderboard = `-- name: OverallLeaderboard :many

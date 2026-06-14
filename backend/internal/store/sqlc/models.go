@@ -202,11 +202,13 @@ type Venue struct {
 }
 
 type WeeklyResult struct {
-	ID        int64     `json:"id"`
-	UserID    int64     `json:"user_id"`
-	WeekStart time.Time `json:"week_start"`
-	Points    int32     `json:"points"`
-	IsWinner  bool      `json:"is_winner"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        int64        `json:"id"`
+	UserID    int64        `json:"user_id"`
+	WeekStart time.Time    `json:"week_start"`
+	Points    int32        `json:"points"`
+	IsWinner  bool         `json:"is_winner"`
+	CreatedAt time.Time    `json:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at"`
+	PrizePaid bool         `json:"prize_paid"`
+	PaidAt    sql.NullTime `json:"paid_at"`
 }
