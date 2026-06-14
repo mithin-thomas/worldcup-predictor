@@ -1,34 +1,30 @@
 #!/usr/bin/env python3
 """Author data/fd_team_aliases.csv: football-data.org team id -> our FIFA code.
 
-One-time / re-runnable. Needs FOOTBALL_DATA_API_KEY in the env. Fetches the WC
-squad list and maps each football-data team name to our FIFA code via NAME_TO_CODE
-(kept in sync with scripts/gen_fixtures.py). Run: FOOTBALL_DATA_API_KEY=... \
-  python3 scripts/gen_fd_aliases.py
+One-time / re-runnable. Needs FOOTBALL_DATA_API_KEY in the env. Reads the WC team
+list from /v4/competitions/WC/teams and maps each team by its football-data `tla`
+(3-letter code), which equals our FIFA code for all but the few exceptions in
+TLA_OVERRIDE. Mapping by `tla` (not display name) is robust: football-data's team
+`name` varies across endpoints (e.g. "South Korea" vs "Korea Republic"), but the
+`tla` is stable. Every resolved code is validated against data/teams.csv; an
+unknown tla fails loud so it can be added to the override. Run:
+  FOOTBALL_DATA_API_KEY=... python3 scripts/gen_fd_aliases.py
 """
 import csv
 import json
 import os
 import urllib.request
 
-# football-data.org team name -> our FIFA code. Extend if the API renames a team.
-NAME_TO_CODE = {
-    "Mexico": "MEX", "South Africa": "RSA", "Korea Republic": "KOR", "Czechia": "CZE",
-    "Bosnia and Herzegovina": "BIH", "Canada": "CAN", "Qatar": "QAT", "Switzerland": "SUI",
-    "Brazil": "BRA", "Haiti": "HAI", "Morocco": "MAR", "Scotland": "SCO",
-    "Australia": "AUS", "Paraguay": "PAR", "Türkiye": "TUR", "United States": "USA",
-    "Curaçao": "CUW", "Ecuador": "ECU", "Germany": "GER", "Côte d'Ivoire": "CIV",
-    "Japan": "JPN", "Netherlands": "NED", "Sweden": "SWE", "Tunisia": "TUN",
-    "Belgium": "BEL", "Egypt": "EGY", "Iran": "IRN", "New Zealand": "NZL",
-    "Cape Verde": "CPV", "Saudi Arabia": "KSA", "Spain": "ESP", "Uruguay": "URU",
-    "France": "FRA", "Iraq": "IRQ", "Norway": "NOR", "Senegal": "SEN",
-    "Algeria": "ALG", "Argentina": "ARG", "Austria": "AUT", "Jordan": "JOR",
-    "Colombia": "COL", "DR Congo": "COD", "Portugal": "POR", "Uzbekistan": "UZB",
-    "Croatia": "CRO", "England": "ENG", "Ghana": "GHA", "Panama": "PAN",
-}
-
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KEY = os.environ["FOOTBALL_DATA_API_KEY"]
+
+# football-data `tla` -> our FIFA code, only where they differ (tla == our code otherwise).
+TLA_OVERRIDE = {"URY": "URU"}  # Uruguay
+
+
+def our_codes():
+    with open(os.path.join(ROOT, "data", "teams.csv"), encoding="utf-8") as f:
+        return {row["fifa_code"] for row in csv.DictReader(f)}
 
 
 def main():
@@ -37,15 +33,16 @@ def main():
         headers={"X-Auth-Token": KEY},
     )
     teams = json.load(urllib.request.urlopen(req))["teams"]
+    valid = our_codes()
     rows, unmapped = [], []
     for t in teams:
-        code = NAME_TO_CODE.get(t["name"])
-        if not code:
-            unmapped.append(t["name"])
+        code = TLA_OVERRIDE.get(t["tla"], t["tla"])
+        if code not in valid:
+            unmapped.append(f'{t["tla"]} ({t["name"]})')
             continue
         rows.append([t["id"], code])
     if unmapped:
-        raise SystemExit(f"unmapped football-data team names (add to NAME_TO_CODE): {unmapped}")
+        raise SystemExit(f"unmapped football-data teams (add to TLA_OVERRIDE): {unmapped}")
     rows.sort(key=lambda r: r[1])
     with open(os.path.join(ROOT, "data", "fd_team_aliases.csv"), "w", newline="") as f:
         w = csv.writer(f)
