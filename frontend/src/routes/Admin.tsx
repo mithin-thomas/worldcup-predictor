@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMe } from "../lib/auth";
 import { useTeams, type TeamOption } from "../lib/bonus";
 import {
@@ -87,9 +87,14 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  variant?: "danger" | "brand";
 }
 
-function ConfirmDialog({ message, confirmLabel = "Confirm", onConfirm, onCancel }: ConfirmDialogProps) {
+function ConfirmDialog({ message, confirmLabel = "Confirm", onConfirm, onCancel, variant = "danger" }: ConfirmDialogProps) {
+  const confirmClass = variant === "brand"
+    ? "admin-dialog__confirm admin-dialog__confirm--brand"
+    : "admin-dialog__confirm";
+
   return (
     <div
       className="admin-dialog-overlay"
@@ -113,7 +118,7 @@ function ConfirmDialog({ message, confirmLabel = "Confirm", onConfirm, onCancel 
           </button>
           <button
             type="button"
-            className="admin-dialog__confirm"
+            className={confirmClass}
             onClick={onConfirm}
             data-testid="confirm-dialog-confirm"
           >
@@ -811,21 +816,35 @@ function SettingsSection() {
   const saveSettings = useSaveSettings();
   const recompute = useRecompute();
 
-  // Local form state — prefilled from the query, editable by the user
-  const [resultsCron, setResultsCron] = useState<string>("");
-  const [weeklyCron, setWeeklyCron] = useState<string>("");
-  // bonus_lock_at is stored as RFC3339; shown/edited in IST datetime-local
-  const [bonusLockAt, setBonusLockAt] = useState<string>("");
-  // Track whether we've initialised from the server response
-  const [initialised, setInitialised] = useState(false);
+  // Local form state — prefilled from the query, editable by the user.
+  // Grouped into one object so the effect below can call setState once.
+  const [form, setForm] = useState({
+    resultsCron: "",
+    weeklyCron: "",
+    // bonus_lock_at is stored as RFC3339; shown/edited in IST datetime-local
+    bonusLockAt: "",
+  });
 
-  // Sync form state from server on first load
-  if (settings && !initialised) {
-    setResultsCron(settings.results_cron);
-    setWeeklyCron(settings.weekly_cron);
-    setBonusLockAt(rfc3339ToIstInput(settings.bonus_lock_at));
-    setInitialised(true);
-  }
+  // useRef flag avoids making `initialised` a state variable (no render needed
+  // for the flag itself); lets us call setForm once in the effect (single setState).
+  const initialisedRef = useRef(false);
+
+  // Seed form from server response on first load (idiomatic: effect with single setState)
+  useEffect(() => {
+    if (settings && !initialisedRef.current) {
+      initialisedRef.current = true;
+      setForm({
+        resultsCron: settings.results_cron,
+        weeklyCron: settings.weekly_cron,
+        bonusLockAt: rfc3339ToIstInput(settings.bonus_lock_at),
+      });
+    }
+  }, [settings]);
+
+  const { resultsCron, weeklyCron, bonusLockAt } = form;
+  const setResultsCron = (v: string) => setForm((f) => ({ ...f, resultsCron: v }));
+  const setWeeklyCron = (v: string) => setForm((f) => ({ ...f, weeklyCron: v }));
+  const setBonusLockAt = (v: string) => setForm((f) => ({ ...f, bonusLockAt: v }));
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [recomputeResult, setRecomputeResult] = useState<RecomputeSummary | null>(null);
@@ -869,11 +888,12 @@ function SettingsSection() {
 
     saveSettings.mutate(payload, {
       onSuccess: (updated) => {
-        // Reconcile with the returned full set
-        setResultsCron(updated.results_cron);
-        setWeeklyCron(updated.weekly_cron);
-        setBonusLockAt(rfc3339ToIstInput(updated.bonus_lock_at));
-        setInitialised(true);
+        // Reconcile form with the server's returned full set
+        setForm({
+          resultsCron: updated.results_cron,
+          weeklyCron: updated.weekly_cron,
+          bonusLockAt: rfc3339ToIstInput(updated.bonus_lock_at),
+        });
       },
       onError: (err) => {
         setSaveError(err instanceof Error ? err.message : "Failed to save settings.");
@@ -1014,7 +1034,7 @@ function SettingsSection() {
       </div>
 
       {/* ── Recompute ── */}
-      <div className="admin-panel admin-settings__recompute-panel">
+      <div className="admin-panel">
         <div className="admin-settings__recompute">
           <h2 className="admin-settings__recompute-title">Recompute points</h2>
           <p className="admin-settings__recompute-desc">
@@ -1041,20 +1061,24 @@ function SettingsSection() {
               </p>
             )}
 
-            {recomputeResult && (
-              <span
-                className="admin-settings__recompute-summary"
-                role="status"
-                aria-live="polite"
-                data-testid="recompute-summary"
-              >
-                <span>{recomputeResult.matches_rescored} matches rescored</span>
-                <span aria-hidden="true">·</span>
-                <span>{recomputeResult.predictions_updated} predictions</span>
-                <span aria-hidden="true">·</span>
-                <span>{recomputeResult.bonus_updated} bonus</span>
-              </span>
-            )}
+            {/* Always rendered so SRs announce updates; content populated when result arrives */}
+            <span
+              className="admin-settings__recompute-summary"
+              role="status"
+              aria-live="polite"
+              data-testid="recompute-summary"
+              style={recomputeResult ? undefined : { display: "none" }}
+            >
+              {recomputeResult && (
+                <>
+                  <span>{recomputeResult.matches_rescored} matches rescored</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{recomputeResult.predictions_updated} predictions</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{recomputeResult.bonus_updated} bonus</span>
+                </>
+              )}
+            </span>
           </div>
         </div>
       </div>
@@ -1065,6 +1089,7 @@ function SettingsSection() {
           confirmLabel="Recompute"
           onConfirm={handleRecomputeConfirm}
           onCancel={() => setShowRecomputeConfirm(false)}
+          variant="brand"
         />
       )}
     </div>

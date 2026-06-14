@@ -623,6 +623,37 @@ describe("Admin screen — settings tab", () => {
     expect(recomputeMutate).not.toHaveBeenCalled();
   });
 
+  it("FIX 7: bonus_lock_at input is pre-filled with IST rendering of server value", () => {
+    // Server sends "2026-06-28T23:59:00+05:30"; datetime-local value should be "2026-06-28T23:59"
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    const bonusInput = screen.getByLabelText("Bonus lock date and time (IST)") as HTMLInputElement;
+    expect(bonusInput.value).toBe("2026-06-28T23:59");
+  });
+
+  it("FIX 7: submitting Settings form calls save mutation with IST RFC3339 bonus_lock_at and trimmed crons", () => {
+    const mutateSpy = vi.fn();
+    vi.mocked(useSaveSettings).mockReturnValue({
+      mutate: mutateSpy,
+      isPending: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof useSaveSettings>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /save settings/i }));
+
+    expect(mutateSpy).toHaveBeenCalledTimes(1);
+    const payload = mutateSpy.mock.calls[0][0] as Record<string, string>;
+    expect(payload.results_cron).toBe("0 3,8,13 * * *");
+    expect(payload.weekly_cron).toBe("30 13 * * 1");
+    // IST RFC3339: "2026-06-28T23:59:00+05:30"
+    expect(payload.bonus_lock_at).toBe("2026-06-28T23:59:00+05:30");
+  });
+
   it("calls recompute.mutate after confirming and shows the returned summary", () => {
     const summary: import("../lib/admin").RecomputeSummary = {
       matches_rescored: 12,

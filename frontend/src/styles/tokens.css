@@ -2378,6 +2378,22 @@ body {
   box-shadow: none;
 }
 
+/* Brand variant — non-destructive confirm (e.g., Recompute) */
+.admin-dialog__confirm--brand {
+  background: var(--brand);
+  color: var(--on-brand);
+  border-color: var(--brand);
+}
+
+.admin-dialog__confirm--brand:hover {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+
+.admin-dialog__confirm--brand:focus-visible {
+  outline-color: var(--brand);
+}
+
 /* ── Matches container ───────────────────────────────────────────────────── */
 .admin-matches {
   display: flex;
@@ -2453,7 +2469,7 @@ body {
   background: color-mix(in oklch, var(--live) 14%, transparent);
   border: 1px solid color-mix(in oklch, var(--live) 35%, transparent);
   border-radius: 100px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -2572,6 +2588,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .btn-brand,
+  .btn-ghost,
   .admin__tab,
   .admin-match-item,
   .admin-action-btn,
@@ -2579,5 +2597,6 @@ body {
   .admin-form__input,
   .admin-user-item,
   .admin-role-btn,
-  .admin-dialog__confirm { transition: none; }
+  .admin-dialog__confirm,
+  .admin-dialog__confirm--brand { transition: none; }
 }
