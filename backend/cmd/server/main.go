@@ -6,14 +6,19 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/sayonetech/worldcup-predictor/backend/internal/auth"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/config"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/httpapi"
+	"github.com/sayonetech/worldcup-predictor/backend/internal/jobs"
+	"github.com/sayonetech/worldcup-predictor/backend/internal/sportsapi"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
 
 	"github.com/joho/godotenv"
+	"github.com/robfig/cron/v3"
 )
 
 func main() {
@@ -41,10 +46,25 @@ func main() {
 	st := store.New(db)
 	seedAdmins(context.Background(), st, cfg.SeedAdminEmails, logger)
 
+	var jobRunner httpapi.JobRunner
+	if !cfg.IsProduction() && cfg.FootballDataAPIKey != "" {
+		if alias, err := loadAliasFile(cfg.SeedDataDir + "/fd_team_aliases.csv"); err == nil {
+			jobRunner = ingestRunner{jobs.ResultsIngest{
+				API:   sportsapi.New(cfg.FootballDataBaseURL, cfg.FootballDataAPIKey),
+				Store: st,
+				Now:   func() time.Time { return time.Now().UTC() },
+				Alias: alias,
+			}}
+		} else {
+			logger.Warn("job trigger disabled: alias load", "err", err)
+		}
+	}
+
 	deps := &httpapi.Deps{
 		Store:              st,
 		Matches:            st,
 		Predictions:        st,
+		JobRunner:          jobRunner,
 		Sessions:           auth.NewSessionManager(cfg.SessionSecret),
 		Verifier:           auth.GoogleTokenVerifier{ClientID: cfg.GoogleClientID},
 		AllowedEmailDomain: cfg.AllowedEmailDomain,
@@ -60,11 +80,84 @@ func main() {
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	logger.Info("listening", "port", cfg.HTTPPort, "env", cfg.AppEnv)
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Error("server", "err", err)
-		os.Exit(1)
+
+	// Results-ingest scheduler (in-process). Only runs when an API key is set;
+	// local dev without a key still boots.
+	scheduler := startResultsCron(cfg, st, logger)
+	if scheduler != nil {
+		defer scheduler.Stop()
 	}
+
+	go func() {
+		logger.Info("listening", "port", cfg.HTTPPort, "env", cfg.AppEnv)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("server", "err", err)
+			os.Exit(1)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	<-stop
+	logger.Info("shutting down")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Error("shutdown", "err", err)
+	}
+}
+
+// startResultsCron builds the results-ingest job and schedules it on RESULTS_CRON
+// (IST). Returns nil (and logs) when no API key is configured.
+func startResultsCron(cfg config.Config, st *store.SQLStore, logger *slog.Logger) *cron.Cron {
+	if cfg.FootballDataAPIKey == "" {
+		logger.Info("results-ingest disabled (no FOOTBALL_DATA_API_KEY)")
+		return nil
+	}
+	alias, err := loadAliasFile(cfg.SeedDataDir + "/fd_team_aliases.csv")
+	if err != nil {
+		logger.Error("results-ingest disabled: load alias file", "err", err)
+		return nil
+	}
+	job := jobs.ResultsIngest{
+		API:   sportsapi.New(cfg.FootballDataBaseURL, cfg.FootballDataAPIKey),
+		Store: st,
+		Now:   func() time.Time { return time.Now().UTC() },
+		Alias: alias,
+	}
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		loc = time.FixedZone("IST", 5*3600+1800)
+	}
+	c := cron.New(cron.WithLocation(loc))
+	if _, err := c.AddFunc(cfg.ResultsCron, func() {
+		if _, err := job.Run(context.Background()); err != nil {
+			logger.Error("results-ingest run", "err", err)
+		}
+	}); err != nil {
+		logger.Error("results-ingest disabled: bad RESULTS_CRON", "spec", cfg.ResultsCron, "err", err)
+		return nil
+	}
+	c.Start()
+	logger.Info("results-ingest scheduled", "cron", cfg.ResultsCron, "tz", loc.String())
+	return c
+}
+
+// loadAliasFile opens + parses the fd-team-id alias CSV.
+func loadAliasFile(path string) (map[int64]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return jobs.LoadAliases(f)
+}
+
+// ingestRunner adapts jobs.ResultsIngest to httpapi.JobRunner.
+type ingestRunner struct{ ingest jobs.ResultsIngest }
+
+func (r ingestRunner) RunResultsIngest(ctx context.Context) (any, error) {
+	return r.ingest.Run(ctx)
 }
 
 // seedAdmins promotes any already-existing user in the seed list to admin and

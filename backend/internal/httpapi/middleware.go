@@ -22,6 +22,7 @@ type Deps struct {
 	Store              store.Store
 	Matches            store.MatchStore
 	Predictions        store.PredictionStore
+	JobRunner          JobRunner
 	Sessions           *auth.SessionManager
 	Verifier           auth.TokenVerifier
 	AllowedEmailDomain string
@@ -53,6 +54,27 @@ func (d *Deps) RequireAuth(next http.Handler) http.Handler {
 		}
 		ctx := context.WithValue(r.Context(), userCtxKey, u)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// JobRunner runs a named background job on demand (debug trigger). nil in prod.
+type JobRunner interface {
+	RunResultsIngest(ctx context.Context) (any, error)
+}
+
+// RequireAdmin must follow RequireAuth; it 403s non-admin users.
+func (d *Deps) RequireAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u, ok := userFromContext(r.Context())
+		if !ok {
+			writeError(w, http.StatusUnauthorized, "not authenticated")
+			return
+		}
+		if u.Role != store.RoleAdmin {
+			writeError(w, http.StatusForbidden, "admin only")
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 

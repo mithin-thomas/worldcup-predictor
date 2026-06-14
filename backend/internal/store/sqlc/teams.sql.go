@@ -20,6 +20,38 @@ func (q *Queries) GetTeamIDBySourceID(ctx context.Context, sourceID int64) (int6
 	return id, err
 }
 
+const listTeamsByCode = `-- name: ListTeamsByCode :many
+SELECT id, code FROM teams WHERE is_placeholder = 0
+`
+
+type ListTeamsByCodeRow struct {
+	ID   int64  `json:"id"`
+	Code string `json:"code"`
+}
+
+func (q *Queries) ListTeamsByCode(ctx context.Context) ([]ListTeamsByCodeRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTeamsByCode)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTeamsByCodeRow
+	for rows.Next() {
+		var i ListTeamsByCodeRow
+		if err := rows.Scan(&i.ID, &i.Code); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertTeam = `-- name: UpsertTeam :exec
 INSERT INTO teams (source_id, name, code, group_letter, is_placeholder)
 VALUES (?, ?, ?, ?, ?)
