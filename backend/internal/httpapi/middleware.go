@@ -25,6 +25,9 @@ type Deps struct {
 	Leaderboard        store.LeaderboardStore
 	Bonus              store.BonusStore
 	Players            store.PlayerStore
+	AdminMatches       store.AdminMatchStore
+	AdminUsers         store.AdminUserStore
+	Results            store.ResultsStore
 	BonusLockAt        time.Time
 	JobRunner          JobRunner
 	Sessions           *auth.SessionManager
