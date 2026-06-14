@@ -84,10 +84,10 @@ func (s *SQLStore) FindMatchByID(ctx context.Context, id int64) (MatchForResult,
 	if err != nil {
 		return MatchForResult{}, fmt.Errorf("store: find match by id: %w", err)
 	}
-	// GetMatchByID does not select manual_override or api_fixture_id; those are
-	// not needed by the admin result-correction path (ManualOverride is set via
-	// SetMatchManualOverride; APIFixtureID preserved as nil for admin-created rows).
-	return matchForResult(r.ID, r.Stage, r.HomeTeamID, r.AwayTeamID, r.KickoffUtc, r.Status, false, sql.NullInt64{}), nil
+	// GetMatchByID now selects manual_override and api_fixture_id so the admin
+	// result-correction handler can preserve the existing api_fixture_id (preventing
+	// data loss on synced matches) and read the current override flag.
+	return matchForResult(r.ID, r.Stage, r.HomeTeamID, r.AwayTeamID, r.KickoffUtc, r.Status, r.ManualOverride, r.ApiFixtureID), nil
 }
 
 func (s *SQLStore) FindMatchByKickoffAndTeams(ctx context.Context, kickoffUTC time.Time, homeID, awayID int64) (MatchForResult, error) {
