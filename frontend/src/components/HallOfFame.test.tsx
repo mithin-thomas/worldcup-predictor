@@ -57,6 +57,8 @@ describe("HallOfFame", () => {
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
     expect(screen.getByText(/Hall of Fame/i)).toBeInTheDocument();
+    // week shown as an IST Mon–Sun range (8 Jun 2026 → 14 Jun 2026)
+    expect(screen.getByText("8–14 Jun 2026")).toBeInTheDocument();
   });
 
   it("shows mark-paid control for admins, read-only badge for users", () => {

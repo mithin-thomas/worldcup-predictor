@@ -1,12 +1,20 @@
 import { useWinners, useMarkWinnerPaid } from "../lib/winners";
 import { useMe } from "../lib/auth";
 
-function weekLabel(weekStart: string): string {
-  return new Date(`${weekStart}T00:00:00+05:30`).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    timeZone: "Asia/Kolkata",
-  });
+// weekRange renders the IST Mon–Sun span for a week_start (YYYY-MM-DD, the IST
+// calendar Monday). E.g. "25–31 May 2026", or "29 Jun – 5 Jul 2026" across a
+// month boundary. Times are converted at the edge to IST, never shown as raw UTC.
+function weekRange(weekStart: string): string {
+  const start = new Date(`${weekStart}T00:00:00+05:30`);
+  const end = new Date(start.getTime() + 6 * 86_400_000); // Sunday = Monday + 6d
+  const part = (d: Date, opts: Intl.DateTimeFormatOptions) =>
+    d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", ...opts });
+  const startMonth = part(start, { month: "short" });
+  const endMonth = part(end, { month: "short" });
+  const year = part(end, { year: "numeric" });
+  return startMonth === endMonth
+    ? `${part(start, { day: "numeric" })}–${part(end, { day: "numeric" })} ${endMonth} ${year}`
+    : `${part(start, { day: "numeric", month: "short" })} – ${part(end, { day: "numeric", month: "short" })} ${year}`;
 }
 
 export function HallOfFame() {
@@ -44,7 +52,7 @@ export function HallOfFame() {
         <ul className="hof__weeks">
           {data.weeks.map((wk) => (
             <li key={wk.week_start} className="hof__week">
-              <p className="hof__weeklabel">Week of {weekLabel(wk.week_start)}</p>
+              <p className="hof__weeklabel">{weekRange(wk.week_start)}</p>
               <ul className="hof__winners">
                 {wk.winners.map((win) => {
                   // FIX 2: per-row loading — only the in-flight row shows Saving…
