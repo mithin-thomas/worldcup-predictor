@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +12,34 @@ import (
 
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
 )
+
+// TestGetBonus_SettingsErrorFailsSafe + TestPutBonus_SettingsErrorFailsSafe lock
+// the most security-critical branch: if the settings store can't be read, the
+// bonus lock must NOT fall open — the handler returns 500 and writes nothing.
+func TestGetBonus_SettingsErrorFailsSafe(t *testing.T) {
+	d := &Deps{Bonus: &fakeBonusStore{}, Players: &fakePlayerStore{}, Settings: &fakeSettings{lockErr: errors.New("settings down")}}
+	req := ctxUser(httptest.NewRequest(http.MethodGet, "/api/bonus", nil), 1)
+	rec := httptest.NewRecorder()
+	d.GetBonus(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500 (must not fall open on a settings error)", rec.Code)
+	}
+}
+
+func TestPutBonus_SettingsErrorFailsSafe(t *testing.T) {
+	st := &fakeBonusStore{teamOK: true, playerOK: true}
+	d := &Deps{Bonus: st, Players: &fakePlayerStore{}, Settings: &fakeSettings{lockErr: errors.New("settings down")}}
+	body := `{"picks":[{"category":"winner","ref_id":9}]}`
+	req := ctxUser(httptest.NewRequest(http.MethodPut, "/api/bonus", strings.NewReader(body)), 1)
+	rec := httptest.NewRecorder()
+	d.PutBonus(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500 (must not write when lock state is unknown)", rec.Code)
+	}
+	if len(st.upserts) != 0 {
+		t.Errorf("must not write picks when settings unreadable; got %d upserts", len(st.upserts))
+	}
+}
 
 // fakeBonusStore implements store.BonusStore for handler tests.
 type fakeBonusStore struct {

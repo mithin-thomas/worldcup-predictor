@@ -26,14 +26,17 @@ func (f *fakeSettings) BonusLockAt(_ context.Context) (time.Time, error) {
 	return f.lockAt, f.lockErr
 }
 func (f *fakeSettings) All(_ context.Context) (map[string]string, error) {
+	if f.allErr != nil {
+		return nil, f.allErr // a real store never returns data alongside an error
+	}
 	if f.allData != nil {
-		return f.allData, f.allErr
+		return f.allData, nil
 	}
 	return map[string]string{
 		"results_cron":  "0 3,8,13 * * *",
 		"weekly_cron":   "30 13 * * 1",
 		"bonus_lock_at": "2026-06-28T23:59:00+05:30",
-	}, f.allErr
+	}, nil
 }
 func (f *fakeSettings) SetAll(_ context.Context, kv map[string]string) error {
 	f.setAllCalled = true
