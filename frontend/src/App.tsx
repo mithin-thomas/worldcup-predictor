@@ -1,11 +1,16 @@
+import { useState } from "react";
 import { useMe, GoogleSignInButton, useLogout } from "./lib/auth";
 import { Home } from "./routes/Home";
+import { Bonus } from "./routes/Bonus";
 import sayscoreLogo from "./assets/sayscore-logo-dark.png";
 import sayscoreMark from "./assets/sayscore-logo-transparent.png";
+
+type View = "home" | "bonus";
 
 export default function App() {
   const { data: me, isLoading } = useMe();
   const logout = useLogout();
+  const [view, setView] = useState<View>("home");
 
   if (isLoading) {
     return (
@@ -39,6 +44,27 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar" role="banner">
         <img className="topbar__logo" src={sayscoreMark} alt="SayScore" height={24} />
+
+        {/* Main nav — Predictions | Bonus */}
+        <nav className="topbar__nav" aria-label="Main navigation">
+          <button
+            type="button"
+            className={`topbar__nav-btn${view === "home" ? " is-active" : ""}`}
+            aria-current={view === "home" ? "page" : undefined}
+            onClick={() => setView("home")}
+          >
+            Predictions
+          </button>
+          <button
+            type="button"
+            className={`topbar__nav-btn${view === "bonus" ? " is-active" : ""}`}
+            aria-current={view === "bonus" ? "page" : undefined}
+            onClick={() => setView("bonus")}
+          >
+            Bonus
+          </button>
+        </nav>
+
         <div className="topbar__user">
           <span className="topbar__name" aria-label={`Signed in as ${me.name || me.email}`}>
             {me.name || me.email}
@@ -54,7 +80,7 @@ export default function App() {
         </div>
       </header>
 
-      <Home />
+      {view === "home" ? <Home /> : <Bonus />}
     </div>
   );
 }
