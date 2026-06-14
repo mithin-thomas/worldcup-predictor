@@ -965,9 +965,16 @@ body {
 /* ₹500 prize label: Mono, muted — informational, not an action */
 .hof__prize {
   flex: none;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   white-space: nowrap;
+}
+
+/* Inline mutation error — mirrors .match__editor-error / .auth__error pattern */
+.hof__error {
+  margin: 0 0 var(--space-2);
+  font-size: 13px;
+  color: var(--danger);
 }
 
 /* ── Admin mark-paid toggle button ─────────────────────────────────────── */
@@ -1012,12 +1019,12 @@ body {
 
 /* Paid state — ghost with success tint (quieter: "this is already done") */
 .hof__paidbtn.is-paid {
-  background: oklch(0.25 0.06 145 / 0.35);
+  background: color-mix(in oklch, var(--live) 18%, transparent);
   border-color: var(--live);
   color: var(--live);
 }
 .hof__paidbtn.is-paid:hover:not(:disabled) {
-  background: oklch(0.28 0.06 145 / 0.45);
+  background: color-mix(in oklch, var(--live) 24%, transparent);
   border-color: var(--live);
 }
 
@@ -1035,8 +1042,8 @@ body {
 /* Paid: faint success-tinted chip */
 .hof__paidbadge.is-paid {
   color: var(--live);
-  background: oklch(0.25 0.06 145 / 0.25);
-  border: 1px solid oklch(0.45 0.10 145 / 0.40);
+  background: color-mix(in oklch, var(--live) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--live) 30%, transparent);
   border-radius: 100px;
   padding: 2px 8px;
 }
@@ -1044,6 +1051,12 @@ body {
 /* Unpaid: plain muted text, no chip — keeps visual hierarchy clean */
 .hof__paidbadge:not(.is-paid) {
   opacity: 0.7;
+}
+
+/* In-flight row: same disabled look + "Saving…" text (matches .match__predict style) */
+.hof__paidbtn.is-loading {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 @media (prefers-reduced-motion: reduce) {
