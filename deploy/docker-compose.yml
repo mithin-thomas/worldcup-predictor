@@ -73,6 +73,11 @@ services:
       DB_PASSWORD: wcp
       DB_NAME: wcp
       TZ: Asia/Kolkata
+      # The results-ingest scheduler + debug trigger read the fd-team alias map
+      # from here; the dataset is mounted below.
+      SEED_DATA_DIR: /app/data
+    volumes:
+      - ../data:/app/data:ro
     ports:
       - "8000:8000"
     depends_on:
