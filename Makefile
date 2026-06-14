@@ -82,7 +82,7 @@ dump-seed: ## Regenerate deploy/seed/seed.sql from the running compose DB (run `
 	$(COMPOSE) exec -T -e MYSQL_PWD=wcp mysql mysqldump -uwcp \
 	  --no-create-info --insert-ignore --complete-insert --skip-extended-insert \
 	  --single-transaction --no-tablespaces --skip-dump-date \
-	  wcp venues teams matches > deploy/seed/seed.sql
+	  wcp venues teams players matches > deploy/seed/seed.sql
 	@echo "wrote deploy/seed/seed.sql"
 
 ## ---- Quality ----

@@ -37,3 +37,10 @@ type MatchRow struct {
 	MatchLabel  string
 	KickoffUTC  time.Time
 }
+
+type PlayerRow struct {
+	SourceID     int64
+	TeamFifaCode string
+	Name         string
+	Position     string
+}

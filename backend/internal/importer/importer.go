@@ -17,6 +17,7 @@ type Result struct {
 	Venues  int
 	Teams   int
 	Matches int
+	Players int
 }
 
 func openData(dir, name string) (*os.File, error) {
@@ -107,7 +108,32 @@ func (imp *Importer) Run(ctx context.Context, dir string) (Result, error) {
 			return Result{}, err
 		}
 	}
-	return Result{Venues: len(venues), Teams: len(teams), Matches: len(matches)}, nil
+	pf, err := openData(dir, "players.csv")
+	if err != nil {
+		return Result{}, err
+	}
+	players, err := parsePlayers(pf)
+	pf.Close()
+	if err != nil {
+		return Result{}, err
+	}
+	codeToID, err := imp.Store.ListTeamsByCode(ctx)
+	if err != nil {
+		return Result{}, fmt.Errorf("importer: list teams by code: %w", err)
+	}
+	for _, pl := range players {
+		teamID, ok := codeToID[pl.TeamFifaCode]
+		if !ok {
+			return Result{}, fmt.Errorf("importer: player %q unknown team code %q", pl.Name, pl.TeamFifaCode)
+		}
+		if err := imp.Store.UpsertPlayer(ctx, store.UpsertPlayerParams{
+			SourceID: pl.SourceID, TeamID: teamID, Name: pl.Name, Position: pl.Position,
+		}); err != nil {
+			return Result{}, err
+		}
+	}
+
+	return Result{Venues: len(venues), Teams: len(teams), Matches: len(matches), Players: len(players)}, nil
 }
 
 func (imp *Importer) resolveTeam(ctx context.Context, srcID *int64) (*int64, error) {
