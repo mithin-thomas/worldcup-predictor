@@ -22,6 +22,7 @@ type Deps struct {
 	Store              store.Store
 	Matches            store.MatchStore
 	Predictions        store.PredictionStore
+	Leaderboard        store.LeaderboardStore
 	JobRunner          JobRunner
 	Sessions           *auth.SessionManager
 	Verifier           auth.TokenVerifier
