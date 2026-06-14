@@ -845,3 +845,207 @@ body {
 @media (max-width: 1023px) {
   .is-hidden-mobile { display: none; }
 }
+
+/* ─── Hall of Fame (spec §7 / impeccable) ────────────────────────────────── */
+/*
+ * Sits below LeaderboardPanel in home__aside. Visual language:
+ * — Same surface/token vocabulary as .lb* (dark-first, OKLCH tokens)
+ * — JetBrains Mono for all numerics (points, ₹500 prize)
+ * — Coral --brand ONLY for the "Mark paid" primary action (unpaid state)
+ * — Success --live tint for the "Paid ✓" already-done state (quieter)
+ * — Muted text for non-admin read-only badges
+ * — Skeleton rows match .lb__skeleton exactly
+ * — ≥44px touch targets; visible focus rings; aria-label on admin toggle
+ * — prefers-reduced-motion fallback on all transitions
+ */
+.hof {
+  width: 100%;
+  padding-top: var(--space-5);
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.hof__title {
+  margin: 0 0 var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+/* Skeleton state — mirrors .lb__skeleton */
+.hof__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.hof__skeleton-line { height: 14px; width: 100%; }
+.hof__skeleton-line--short { width: 60%; }
+
+/* Empty / error state */
+.hof__empty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: var(--space-3) 0;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Week groups */
+.hof__weeks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.hof__week {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* "Week of 8 Jun" label — matches .lb__week */
+.hof__weeklabel {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Champion list within a week */
+.hof__winners {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Individual champion row */
+.hof__winner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-1);
+  border-radius: var(--radius-md);
+  min-height: 44px;
+}
+
+.hof__trophy {
+  flex: none;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.hof__name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+/* Points: JetBrains Mono, right-aligned numeric */
+.hof__pts {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 3ch;
+  text-align: right;
+}
+
+/* ₹500 prize label: Mono, muted — informational, not an action */
+.hof__prize {
+  flex: none;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ── Admin mark-paid toggle button ─────────────────────────────────────── */
+/*
+ * Non-paid ("Mark paid"): brand coral fill — the safe primary action.
+ * Paid ("Paid ✓"): quieter ghost with success --live tint — signals done.
+ * Both: ≥44px tall, visible :focus-visible ring.
+ */
+.hof__paidbtn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 80px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
+  white-space: nowrap;
+}
+.hof__paidbtn:hover:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+.hof__paidbtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.hof__paidbtn:active:not(:disabled) {
+  opacity: 0.85;
+}
+.hof__paidbtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Paid state — ghost with success tint (quieter: "this is already done") */
+.hof__paidbtn.is-paid {
+  background: oklch(0.25 0.06 145 / 0.35);
+  border-color: var(--live);
+  color: var(--live);
+}
+.hof__paidbtn.is-paid:hover:not(:disabled) {
+  background: oklch(0.28 0.06 145 / 0.45);
+  border-color: var(--live);
+}
+
+/* ── Non-admin read-only payout badge ──────────────────────────────────── */
+.hof__paidbadge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Paid: faint success-tinted chip */
+.hof__paidbadge.is-paid {
+  color: var(--live);
+  background: oklch(0.25 0.06 145 / 0.25);
+  border: 1px solid oklch(0.45 0.10 145 / 0.40);
+  border-radius: 100px;
+  padding: 2px 8px;
+}
+
+/* Unpaid: plain muted text, no chip — keeps visual hierarchy clean */
+.hof__paidbadge:not(.is-paid) {
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hof__paidbtn { transition: none; }
+}
