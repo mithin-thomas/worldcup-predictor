@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
@@ -84,13 +85,21 @@ func TestWeeklyWinnerNoWinnerWhenAllZero(t *testing.T) {
 }
 
 func TestWeeklyWinner_UpsertParamsCarryNoPayoutFields(t *testing.T) {
-	// Compile-time contract: the weekly-winner upsert must not write payout
-	// columns, so re-runs never clobber an admin's prize_paid flag.
-	// UpsertWeeklyResultParams intentionally has only UserID, WeekStart,
-	// Points, IsWinner. If a payout field is added here, this test (and the
-	// ON DUPLICATE KEY UPDATE set) must be revisited.
-	_ = store.UpsertWeeklyResultParams{
-		UserID: 1, WeekStart: time.Now(), Points: 0, IsWinner: false,
+	// Contract guard: the weekly-winner upsert must NOT write payout columns
+	// (prize_paid/paid_at), so a job re-run never clobbers an admin's paid flag.
+	// We assert the exact field set of UpsertWeeklyResultParams via reflection:
+	// adding ANY field (e.g. a payout one) fails here — forcing a review of the
+	// ON DUPLICATE KEY UPDATE set in store/queries/leaderboard.sql. (A keyed
+	// struct literal would NOT catch an added field, which is why we reflect.)
+	want := map[string]bool{"UserID": true, "WeekStart": true, "Points": true, "IsWinner": true}
+	tp := reflect.TypeOf(store.UpsertWeeklyResultParams{})
+	if tp.NumField() != len(want) {
+		t.Fatalf("UpsertWeeklyResultParams has %d fields, want %d — a field was added/removed; if it's a payout field, the weekly upsert SQL must NOT write it", tp.NumField(), len(want))
+	}
+	for i := 0; i < tp.NumField(); i++ {
+		if name := tp.Field(i).Name; !want[name] {
+			t.Errorf("unexpected field %q on UpsertWeeklyResultParams — payout fields must never be written by the weekly upsert", name)
+		}
 	}
 }
 

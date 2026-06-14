@@ -18,7 +18,7 @@ type fakeWinnersStore struct {
 		week   time.Time
 		user   int64
 		paid   bool
-		hasNow bool
+		paidAt *time.Time
 	}
 	affected bool
 }
@@ -39,7 +39,7 @@ func (f *fakeWinnersStore) ListWinners(context.Context) ([]store.Winner, error) 
 	return f.winners, nil
 }
 func (f *fakeWinnersStore) MarkWinnerPaid(_ context.Context, week time.Time, user int64, paid bool, paidAt *time.Time) (bool, error) {
-	f.marked.week, f.marked.user, f.marked.paid, f.marked.hasNow = week, user, paid, paidAt != nil
+	f.marked.week, f.marked.user, f.marked.paid, f.marked.paidAt = week, user, paid, paidAt
 	return f.affected, nil
 }
 
@@ -107,7 +107,25 @@ func TestGetWinners_EmptyReturnsEmptyArray(t *testing.T) {
 	}
 }
 
+func TestGetWinners_RequiresAuth(t *testing.T) {
+	// Auth is enforced by RequireAuth at the router level; with no session
+	// cookie the request must be rejected before reaching the handler.
+	d := &Deps{Leaderboard: &fakeWinnersStore{}}
+	r := NewRouter(d, false)
+	req := httptest.NewRequest(http.MethodGet, "/api/winners", nil) // no session cookie
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+}
+
 func TestPutWinnerPaid_SetsPaid(t *testing.T) {
+	fixed := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
+	old := now
+	now = func() time.Time { return fixed }
+	t.Cleanup(func() { now = old })
+
 	st := &fakeWinnersStore{affected: true}
 	d := &Deps{Leaderboard: st}
 	body := `{"week_start":"2026-06-08","user_id":5,"paid":true}`
@@ -118,8 +136,11 @@ func TestPutWinnerPaid_SetsPaid(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
-	if !st.marked.paid || !st.marked.hasNow {
-		t.Errorf("paid=true should set prize_paid and a non-nil paid_at; got paid=%v hasNow=%v", st.marked.paid, st.marked.hasNow)
+	if !st.marked.paid {
+		t.Errorf("paid=true should set prize_paid")
+	}
+	if st.marked.paidAt == nil || !st.marked.paidAt.Equal(fixed) {
+		t.Errorf("paid_at = %v, want %v (now())", st.marked.paidAt, fixed)
 	}
 	if st.marked.user != 5 || st.marked.week.Format("2006-01-02") != "2026-06-08" {
 		t.Errorf("wrong target: week=%s user=%d", st.marked.week.Format("2006-01-02"), st.marked.user)
@@ -136,8 +157,8 @@ func TestPutWinnerPaid_UnpaidClearsPaidAt(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
-	if st.marked.paid || st.marked.hasNow {
-		t.Errorf("paid=false should clear prize_paid and pass nil paid_at; got paid=%v hasNow=%v", st.marked.paid, st.marked.hasNow)
+	if st.marked.paid || st.marked.paidAt != nil {
+		t.Errorf("paid=false should clear prize_paid and pass nil paid_at; got paid=%v paidAt=%v", st.marked.paid, st.marked.paidAt)
 	}
 }
 
