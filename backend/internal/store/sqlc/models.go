@@ -11,6 +11,100 @@ import (
 	"time"
 )
 
+type BonusPredictionsCategory string
+
+const (
+	BonusPredictionsCategoryWinner      BonusPredictionsCategory = "winner"
+	BonusPredictionsCategoryRunnerUp    BonusPredictionsCategory = "runner_up"
+	BonusPredictionsCategoryGoldenBall  BonusPredictionsCategory = "golden_ball"
+	BonusPredictionsCategoryGoldenBoot  BonusPredictionsCategory = "golden_boot"
+	BonusPredictionsCategoryGoldenGlove BonusPredictionsCategory = "golden_glove"
+	BonusPredictionsCategoryYoungPlayer BonusPredictionsCategory = "young_player"
+	BonusPredictionsCategoryFairPlay    BonusPredictionsCategory = "fair_play"
+)
+
+func (e *BonusPredictionsCategory) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = BonusPredictionsCategory(s)
+	case string:
+		*e = BonusPredictionsCategory(s)
+	default:
+		return fmt.Errorf("unsupported scan type for BonusPredictionsCategory: %T", src)
+	}
+	return nil
+}
+
+type NullBonusPredictionsCategory struct {
+	BonusPredictionsCategory BonusPredictionsCategory `json:"bonus_predictions_category"`
+	Valid                    bool                     `json:"valid"` // Valid is true if BonusPredictionsCategory is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullBonusPredictionsCategory) Scan(value interface{}) error {
+	if value == nil {
+		ns.BonusPredictionsCategory, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.BonusPredictionsCategory.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullBonusPredictionsCategory) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.BonusPredictionsCategory), nil
+}
+
+type BonusResultsCategory string
+
+const (
+	BonusResultsCategoryWinner      BonusResultsCategory = "winner"
+	BonusResultsCategoryRunnerUp    BonusResultsCategory = "runner_up"
+	BonusResultsCategoryGoldenBall  BonusResultsCategory = "golden_ball"
+	BonusResultsCategoryGoldenBoot  BonusResultsCategory = "golden_boot"
+	BonusResultsCategoryGoldenGlove BonusResultsCategory = "golden_glove"
+	BonusResultsCategoryYoungPlayer BonusResultsCategory = "young_player"
+	BonusResultsCategoryFairPlay    BonusResultsCategory = "fair_play"
+)
+
+func (e *BonusResultsCategory) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = BonusResultsCategory(s)
+	case string:
+		*e = BonusResultsCategory(s)
+	default:
+		return fmt.Errorf("unsupported scan type for BonusResultsCategory: %T", src)
+	}
+	return nil
+}
+
+type NullBonusResultsCategory struct {
+	BonusResultsCategory BonusResultsCategory `json:"bonus_results_category"`
+	Valid                bool                 `json:"valid"` // Valid is true if BonusResultsCategory is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullBonusResultsCategory) Scan(value interface{}) error {
+	if value == nil {
+		ns.BonusResultsCategory, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.BonusResultsCategory.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullBonusResultsCategory) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.BonusResultsCategory), nil
+}
+
 type MatchesStage string
 
 const (
@@ -138,6 +232,22 @@ func (ns NullUsersRole) Value() (driver.Value, error) {
 	return string(ns.UsersRole), nil
 }
 
+type BonusPrediction struct {
+	ID        int64                    `json:"id"`
+	UserID    int64                    `json:"user_id"`
+	Category  BonusPredictionsCategory `json:"category"`
+	RefID     int64                    `json:"ref_id"`
+	Points    sql.NullInt32            `json:"points"`
+	CreatedAt time.Time                `json:"created_at"`
+	UpdatedAt time.Time                `json:"updated_at"`
+}
+
+type BonusResult struct {
+	Category  BonusResultsCategory `json:"category"`
+	RefID     int64                `json:"ref_id"`
+	UpdatedAt time.Time            `json:"updated_at"`
+}
+
 type Match struct {
 	ID                  int64         `json:"id"`
 	SourceID            int64         `json:"source_id"`
@@ -158,6 +268,14 @@ type Match struct {
 	ManualOverride      bool          `json:"manual_override"`
 	UpdatedAt           time.Time     `json:"updated_at"`
 	ApiFixtureID        sql.NullInt64 `json:"api_fixture_id"`
+}
+
+type Player struct {
+	ID       int64  `json:"id"`
+	SourceID int64  `json:"source_id"`
+	TeamID   int64  `json:"team_id"`
+	Name     string `json:"name"`
+	Position string `json:"position"`
 }
 
 type Prediction struct {
