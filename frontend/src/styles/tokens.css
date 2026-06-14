@@ -13,6 +13,10 @@
   --on-brand: oklch(0.22 0.070 28);
   --danger: oklch(0.55 0.22 15);
   --danger-hover: oklch(0.60 0.21 15);
+  /* Danger tint tokens for error blocks (matches .auth__error pattern) */
+  --danger-fg: oklch(0.84 0.10 20);
+  --danger-bg: oklch(0.30 0.07 20 / 0.45);
+  --danger-border: oklch(0.45 0.12 20 / 0.5);
 
   /* Countdown / live badge colours */
   --live: oklch(0.72 0.18 145);
@@ -1170,9 +1174,9 @@ body {
 .bonus__save-error {
   margin: 0;
   font-size: 13px;
-  color: oklch(0.84 0.10 20);
-  background: oklch(0.30 0.07 20 / 0.45);
-  border: 1px solid oklch(0.45 0.12 20 / 0.5);
+  color: var(--danger-fg);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-3);
 }
@@ -1180,9 +1184,9 @@ body {
 .bonus__load-error {
   margin: 0;
   font-size: 14px;
-  color: oklch(0.84 0.10 20);
-  background: oklch(0.30 0.07 20 / 0.45);
-  border: 1px solid oklch(0.45 0.12 20 / 0.5);
+  color: var(--danger-fg);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
   border-radius: var(--radius-sm);
   padding: var(--space-3) var(--space-4);
 }
@@ -1279,7 +1283,7 @@ body {
 }
 
 .bonus-row:focus-within {
-  border-color: oklch(0.42 0.02 280);
+  border-color: var(--muted);
 }
 
 @media (min-width: 560px) {
@@ -1470,7 +1474,7 @@ body {
   min-height: 44px;
   justify-content: center;
   cursor: pointer;
-  transition: background 80ms ease;
+  transition: background 120ms ease;
 }
 
 .bonus-combobox__option:hover,
@@ -1538,7 +1542,12 @@ body {
   white-space: nowrap;
 }
 
+/* Clear-search button: sits inside __field as an absolute overlay on the right */
 .bonus-combobox__clear {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
   flex: none;
   width: 24px;
   height: 24px;
@@ -1551,7 +1560,7 @@ body {
   font-size: 14px;
   cursor: pointer;
   line-height: 1;
-  transition: color 80ms ease, background 80ms ease;
+  transition: color 120ms ease, background 120ms ease;
 }
 
 .bonus-combobox__clear:hover {

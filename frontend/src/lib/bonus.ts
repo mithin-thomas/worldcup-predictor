@@ -26,6 +26,7 @@ export type BonusPick = {
   category: string;
   ref_type: "team" | "player";
   ref_id: number;
+  label: string;
   points?: number;
 };
 

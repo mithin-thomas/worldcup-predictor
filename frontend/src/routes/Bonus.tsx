@@ -56,14 +56,17 @@ function formatLockIST(lockAt: string): string {
 // ── Player combobox (hand-rolled, keyboard-accessible) ───────────────────────
 interface PlayerComboboxProps {
   categoryKey: string;
+  categoryLabel: string;
   disabled: boolean;
   currentRefId: number | undefined;
+  /** Server-provided label (survives reload); falls back to optimistic on fresh pick */
   currentLabel: string | undefined;
   onSelect: (id: number, label: string) => void;
 }
 
 function PlayerCombobox({
   categoryKey,
+  categoryLabel,
   disabled,
   currentRefId,
   currentLabel,
@@ -102,7 +105,14 @@ function PlayerCombobox({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!open || results.length === 0) return;
+    // ArrowDown must open the listbox when closed (FIX 3)
+    if (e.key === "ArrowDown" && !open) {
+      e.preventDefault();
+      setOpen(true);
+      setActiveIdx(0);
+      return;
+    }
+    if (!open) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveIdx((i) => Math.min(i + 1, results.length - 1));
@@ -111,17 +121,18 @@ function PlayerCombobox({
       setActiveIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter" && activeIdx >= 0) {
       e.preventDefault();
-      selectOption(results[activeIdx]);
+      if (results[activeIdx]) selectOption(results[activeIdx]);
     } else if (e.key === "Escape") {
       setOpen(false);
       setActiveIdx(-1);
     }
   };
 
-  // Show selected value when not searching
-  const displayValue = query || "";
+  const displayValue = query;
   const placeholder =
     currentRefId != null ? (currentLabel ?? "Selected") : "Search players…";
+  // aria-label for accessible name (FIX 3)
+  const inputAriaLabel = `Search players for ${categoryLabel}`;
 
   return (
     <div className="bonus-combobox" data-testid={`player-combobox-${categoryKey}`}>
@@ -130,7 +141,8 @@ function PlayerCombobox({
           ref={inputRef}
           type="text"
           role="combobox"
-          aria-expanded={open && results.length > 0}
+          aria-label={inputAriaLabel}
+          aria-expanded={open}
           aria-controls={listboxId}
           aria-autocomplete="list"
           aria-activedescendant={
@@ -143,8 +155,11 @@ function PlayerCombobox({
           autoComplete="off"
           onChange={(e) => {
             setQuery(e.target.value);
-            setOpen(true);
-            if (!e.target.value) setOpen(false);
+            if (e.target.value) {
+              setOpen(true);
+            } else {
+              setOpen(false);
+            }
           }}
           onKeyDown={handleKeyDown}
           onBlur={() => {
@@ -152,6 +167,23 @@ function PlayerCombobox({
             setTimeout(() => setOpen(false), 150);
           }}
         />
+        {/* Clear SEARCH TEXT only — does not remove the saved pick (FIX 2) */}
+        {query && !disabled && (
+          <button
+            type="button"
+            className="bonus-combobox__clear"
+            aria-label="Clear search"
+            tabIndex={-1}
+            onMouseDown={(e) => {
+              e.preventDefault(); // keep focus on input
+              setQuery("");
+              setDebouncedQ("");
+              setOpen(false);
+            }}
+          >
+            ×
+          </button>
+        )}
         {isFetching && <span className="bonus-combobox__spinner" aria-hidden="true" />}
       </div>
 
@@ -191,23 +223,10 @@ function PlayerCombobox({
         </div>
       )}
 
-      {currentRefId != null && !query && (
+      {/* Show server-sourced label for the saved pick (FIX 1 — survives reload) */}
+      {currentRefId != null && !query && currentLabel && (
         <div className="bonus-combobox__selected" aria-live="polite">
           <span className="bonus-combobox__selected-label">{currentLabel}</span>
-          {!disabled && (
-            <button
-              type="button"
-              className="bonus-combobox__clear"
-              aria-label={`Clear ${placeholder} selection`}
-              onClick={() => {
-                // Clearing is done by re-selecting nothing; not sending a delete
-                // per API design — just allow user to pick again
-                setQuery("");
-              }}
-            >
-              ×
-            </button>
-          )}
         </div>
       )}
     </div>
@@ -228,16 +247,28 @@ export function Bonus() {
     (bonus?.picks ?? []).map((p) => [p.category, p]),
   );
 
-  // Local state for player label display (name resolved client-side after selection)
-  const [playerLabels, setPlayerLabels] = useState<Record<string, string>>({});
+  // Optimistic label for player awards on a FRESH pick (before server refetch).
+  // After onSuccess the query cache is updated with the server label, so this
+  // local state only fills the brief gap between mutation and refetch.
+  const [optimisticLabels, setOptimisticLabels] = useState<Record<string, string>>({});
 
   const handleTeamChange = (categoryKey: string, refId: number) => {
     saveMutation.mutate([{ category: categoryKey, ref_id: refId }]);
   };
 
   const handlePlayerSelect = (categoryKey: string, refId: number, label: string) => {
-    setPlayerLabels((prev) => ({ ...prev, [categoryKey]: label }));
-    saveMutation.mutate([{ category: categoryKey, ref_id: refId }]);
+    // Keep optimistic label so the combobox doesn't go blank mid-flight
+    setOptimisticLabels((prev) => ({ ...prev, [categoryKey]: label }));
+    saveMutation.mutate([{ category: categoryKey, ref_id: refId }], {
+      onSuccess: () => {
+        // Server label is now in cache; clear the optimistic override
+        setOptimisticLabels((prev) => {
+          const next = { ...prev };
+          delete next[categoryKey];
+          return next;
+        });
+      },
+    });
   };
 
   // ── Skeletons ───────────────────────────────────────────────────────────────
@@ -383,9 +414,13 @@ export function Bonus() {
                 ) : (
                   <PlayerCombobox
                     categoryKey={cat.key}
+                    categoryLabel={cat.label}
                     disabled={isDisabled}
                     currentRefId={pick?.ref_id}
-                    currentLabel={playerLabels[cat.key]}
+                    currentLabel={
+                      // Use optimistic label briefly during mutation; then server label
+                      optimisticLabels[cat.key] ?? pick?.label
+                    }
                     onSelect={(id, label) => handlePlayerSelect(cat.key, id, label)}
                   />
                 )}

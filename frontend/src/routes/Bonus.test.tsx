@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -52,8 +52,17 @@ const locked: import("../lib/bonus").BonusResponse = {
   lock_at: new Date(Date.now() - 1_000).toISOString(), // past
   locked: true,
   picks: [
-    { category: "winner",      ref_type: "team",   ref_id: 1  },
-    { category: "golden_boot", ref_type: "player", ref_id: 101 },
+    { category: "winner",      ref_type: "team",   ref_id: 1,   label: "Brazil (BRA)"            },
+    { category: "golden_boot", ref_type: "player", ref_id: 101, label: "Lionel Messi · ARG"       },
+  ],
+};
+
+// Unlocked bonus data WITH a saved player pick (to test label persistence)
+const unlockedWithPick: import("../lib/bonus").BonusResponse = {
+  lock_at: new Date(Date.now() + 5 * 86_400_000).toISOString(),
+  locked: false,
+  picks: [
+    { category: "golden_ball", ref_type: "player", ref_id: 101, label: "Lionel Messi · ARG" },
   ],
 };
 
@@ -152,13 +161,60 @@ describe("Bonus screen", () => {
     const inputs = screen.getAllByRole("combobox").filter((el) => el.tagName === "INPUT");
     const firstInput = inputs[0];
 
-    // Simulate typing in the combobox
+    // Simulate typing to open the listbox
     await userEvent.type(firstInput, "me");
 
-    // Since usePlayerSearch is mocked to return players, results appear
-    // The combobox list should be shown
-    // We check the mock was called with appropriate query trigger
+    // usePlayerSearch called
     expect(usePlayerSearch).toHaveBeenCalled();
+
+    // Player names rendered in the listbox option rows
+    expect(screen.getByText("Lionel Messi")).toBeInTheDocument();
+    expect(screen.getByText("Kylian Mbappe")).toBeInTheDocument();
+  });
+
+  it("selecting a player option calls saveMutation with {category, ref_id}", () => {
+    (useBonus as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: unlocked, isLoading: false, isError: false,
+    });
+    (usePlayerSearch as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: players,
+      isFetching: false,
+    });
+
+    wrap(<Bonus />);
+
+    // Grab the first player combobox (golden_ball) and fire a change to open it
+    const inputs = screen.getAllByRole("combobox").filter((el) => el.tagName === "INPUT");
+    // fireEvent.change is synchronous — sets open=true; results come from mock (no debounce needed)
+    act(() => {
+      fireEvent.change(inputs[0], { target: { value: "me" } });
+    });
+
+    // The combobox listbox (role=listbox) should now contain player options
+    // Scope to the listbox so we don't pick up native <option> elements from <select>
+    const listbox = screen.getByRole("listbox", { name: "Player results" });
+    const playerOptions = Array.from(listbox.querySelectorAll('[role="option"]'));
+    expect(playerOptions.length).toBeGreaterThan(0);
+
+    // Use mouseDown — handler calls e.preventDefault() to prevent blur before selection
+    fireEvent.mouseDown(playerOptions[0]);
+
+    // mutate must have been called with the correct payload
+    expect(mutate).toHaveBeenCalledWith(
+      [{ category: "golden_ball", ref_id: 101 }],
+      expect.any(Object),
+    );
+  });
+
+  it("player award shows server label after mount (pick.label from useBonus)", () => {
+    (useBonus as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: unlockedWithPick, isLoading: false, isError: false,
+    });
+
+    wrap(<Bonus />);
+
+    // The server-provided label must be rendered in the selected-player display
+    expect(screen.getByText("Lionel Messi · ARG")).toBeInTheDocument();
   });
 
   it("renders skeletons while loading", () => {
