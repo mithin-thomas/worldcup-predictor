@@ -1,5 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+// ── CATEGORIES — single frontend mirror of internal/bonus ───────────────────
+export type RefType = "team" | "player";
+
+export type CategoryDef = {
+  key: string;
+  label: string;
+  points: number;
+  refType: RefType;
+};
+
+export const CATEGORIES: CategoryDef[] = [
+  { key: "winner",       label: "World Cup Winner",  points: 30, refType: "team"   },
+  { key: "runner_up",    label: "Runner-Up",          points: 20, refType: "team"   },
+  { key: "golden_ball",  label: "Golden Ball",        points: 10, refType: "player" },
+  { key: "golden_boot",  label: "Golden Boot",        points: 10, refType: "player" },
+  { key: "golden_glove", label: "Golden Glove",       points: 10, refType: "player" },
+  { key: "young_player", label: "Young Player Award", points: 10, refType: "player" },
+  { key: "fair_play",    label: "Fair Play Award",    points: 10, refType: "team"   },
+];
+
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 export type BonusPick = {
