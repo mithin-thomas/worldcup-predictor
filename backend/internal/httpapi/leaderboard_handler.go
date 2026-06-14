@@ -110,7 +110,8 @@ func (d *Deps) GetLeaderboard(w http.ResponseWriter, r *http.Request) {
 		lrows[i] = leaderboard.Row{
 			UserID: row.UserID, Name: row.Name, AvatarURL: row.AvatarURL,
 			Points: row.Points, Exact: row.Exact, Correct: row.Correct,
-			IsWinner: winners[row.UserID],
+			BonusHits: row.BonusHits, // populated for overall; weekly store leaves it 0
+			IsWinner:  winners[row.UserID],
 		}
 	}
 	ranked := leaderboard.Rank(lrows, sameRank)

@@ -17,6 +17,7 @@ type LeaderboardRow struct {
 	Points    int64
 	Exact     int64
 	Correct   int64
+	BonusHits int64 // §5.1 fourth tier; populated by OverallLeaderboard only (weekly=0)
 }
 
 // Winner is one past weekly champion (a weekly_results row with is_winner=1).
@@ -76,7 +77,11 @@ func (s *SQLStore) OverallLeaderboard(ctx context.Context) ([]LeaderboardRow, er
 	}
 	out := make([]LeaderboardRow, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, LeaderboardRow{UserID: r.UserID, Name: r.Name, AvatarURL: r.AvatarUrl, Points: r.Points, Exact: r.ExactCount, Correct: r.CorrectCount})
+		out = append(out, LeaderboardRow{
+			UserID: r.UserID, Name: r.Name, AvatarURL: r.AvatarUrl,
+			Points: r.Points, Exact: r.ExactCount, Correct: r.CorrectCount,
+			BonusHits: r.BonusHits,
+		})
 	}
 	return out, nil
 }
