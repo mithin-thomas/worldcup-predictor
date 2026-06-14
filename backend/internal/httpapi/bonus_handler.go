@@ -10,6 +10,18 @@ import (
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
 )
 
+// bonusLockAt fetches the live bonus lock time from the settings service.
+// On error it returns zero time + false — callers must treat this as LOCKED
+// (fail safe: never silently treat an error as unlocked).
+func (d *Deps) bonusLockAt(r *http.Request) (time.Time, bool) {
+	t, err := d.Settings.BonusLockAt(r.Context())
+	if err != nil {
+		slog.Error("bonus: read bonus_lock_at from settings", "err", err)
+		return time.Time{}, false
+	}
+	return t, true
+}
+
 type bonusPickDTO struct {
 	Category string `json:"category"`
 	RefType  string `json:"ref_type"`
@@ -26,6 +38,11 @@ type bonusResponse struct {
 
 // GetBonus returns the caller's bonus picks and the current lock state.
 func (d *Deps) GetBonus(w http.ResponseWriter, r *http.Request) {
+	lock, ok := d.bonusLockAt(r)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "settings unavailable")
+		return
+	}
 	u, _ := userFromContext(r.Context())
 	picks, err := d.Bonus.ListBonusPredictionsForUser(r.Context(), u.ID)
 	if err != nil {
@@ -59,8 +76,8 @@ func (d *Deps) GetBonus(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, http.StatusOK, bonusResponse{
-		LockAt: d.BonusLockAt.Format(time.RFC3339),
-		Locked: !now().Before(d.BonusLockAt),
+		LockAt: lock.Format(time.RFC3339),
+		Locked: !now().Before(lock),
 		Picks:  out,
 	})
 }
@@ -75,7 +92,12 @@ type putBonusRequest struct {
 // PutBonus upserts the caller's bonus picks. Server-authoritative lock: rejects
 // all writes when now >= BonusLockAt. Validates all picks before writing any.
 func (d *Deps) PutBonus(w http.ResponseWriter, r *http.Request) {
-	if !now().Before(d.BonusLockAt) { // server-authoritative lock
+	lock, ok := d.bonusLockAt(r)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "settings unavailable")
+		return
+	}
+	if !now().Before(lock) { // server-authoritative lock
 		writeError(w, http.StatusForbidden, "bonus predictions are locked")
 		return
 	}

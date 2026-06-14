@@ -95,7 +95,7 @@ func TestPutBonus_BeforeLockUpserts(t *testing.T) {
 	t.Cleanup(func() { now = old })
 
 	st := &fakeBonusStore{teamOK: true, playerOK: true}
-	d := &Deps{Bonus: st, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)} // 23:59 IST
+	d := &Deps{Bonus: st, Settings: &fakeSettings{lockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}} // 23:59 IST
 	body := `{"picks":[{"category":"winner","ref_id":9},{"category":"golden_boot","ref_id":42}]}`
 	req := ctxUser(httptest.NewRequest(http.MethodPut, "/api/bonus", strings.NewReader(body)), 1)
 	rec := httptest.NewRecorder()
@@ -114,7 +114,7 @@ func TestPutBonus_AfterLockRejected(t *testing.T) {
 	t.Cleanup(func() { now = old })
 
 	st := &fakeBonusStore{teamOK: true, playerOK: true}
-	d := &Deps{Bonus: st, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
+	d := &Deps{Bonus: st, Settings: &fakeSettings{lockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}}
 	req := ctxUser(httptest.NewRequest(http.MethodPut, "/api/bonus", strings.NewReader(`{"picks":[{"category":"winner","ref_id":9}]}`)), 1)
 	rec := httptest.NewRecorder()
 	d.PutBonus(rec, req)
@@ -134,7 +134,7 @@ func TestPutBonus_AtExactLockBoundaryRejected(t *testing.T) {
 	t.Cleanup(func() { now = old })
 
 	st := &fakeBonusStore{teamOK: true, playerOK: true}
-	d := &Deps{Bonus: st, BonusLockAt: lockAt}
+	d := &Deps{Bonus: st, Settings: &fakeSettings{lockAt: lockAt}}
 	req := ctxUser(httptest.NewRequest(http.MethodPut, "/api/bonus", strings.NewReader(`{"picks":[{"category":"winner","ref_id":9}]}`)), 1)
 	rec := httptest.NewRecorder()
 	d.PutBonus(rec, req)
@@ -149,7 +149,7 @@ func TestPutBonus_WrongRefType(t *testing.T) {
 	t.Cleanup(func() { now = old })
 	// team category but the team doesn't exist (teamOK=false) -> 400
 	st := &fakeBonusStore{teamOK: false, playerOK: true}
-	d := &Deps{Bonus: st, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
+	d := &Deps{Bonus: st, Settings: &fakeSettings{lockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}}
 	req := ctxUser(httptest.NewRequest(http.MethodPut, "/api/bonus", strings.NewReader(`{"picks":[{"category":"winner","ref_id":999}]}`)), 1)
 	rec := httptest.NewRecorder()
 	d.PutBonus(rec, req)
@@ -162,7 +162,7 @@ func TestPutBonus_UnknownCategory(t *testing.T) {
 	old := now
 	now = func() time.Time { return time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC) }
 	t.Cleanup(func() { now = old })
-	d := &Deps{Bonus: &fakeBonusStore{teamOK: true, playerOK: true}, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
+	d := &Deps{Bonus: &fakeBonusStore{teamOK: true, playerOK: true}, Settings: &fakeSettings{lockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}}
 	req := ctxUser(httptest.NewRequest(http.MethodPut, "/api/bonus", strings.NewReader(`{"picks":[{"category":"most_assists","ref_id":1}]}`)), 1)
 	rec := httptest.NewRecorder()
 	d.PutBonus(rec, req)
@@ -177,7 +177,7 @@ func TestGetBonus_ReturnsLockState(t *testing.T) {
 	t.Cleanup(func() { now = old })
 	st := &fakeBonusStore{picks: []store.BonusPick{{Category: "winner", RefID: 9}}}
 	fp := &fakePlayerStore{teamNames: map[int64]string{9: "Brazil"}}
-	d := &Deps{Bonus: st, Players: fp, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
+	d := &Deps{Bonus: st, Players: fp, Settings: &fakeSettings{lockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}}
 	req := ctxUser(httptest.NewRequest(http.MethodGet, "/api/bonus", nil), 1)
 	rec := httptest.NewRecorder()
 	d.GetBonus(rec, req)
@@ -217,7 +217,7 @@ func TestGetBonus_LabelResolvedPerRefType(t *testing.T) {
 		teamNames:   map[int64]string{9: "Brazil"},
 		playerNames: map[int64]string{42: "Messi"},
 	}
-	d := &Deps{Bonus: st, Players: fp, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
+	d := &Deps{Bonus: st, Players: fp, Settings: &fakeSettings{lockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}}
 
 	req := ctxUser(httptest.NewRequest(http.MethodGet, "/api/bonus", nil), 1)
 	rec := httptest.NewRecorder()
@@ -264,7 +264,7 @@ func TestGetBonus_StaleRefIDDegradesToEmptyLabel(t *testing.T) {
 	picks := []store.BonusPick{{Category: "winner", RefID: 999}} // unknown team
 	st := &fakeBonusStore{picks: picks}
 	fp := &fakePlayerStore{teamNames: map[int64]string{}} // id 999 not present → ""
-	d := &Deps{Bonus: st, Players: fp, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
+	d := &Deps{Bonus: st, Players: fp, Settings: &fakeSettings{lockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}}
 
 	req := ctxUser(httptest.NewRequest(http.MethodGet, "/api/bonus", nil), 1)
 	rec := httptest.NewRecorder()
@@ -293,7 +293,7 @@ func TestGetBonus_LockedAfterLockAt(t *testing.T) {
 	t.Cleanup(func() { now = old })
 	st := &fakeBonusStore{picks: []store.BonusPick{{Category: "runner_up", RefID: 5}}}
 	fp := &fakePlayerStore{teamNames: map[int64]string{5: "France"}}
-	d := &Deps{Bonus: st, Players: fp, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
+	d := &Deps{Bonus: st, Players: fp, Settings: &fakeSettings{lockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}}
 	req := ctxUser(httptest.NewRequest(http.MethodGet, "/api/bonus", nil), 1)
 	rec := httptest.NewRecorder()
 	d.GetBonus(rec, req)

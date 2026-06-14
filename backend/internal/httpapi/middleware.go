@@ -17,6 +17,20 @@ type ctxKey int
 
 const userCtxKey ctxKey = iota
 
+// SettingsProvider is the handler-facing interface for runtime-editable settings.
+// *settings.Service satisfies this interface.
+type SettingsProvider interface {
+	BonusLockAt(ctx context.Context) (time.Time, error)
+	All(ctx context.Context) (map[string]string, error)
+	SetAll(ctx context.Context, kv map[string]string) error
+}
+
+// RecomputeRunner triggers the idempotent points recompute job.
+// An adapter wrapping jobs.Recompute satisfies this interface.
+type RecomputeRunner interface {
+	Run(ctx context.Context) (any, error)
+}
+
 // Deps holds everything the HTTP layer needs. Built in cmd/server.
 type Deps struct {
 	Store              store.Store
@@ -28,7 +42,8 @@ type Deps struct {
 	AdminMatches       store.AdminMatchStore
 	AdminUsers         store.AdminUserStore
 	Results            store.ResultsStore
-	BonusLockAt        time.Time
+	Settings           SettingsProvider
+	Recompute          RecomputeRunner
 	JobRunner          JobRunner
 	Sessions           *auth.SessionManager
 	Verifier           auth.TokenVerifier
