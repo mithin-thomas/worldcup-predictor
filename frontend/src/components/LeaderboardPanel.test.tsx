@@ -22,6 +22,15 @@ const overall = {
   me: { rank: 2, points: 12 },
 };
 
+const overallWithWinner = {
+  period: "overall", page: 1, page_size: 20, total: 2,
+  rows: [
+    { rank: 1, user_id: 5, name: "Aaa", avatar_url: "", points: 18, exact: 3, correct: 1, is_winner: true, is_me: false },
+    { rank: 2, user_id: 1, name: "Me", avatar_url: "", points: 12, exact: 1, correct: 3, is_winner: false, is_me: true },
+  ],
+  me: { rank: 2, points: 12 },
+};
+
 afterEach(() => vi.restoreAllMocks());
 
 describe("LeaderboardPanel", () => {
@@ -45,5 +54,21 @@ describe("LeaderboardPanel", () => {
       const calledWeek = fetchMock.mock.calls.some(([url]) => String(url).includes("period=week"));
       expect(calledWeek).toBe(true);
     });
+  });
+
+  it("does NOT render the ★ winner badge on the Overall tab even when is_winner is true", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => overallWithWinner }));
+    renderPanel();
+    await screen.findByText("Aaa");
+    expect(screen.queryByLabelText("weekly winner")).toBeNull();
+  });
+
+  it("adds lb__row--top class to the rank-1 row", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => overall }));
+    renderPanel();
+    const aaaEl = await screen.findByText("Aaa");
+    const row = aaaEl.closest(".lb__row");
+    expect(row).not.toBeNull();
+    expect(row!.classList.contains("lb__row--top")).toBe(true);
   });
 });

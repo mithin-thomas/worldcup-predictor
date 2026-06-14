@@ -36,19 +36,28 @@ export function LeaderboardPanel() {
         <p className="lb__empty">No ranked players yet — points appear after matches finish.</p>
       ) : (
         <>
+          {period === "week" && data.week ? (
+            <p className="lb__week">
+              Week of {new Date(`${data.week}T00:00:00+05:30`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}
+            </p>
+          ) : null}
           <ol className="lb__list">
             {data.rows.map((r) => (
-              <li key={r.user_id} className={`lb__row ${r.is_me ? "is-me" : ""}`} {...(r.is_me ? { "data-me": "" } : {})}>
+              <li
+                key={r.user_id}
+                className={`lb__row${r.rank === 1 ? " lb__row--top" : ""}${r.is_me ? " is-me" : ""}`}
+                {...(r.is_me ? { "data-me": "" } : {})}
+              >
                 <span className="lb__rank mono">{r.rank}</span>
                 <span className="lb__name">
                   {r.name}
-                  {r.is_winner ? <span className="lb__badge" aria-label="weekly winner">★</span> : null}
+                  {period === "week" && r.is_winner ? <span className="lb__badge" aria-label="weekly winner">★</span> : null}
                 </span>
                 <span className="lb__pts mono" aria-label={`${r.points} points`}>{r.points}</span>
               </li>
             ))}
           </ol>
-          {data.me ? (
+          {data.me && !data.rows.some((r) => r.is_me) ? (
             <p className="lb__me mono">Your rank: {data.me.rank} · {data.me.points} pts</p>
           ) : null}
           {data.total > data.page_size ? (

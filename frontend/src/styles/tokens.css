@@ -714,7 +714,7 @@ body {
 }
 .home__toggle-btn {
   flex: 1;
-  min-height: 40px;
+  min-height: 44px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-1);
@@ -726,7 +726,6 @@ body {
 }
 .home__toggle-btn:hover { border-color: var(--muted); }
 .home__toggle-btn.is-active { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
-.home__toggle-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; box-shadow: none; }
 
 .home__grid { display: block; }
 
@@ -742,7 +741,7 @@ body {
 }
 .lb__tab {
   flex: 1;
-  min-height: 36px;
+  min-height: 44px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-1);
@@ -773,6 +772,9 @@ body {
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
 }
+.lb__row--top {
+  background: color-mix(in oklch, var(--brand) 14%, transparent);
+}
 .lb__row.is-me {
   background: var(--surface-2);
   outline: 1px solid var(--brand);
@@ -798,6 +800,11 @@ body {
   margin-top: var(--space-3);
 }
 .lb__pageinfo { color: var(--muted); font-size: 13px; }
+.lb__week {
+  margin: 0 0 var(--space-2);
+  color: var(--muted);
+  font-size: 13px;
+}
 .lb__empty {
   color: var(--muted);
   padding: var(--space-4);
