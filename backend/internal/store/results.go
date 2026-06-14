@@ -46,10 +46,12 @@ type PredictionToScore struct {
 type ResultsStore interface {
 	FindMatchByAPIFixtureID(ctx context.Context, apiFixtureID int64) (MatchForResult, error)
 	FindMatchByKickoffAndTeams(ctx context.Context, kickoffUTC time.Time, homeID, awayID int64) (MatchForResult, error)
+	FindMatchByID(ctx context.Context, id int64) (MatchForResult, error)
 	ListTeamsByCode(ctx context.Context) (map[string]int64, error)
 	UpdateMatchResult(ctx context.Context, p UpdateMatchResultParams) error
 	ListPredictionsForMatch(ctx context.Context, matchID int64) ([]PredictionToScore, error)
 	SetPredictionScore(ctx context.Context, predictionID int64, points, penaltyBonus int32) error
+	SetMatchManualOverride(ctx context.Context, id int64) error
 	WithTx(ctx context.Context, fn func(ResultsStore) error) error
 }
 
@@ -71,6 +73,20 @@ func (s *SQLStore) FindMatchByAPIFixtureID(ctx context.Context, apiFixtureID int
 	if err != nil {
 		return MatchForResult{}, fmt.Errorf("store: find match by api id: %w", err)
 	}
+	return matchForResult(r.ID, r.Stage, r.HomeTeamID, r.AwayTeamID, r.KickoffUtc, r.Status, r.ManualOverride, r.ApiFixtureID), nil
+}
+
+func (s *SQLStore) FindMatchByID(ctx context.Context, id int64) (MatchForResult, error) {
+	r, err := s.q.GetMatchByID(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return MatchForResult{}, ErrNotFound
+	}
+	if err != nil {
+		return MatchForResult{}, fmt.Errorf("store: find match by id: %w", err)
+	}
+	// GetMatchByID now selects manual_override and api_fixture_id so the admin
+	// result-correction handler can preserve the existing api_fixture_id (preventing
+	// data loss on synced matches) and read the current override flag.
 	return matchForResult(r.ID, r.Stage, r.HomeTeamID, r.AwayTeamID, r.KickoffUtc, r.Status, r.ManualOverride, r.ApiFixtureID), nil
 }
 
@@ -138,6 +154,13 @@ func (s *SQLStore) SetPredictionScore(ctx context.Context, predictionID int64, p
 		ID:           predictionID,
 	}); err != nil {
 		return fmt.Errorf("store: set prediction score: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLStore) SetMatchManualOverride(ctx context.Context, id int64) error {
+	if err := s.q.SetMatchManualOverride(ctx, id); err != nil {
+		return fmt.Errorf("store: set match manual override: %w", err)
 	}
 	return nil
 }

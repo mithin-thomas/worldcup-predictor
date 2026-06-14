@@ -79,6 +79,8 @@ Maximum bonus = **100**. These are scored once, after the tournament concludes, 
 
 Fixtures sync (initial seed + re-sync), manual match create/edit/delete, result and penalty-winner correction, settings management (cron time, bonus lock time, admin list), and a manual "recompute points" action. All destructive actions require an explicit confirm.
 
+**Implemented (M8a):** the manual match CRUD, result/penalty-winner correction, and user promote/demote tools described above now exist as standard `RequireAdmin` routes (registered in all environments) — see §11. Every admin match write sets `manual_override`; result correction immediately re-scores predictions (idempotent) under the kickoff precondition. Fixtures sync, settings management, and the manual recompute action remain deferred (M8b); the polished bonus-outcomes UI is M8c.
+
 **Mark weekly prize paid** — admins mark a weekly winner's ₹500 gift card paid or unpaid via `PUT /api/admin/winners/paid`; the status surfaces in the Hall of Fame (§3.5) for everyone. This is a **standard admin route** (`RequireAdmin`) registered in **all** environments — distinct from the debug-only job triggers below, which exist only outside production.
 
 **Debug-only job triggers** — for testing, admins can manually fire the scheduled jobs (`results-ingest`, `weekly-winner`) on demand. This is gated to non-production builds: the endpoint and its UI control exist **only when `APP_ENV != production`** and are not registered at all in production. It lets a developer run the daily ingest / weekly calc without waiting for the cron.
@@ -344,11 +346,27 @@ Bonus
 - `GET /api/players?q=<term>` — `[{ id, name, team_code, position }]`, name search, capped (20 rows) for the player-award typeahead.
 
 Admin (role=admin)
-- `POST   /api/admin/fixtures/sync`
-- `POST   /api/admin/matches` · `PUT /api/admin/matches/:id` · `DELETE /api/admin/matches/:id`
-- `GET/PUT /api/admin/settings`
-- `POST   /api/admin/recompute`
-- `POST   /api/admin/users/:id/role`
+
+All admin routes below are **standard `RequireAdmin` routes, registered in all environments** (not debug-gated). Match management and user-role management are **implemented (M8a)**; fixtures sync, settings, and recompute remain **deferred (M8b)**.
+
+Match management (implemented, M8a) — every write sets `manual_override` so the results-ingest never overwrites an admin edit:
+
+- `GET    /api/admin/matches` → 200 array of `{ id, match_number, stage, round, home_team_id, home_team, home_code, away_team_id, away_team, away_code, kickoff_utc, status, home_score, away_score, went_to_penalties, penalty_winner_team_id, manual_override }` (team names resolved for display, ordered by kickoff).
+- `POST   /api/admin/matches` — body `{ home_team_id, away_team_id, kickoff_utc (RFC3339), stage ("group"|"knockout"), round }` → 201 `{ id }`. Sets `manual_override`, `status=scheduled`. 400 on same home/away team, bad stage, non-RFC3339 kickoff, or unknown team.
+- `PUT    /api/admin/matches/:id` — same body; edits fixture detail only (not scores) → 200 `{ id }`. Sets `manual_override`. 404 if the match is absent.
+- `DELETE /api/admin/matches/:id` → 204 (predictions **cascade**). 404 if absent.
+- `PUT    /api/admin/matches/:id/result` — body `{ home_score, away_score, went_to_penalties, penalty_winner_team_id? }` → 200 `{ id, status: "final" }`. Sets `manual_override`, **preserves the existing `api_fixture_id`**, and **immediately re-scores all predictions on the match in one transaction (idempotent recompute)**. 400 on negative scores, penalties on a non-knockout match, a penalty winner that is neither the home nor away team, or **a match that has not yet kicked off** (`now < kickoff_utc`); 404 if absent.
+
+User management (implemented, M8a):
+
+- `GET    /api/admin/users` → 200 array of `{ id, email, name, avatar_url, role }`.
+- `POST   /api/admin/users/:id/role` — body `{ role: "admin"|"user" }` → 200 `{ id, role }`. Guards: 400 on demoting **yourself**, demoting the **last remaining admin**, or a bad role; 404 if the user is unknown.
+
+Deferred (M8b) / other:
+
+- `POST   /api/admin/fixtures/sync` *(deferred, M8b)*
+- `GET/PUT /api/admin/settings` *(deferred, M8b)*
+- `POST   /api/admin/recompute` *(deferred, M8b)*
 - `PUT    /api/admin/winners/paid` — body `{ "week_start": "YYYY-MM-DD", "user_id", "paid": bool }` → 200 `{ "week_start", "user_id", "prize_paid" }`. Marks a weekly winner's ₹500 gift card paid/unpaid. 400 on a bad date / non-positive `user_id` / bad JSON; 404 when no matching winner row. A **standard `RequireAdmin` route, registered in all environments** (not debug-gated).
 - `PUT    /api/admin/bonus/results` — body `{ "results": [ { "category", "ref_id" } ] }` → 200 `{ "saved": N }`. Upserts one or more tournament-award outcomes (validated like bonus picks: known category, `ref_id` exists in the correct table). 400 on a bad category / wrong-type ref / invalid JSON. A **standard `RequireAdmin` route, registered in all environments** (not debug-gated); the polished outcomes UI is deferred.
 - `POST   /api/admin/jobs/run` — body `{ "job": "results-ingest" | "weekly-winner" | "bonus-score" }`. **Debug-only**: registered only when `APP_ENV != production`; returns 404 in production. `bonus-score` idempotently materializes `bonus_predictions.points` from `bonus_results` (recompute, never increment).

@@ -12,18 +12,20 @@ import (
 )
 
 const getMatchByID = `-- name: GetMatchByID :one
-SELECT id, stage, home_team_id, away_team_id, kickoff_utc, status
+SELECT id, stage, home_team_id, away_team_id, kickoff_utc, status, manual_override, api_fixture_id
 FROM matches
 WHERE id = ?
 `
 
 type GetMatchByIDRow struct {
-	ID         int64         `json:"id"`
-	Stage      MatchesStage  `json:"stage"`
-	HomeTeamID sql.NullInt64 `json:"home_team_id"`
-	AwayTeamID sql.NullInt64 `json:"away_team_id"`
-	KickoffUtc time.Time     `json:"kickoff_utc"`
-	Status     MatchesStatus `json:"status"`
+	ID             int64         `json:"id"`
+	Stage          MatchesStage  `json:"stage"`
+	HomeTeamID     sql.NullInt64 `json:"home_team_id"`
+	AwayTeamID     sql.NullInt64 `json:"away_team_id"`
+	KickoffUtc     time.Time     `json:"kickoff_utc"`
+	Status         MatchesStatus `json:"status"`
+	ManualOverride bool          `json:"manual_override"`
+	ApiFixtureID   sql.NullInt64 `json:"api_fixture_id"`
 }
 
 func (q *Queries) GetMatchByID(ctx context.Context, id int64) (GetMatchByIDRow, error) {
@@ -36,6 +38,8 @@ func (q *Queries) GetMatchByID(ctx context.Context, id int64) (GetMatchByIDRow, 
 		&i.AwayTeamID,
 		&i.KickoffUtc,
 		&i.Status,
+		&i.ManualOverride,
+		&i.ApiFixtureID,
 	)
 	return i, err
 }

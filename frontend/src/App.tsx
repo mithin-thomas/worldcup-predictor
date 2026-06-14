@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useMe, GoogleSignInButton, useLogout } from "./lib/auth";
 import { Home } from "./routes/Home";
 import { Bonus } from "./routes/Bonus";
+import { Admin } from "./routes/Admin";
 import sayscoreLogo from "./assets/sayscore-logo-dark.png";
 import sayscoreMark from "./assets/sayscore-logo-transparent.png";
 
-type View = "home" | "bonus";
+type View = "home" | "bonus" | "admin";
 
 export default function App() {
   const { data: me, isLoading } = useMe();
@@ -45,7 +46,7 @@ export default function App() {
       <header className="topbar" role="banner">
         <img className="topbar__logo" src={sayscoreMark} alt="SayScore" height={24} />
 
-        {/* Main nav — Predictions | Bonus */}
+        {/* Main nav — Predictions | Bonus | Admin (admin only) */}
         <nav className="topbar__nav" aria-label="Main navigation">
           <button
             type="button"
@@ -63,6 +64,16 @@ export default function App() {
           >
             Bonus
           </button>
+          {me.role === "admin" && (
+            <button
+              type="button"
+              className={`topbar__nav-btn${view === "admin" ? " is-active" : ""}`}
+              aria-current={view === "admin" ? "page" : undefined}
+              onClick={() => setView("admin")}
+            >
+              Admin
+            </button>
+          )}
         </nav>
 
         <div className="topbar__user">
@@ -80,7 +91,7 @@ export default function App() {
         </div>
       </header>
 
-      {view === "home" ? <Home /> : <Bonus />}
+      {view === "home" ? <Home /> : view === "bonus" ? <Bonus /> : <Admin />}
     </div>
   );
 }

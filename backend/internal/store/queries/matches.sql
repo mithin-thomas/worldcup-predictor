@@ -30,6 +30,6 @@ LEFT JOIN venues v ON v.id = m.venue_id
 ORDER BY m.kickoff_utc, m.match_number;
 
 -- name: GetMatchByID :one
-SELECT id, stage, home_team_id, away_team_id, kickoff_utc, status
+SELECT id, stage, home_team_id, away_team_id, kickoff_utc, status, manual_override, api_fixture_id
 FROM matches
 WHERE id = ?;

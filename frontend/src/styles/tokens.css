@@ -1633,3 +1633,765 @@ body {
   .bonus-combobox__clear,
   .topbar__nav-btn { transition: none; }
 }
+
+/* ─── Admin screen (spec §3.6 / §7 / impeccable) ────────────────────────────
+ *
+ * Visual language — consistent with .lb* / .hof* / .bonus*:
+ * — Dark-first OKLCH tokens only; no new palette colours
+ * — JetBrains Mono via .mono for scores, kickoff times
+ * — --brand coral ONLY for safe primary actions (New Match, Save, Promote)
+ * — --danger for destructive confirm button (Delete match, Demote admin)
+ * — Skeleton rows match .lb__skeleton / .hof__skeleton exactly
+ * — role="alert" errors use the established --danger-fg/bg/border trifecta
+ * — ≥44px touch targets; visible :focus-visible rings
+ * — prefers-reduced-motion fallbacks on all transitions
+ */
+
+/* ── Container ──────────────────────────────────────────────────────────── */
+.admin {
+  flex: 1;
+  padding: var(--space-4) var(--space-4) var(--space-6);
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+@media (min-width: 900px) {
+  .admin { padding: var(--space-6); }
+}
+
+/* ── Segmented control: Matches | Users ──────────────────────────────────── */
+.admin__tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.admin__tab {
+  flex: 1;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.admin__tab:hover {
+  border-color: var(--muted);
+}
+
+.admin__tab.is-active {
+  background: var(--brand);
+  color: var(--on-brand);
+  border-color: var(--brand);
+}
+
+.admin__tab:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* ── Tabpanel ────────────────────────────────────────────────────────────── */
+.admin__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ── Section header (title + action button row) ──────────────────────────── */
+.admin-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.admin-section-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+/* ── Day group heading (mirrors .day-header) ─────────────────────────────── */
+.admin-day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-day__header {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Match list ──────────────────────────────────────────────────────────── */
+.admin-match-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-match-item {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  transition: border-color 120ms ease;
+}
+
+.admin-match-item:hover {
+  border-color: oklch(0.42 0.02 280);
+}
+
+/* Teams row */
+.admin-match-item__teams {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.admin-match-item__team {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.admin-match-item__team--away {
+  justify-content: flex-end;
+  flex-direction: row-reverse;
+}
+
+.admin-match-item__code {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  font-family: "JetBrains Mono", "Fira Mono", monospace;
+  font-feature-settings: "tnum";
+}
+
+.admin-match-item__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-match-item__score {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.5px;
+  text-align: center;
+  white-space: nowrap;
+  font-family: "JetBrains Mono", "Fira Mono", monospace;
+  font-feature-settings: "tnum";
+}
+
+/* Meta row: kickoff + status + badges */
+.admin-match-item__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.admin-match-item__kickoff {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: "JetBrains Mono", "Fira Mono", monospace;
+  font-feature-settings: "tnum";
+}
+
+.admin-match-item__status {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.admin-match-item__status--final {
+  color: var(--live);
+  background: color-mix(in oklch, var(--live) 12%, transparent);
+  border-color: color-mix(in oklch, var(--live) 30%, transparent);
+}
+
+.admin-match-item__status--live {
+  color: var(--live);
+  background: color-mix(in oklch, var(--live) 12%, transparent);
+  border-color: color-mix(in oklch, var(--live) 30%, transparent);
+}
+
+.admin-match-item__override {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 100px;
+  /* Neutral informational chip — not an action, so no coral/brand colour */
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.admin-match-item__pen {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 100px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+/* Action buttons row */
+.admin-match-item__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-1);
+}
+
+/* ── Inline action button ─────────────────────────────────────────────────── */
+.admin-action-btn {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.admin-action-btn:hover {
+  border-color: var(--muted);
+}
+
+.admin-action-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.admin-action-btn:active:not(:disabled) {
+  opacity: 0.80;
+  transform: scale(0.98);
+}
+
+.admin-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Danger variant — destructive action (Delete) */
+.admin-action-btn--danger {
+  color: var(--danger-fg);
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.admin-action-btn--danger:hover {
+  background: color-mix(in oklch, var(--danger) 18%, transparent);
+  border-color: var(--danger);
+  color: var(--ink);
+}
+
+/* ── Inline panel (edit / result forms) ──────────────────────────────────── */
+.admin-panel {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.admin-panel__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ── Form ────────────────────────────────────────────────────────────────── */
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.admin-form__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.admin-form__row--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.admin-form__row--scores {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.admin-form__score-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+}
+
+.admin-form__score-sep {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--muted);
+  padding-bottom: var(--space-1);
+  align-self: flex-end;
+}
+
+.admin-form__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-form__select,
+.admin-form__input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+  width: 100%;
+}
+
+.admin-form__select:hover:not(:disabled),
+.admin-form__input:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+.admin-form__select:focus-visible,
+.admin-form__input:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.admin-form__select:disabled,
+.admin-form__input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-form__input--score {
+  text-align: center;
+  font-family: "JetBrains Mono", "Fira Mono", monospace;
+  font-feature-settings: "tnum";
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* Checkbox row: the <label> is the full hit target (≥44px); the <input> stays 20×20 visually */
+.admin-form__checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-2) 0;
+  cursor: pointer;
+}
+
+.admin-form__checkbox {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  cursor: pointer;
+  accent-color: var(--brand);
+}
+
+.admin-form__checkbox-label {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.admin-form__error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger-fg);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.admin-form__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.admin-form__submit {
+  min-width: 120px;
+}
+
+/* ── Alert / load error ──────────────────────────────────────────────────── */
+.admin-alert {
+  margin: 0;
+  font-size: 14px;
+  color: var(--danger-fg);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+}
+
+/* ── Skeleton ────────────────────────────────────────────────────────────── */
+.admin-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-skeleton__row {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.admin-skeleton__team {
+  height: 14px;
+  flex: 1;
+}
+
+.admin-skeleton__meta {
+  height: 12px;
+  width: 120px;
+}
+
+.admin-skeleton__actions {
+  height: 36px;
+  width: 160px;
+}
+
+.admin-skeleton__name {
+  height: 14px;
+  flex: 1;
+}
+
+.admin-skeleton__badge {
+  height: 22px;
+  width: 60px;
+}
+
+/* ── Teaching empty state ─────────────────────────────────────────────────── */
+.admin-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  text-align: center;
+  background: var(--surface-1);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.admin-empty__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.admin-empty__body {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 36ch;
+}
+
+/* ── Users list ──────────────────────────────────────────────────────────── */
+.admin-users {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.admin-user-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-user-item {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 60px;
+  transition: border-color 120ms ease;
+}
+
+.admin-user-item:hover {
+  border-color: oklch(0.42 0.02 280);
+}
+
+.admin-user-item__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-user-item__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-user-item__email {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-user-item__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+}
+
+/* ── Role badge ──────────────────────────────────────────────────────────── */
+.admin-role-badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+.admin-role-badge--admin {
+  color: var(--brand);
+  background: color-mix(in oklch, var(--brand) 14%, transparent);
+  border: 1px solid color-mix(in oklch, var(--brand) 30%, transparent);
+}
+
+.admin-role-badge--user {
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+/* ── Role toggle button ───────────────────────────────────────────────────── */
+.admin-role-btn {
+  min-height: 44px;
+  min-width: 100px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.admin-role-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.admin-role-btn:active:not(:disabled) {
+  opacity: 0.80;
+  transform: scale(0.98);
+}
+
+.admin-role-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Promote to admin: brand coral (safe primary action) */
+.admin-role-btn--promote {
+  background: var(--brand);
+  color: var(--on-brand);
+  border: 1px solid var(--brand);
+}
+
+.admin-role-btn--promote:hover:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+
+/* Demote to user: danger ghost (destructive, requires confirm) */
+.admin-role-btn--demote {
+  background: transparent;
+  color: var(--danger-fg);
+  border: 1px solid var(--danger-border);
+}
+
+.admin-role-btn--demote:hover:not(:disabled) {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+
+/* ── Confirm dialog overlay ──────────────────────────────────────────────── */
+.admin-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: oklch(0.10 0.02 280 / 0.65);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+}
+
+.admin-dialog {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  max-width: 400px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  box-shadow: 0 24px 70px -24px rgba(0, 0, 0, 0.7);
+}
+
+.admin-dialog__msg {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.admin-dialog__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.admin-dialog__cancel {
+  min-height: 44px;
+}
+
+/* Destructive confirm button: --danger fill */
+.admin-dialog__confirm {
+  min-height: 44px;
+  min-width: 120px;
+  padding: 0 var(--space-4);
+  background: var(--danger);
+  color: var(--ink);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.admin-dialog__confirm:hover {
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
+}
+
+.admin-dialog__confirm:active:not(:disabled) {
+  opacity: 0.80;
+  transform: scale(0.98);
+}
+
+.admin-dialog__confirm:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* ── Matches container ───────────────────────────────────────────────────── */
+.admin-matches {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin__tab,
+  .admin-match-item,
+  .admin-action-btn,
+  .admin-form__select,
+  .admin-form__input,
+  .admin-user-item,
+  .admin-role-btn,
+  .admin-dialog__confirm { transition: none; }
+}
