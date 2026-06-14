@@ -33,7 +33,11 @@ export function LeaderboardPanel() {
       ) : isError ? (
         <p className="lb__empty" role="alert">Couldn&apos;t load the leaderboard.</p>
       ) : !data || data.rows.length === 0 ? (
-        <p className="lb__empty">No ranked players yet — points appear after matches finish.</p>
+        <p className="lb__empty">
+          {period === "week"
+            ? "No scores this week yet — points appear after matches kick off."
+            : "No ranked players yet — make your first prediction."}
+        </p>
       ) : (
         <>
           {period === "week" && data.week ? (

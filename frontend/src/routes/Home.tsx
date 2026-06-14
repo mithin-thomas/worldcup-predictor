@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Fixtures } from "./Fixtures";
 import { LeaderboardPanel } from "../components/LeaderboardPanel";
+import { HallOfFame } from "../components/HallOfFame";
 
 export function Home() {
   const [mobileView, setMobileView] = useState<"fixtures" | "ranks">("fixtures");
@@ -24,6 +25,7 @@ export function Home() {
         </div>
         <aside className={`home__aside ${mobileView === "fixtures" ? "is-hidden-mobile" : ""}`}>
           <LeaderboardPanel />
+          <HallOfFame />
         </aside>
       </div>
     </div>
