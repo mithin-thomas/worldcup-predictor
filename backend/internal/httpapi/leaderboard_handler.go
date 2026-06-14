@@ -38,23 +38,6 @@ type leaderboardResponse struct {
 	Me       *meRankDTO          `json:"me"`
 }
 
-// istMonday returns the 00:00-IST Monday of the IST week containing the given
-// IST instant (an IST-zoned time.Time).
-func istMonday(istTime time.Time) time.Time {
-	y, m, d := istTime.Date()
-	day := time.Date(y, m, d, 0, 0, 0, 0, ist)
-	offset := (int(day.Weekday()) + 6) % 7 // Monday=0
-	return day.AddDate(0, 0, -offset)
-}
-
-// weekStartKey is the IST-Monday CALENDAR date as a midnight-UTC time, used as the
-// weekly_results.week_start DATE key. (NOT istMon.UTC(), which is the prior UTC day
-// at 18:30 and would store/compare against the wrong DATE.)
-func weekStartKey(istMon time.Time) time.Time {
-	y, m, d := istMon.Date()
-	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
-}
-
 // GetLeaderboard serves the weekly or overall leaderboard (auth required).
 func (d *Deps) GetLeaderboard(w http.ResponseWriter, r *http.Request) {
 	u, ok := userFromContext(r.Context())
@@ -66,6 +49,9 @@ func (d *Deps) GetLeaderboard(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
 		page = 1
+	}
+	if page > 10000 {
+		page = 10000
 	}
 
 	var (
@@ -88,9 +74,9 @@ func (d *Deps) GetLeaderboard(w http.ResponseWriter, r *http.Request) {
 				writeError(w, http.StatusBadRequest, "week must be YYYY-MM-DD")
 				return
 			}
-			weekMonIST = istMonday(parsed)
+			weekMonIST = leaderboard.ISTMonday(ist, parsed)
 		} else {
-			weekMonIST = istMonday(now().In(ist))
+			weekMonIST = leaderboard.ISTMonday(ist, now())
 		}
 		from := weekMonIST.UTC()
 		to := weekMonIST.AddDate(0, 0, 7).UTC()
@@ -98,7 +84,7 @@ func (d *Deps) GetLeaderboard(w http.ResponseWriter, r *http.Request) {
 		rows, err = d.Leaderboard.WeeklyLeaderboard(r.Context(), from, to)
 		sameRank = leaderboard.WeeklySameRank
 		if err == nil {
-			wr, werr := d.Leaderboard.ListWeeklyResults(r.Context(), weekStartKey(weekMonIST))
+			wr, werr := d.Leaderboard.ListWeeklyResults(r.Context(), leaderboard.WeekStartKey(weekMonIST))
 			if werr != nil {
 				writeError(w, http.StatusInternalServerError, "could not load weekly winners")
 				return

@@ -1,3 +1,6 @@
+-- The INNER JOIN from predictions is deliberate: only users with >=1 prediction
+-- in the window appear; zero-prediction users are intentionally excluded per the
+-- approved M6 design. Do NOT change to a LEFT JOIN.
 -- name: WeeklyLeaderboard :many
 SELECT u.id AS user_id, u.name, u.avatar_url,
        CAST(COALESCE(SUM(COALESCE(p.points,0) + COALESCE(p.penalty_bonus,0)), 0) AS SIGNED) AS points,
@@ -10,6 +13,9 @@ WHERE m.kickoff_utc >= ? AND m.kickoff_utc < ?
 GROUP BY u.id, u.name, u.avatar_url
 ORDER BY points DESC, exact_count DESC, correct_count DESC, u.id ASC;
 
+-- The INNER JOIN from predictions is deliberate: only users with >=1 prediction
+-- appear; zero-prediction users are intentionally excluded per the approved M6
+-- design. Do NOT change to a LEFT JOIN.
 -- name: OverallLeaderboard :many
 SELECT u.id AS user_id, u.name, u.avatar_url,
        CAST(COALESCE(SUM(COALESCE(p.points,0) + COALESCE(p.penalty_bonus,0)), 0) AS SIGNED) AS points,

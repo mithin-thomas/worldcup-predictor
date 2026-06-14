@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 )
 
@@ -25,7 +26,8 @@ func (d *Deps) PostRunJob(w http.ResponseWriter, r *http.Request) {
 		}
 		summary, err := d.JobRunner.RunResultsIngest(r.Context())
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "job failed: "+err.Error())
+			slog.Error("admin job failed", "job", req.Job, "err", err)
+			writeError(w, http.StatusInternalServerError, "job failed")
 			return
 		}
 		writeJSON(w, http.StatusOK, summary)
@@ -36,7 +38,8 @@ func (d *Deps) PostRunJob(w http.ResponseWriter, r *http.Request) {
 		}
 		summary, err := d.JobRunner.RunWeeklyWinner(r.Context())
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "job failed: "+err.Error())
+			slog.Error("admin job failed", "job", req.Job, "err", err)
+			writeError(w, http.StatusInternalServerError, "job failed")
 			return
 		}
 		writeJSON(w, http.StatusOK, summary)

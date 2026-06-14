@@ -65,6 +65,9 @@ type OverallLeaderboardRow struct {
 	CorrectCount int64  `json:"correct_count"`
 }
 
+// The INNER JOIN from predictions is deliberate: only users with >=1 prediction
+// appear; zero-prediction users are intentionally excluded per the approved M6
+// design. Do NOT change to a LEFT JOIN.
 func (q *Queries) OverallLeaderboard(ctx context.Context) ([]OverallLeaderboardRow, error) {
 	rows, err := q.db.QueryContext(ctx, overallLeaderboard)
 	if err != nil {
@@ -145,6 +148,9 @@ type WeeklyLeaderboardRow struct {
 	CorrectCount int64  `json:"correct_count"`
 }
 
+// The INNER JOIN from predictions is deliberate: only users with >=1 prediction
+// in the window appear; zero-prediction users are intentionally excluded per the
+// approved M6 design. Do NOT change to a LEFT JOIN.
 func (q *Queries) WeeklyLeaderboard(ctx context.Context, arg WeeklyLeaderboardParams) ([]WeeklyLeaderboardRow, error) {
 	rows, err := q.db.QueryContext(ctx, weeklyLeaderboard, arg.KickoffUtc, arg.KickoffUtc_2)
 	if err != nil {

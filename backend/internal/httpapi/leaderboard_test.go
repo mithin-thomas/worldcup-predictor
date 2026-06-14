@@ -30,7 +30,7 @@ func (f *fakeLeaderboardStore) OverallLeaderboard(context.Context) ([]store.Lead
 func (f *fakeLeaderboardStore) ListWeeklyResults(context.Context, time.Time) ([]store.WeeklyResult, error) {
 	return f.weeklyRes, nil
 }
-func (f *fakeLeaderboardStore) UpsertWeeklyResult(context.Context, store.UpsertWeeklyResultParams) error {
+func (f *fakeLeaderboardStore) UpsertWeeklyResults(context.Context, []store.UpsertWeeklyResultParams) error {
 	return nil
 }
 

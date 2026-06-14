@@ -25,8 +25,8 @@ func (f *fakeWeeklyStore) OverallLeaderboard(context.Context) ([]store.Leaderboa
 func (f *fakeWeeklyStore) ListWeeklyResults(context.Context, time.Time) ([]store.WeeklyResult, error) {
 	return nil, nil
 }
-func (f *fakeWeeklyStore) UpsertWeeklyResult(_ context.Context, p store.UpsertWeeklyResultParams) error {
-	f.upserts = append(f.upserts, p)
+func (f *fakeWeeklyStore) UpsertWeeklyResults(_ context.Context, ps []store.UpsertWeeklyResultParams) error {
+	f.upserts = append(f.upserts, ps...)
 	return nil
 }
 

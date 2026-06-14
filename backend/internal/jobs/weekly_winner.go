@@ -6,18 +6,9 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/sayonetech/worldcup-predictor/backend/internal/leaderboard"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
 )
-
-var istLoc = mustIST()
-
-func mustIST() *time.Location {
-	loc, err := time.LoadLocation("Asia/Kolkata")
-	if err != nil {
-		return time.FixedZone("IST", 5*3600+1800)
-	}
-	return loc
-}
 
 // WeeklyWinner materializes the previous completed IST week into weekly_results
 // and marks co-winners. Idempotent: it SETs each row (never increments).
@@ -35,17 +26,13 @@ type WeeklySummary struct {
 
 // Run computes the previous IST week's standings and upserts weekly_results.
 func (j WeeklyWinner) Run(ctx context.Context) (WeeklySummary, error) {
-	nowIST := j.Now().In(istLoc)
-	y, m, d := nowIST.Date()
-	today := time.Date(y, m, d, 0, 0, 0, 0, istLoc)
-	offset := (int(today.Weekday()) + 6) % 7 // Monday=0
-	thisMonday := today.AddDate(0, 0, -offset)
+	loc := leaderboard.LoadIST()
+	thisMonday := leaderboard.ISTMonday(loc, j.Now())
 	weekStart := thisMonday.AddDate(0, 0, -7) // previous week's IST Monday
 
-	from := weekStart.UTC() // window start instant (IST Mon 00:00 → e.g. …18:30Z)
-	to := thisMonday.UTC()  // window end instant (exclusive)
-	wy, wm, wd := weekStart.Date()
-	weekStartDate := time.Date(wy, wm, wd, 0, 0, 0, 0, time.UTC) // IST calendar Monday as the DATE key
+	from := weekStart.UTC()                              // window start instant (IST Mon 00:00 → e.g. …18:30Z)
+	to := thisMonday.UTC()                               // window end instant (exclusive)
+	weekStartDate := leaderboard.WeekStartKey(weekStart) // IST calendar Monday as the DATE key
 
 	rows, err := j.Store.WeeklyLeaderboard(ctx, from, to)
 	if err != nil {
@@ -60,16 +47,18 @@ func (j WeeklyWinner) Run(ctx context.Context) (WeeklySummary, error) {
 	}
 
 	winners := 0
+	params := make([]store.UpsertWeeklyResultParams, 0, len(rows))
 	for _, r := range rows {
 		isWinner := top > 0 && r.Points == top
 		if isWinner {
 			winners++
 		}
-		if err := j.Store.UpsertWeeklyResult(ctx, store.UpsertWeeklyResultParams{
+		params = append(params, store.UpsertWeeklyResultParams{
 			UserID: r.UserID, WeekStart: weekStartDate, Points: int32(r.Points), IsWinner: isWinner,
-		}); err != nil {
-			return WeeklySummary{}, fmt.Errorf("jobs: upsert weekly result: %w", err)
-		}
+		})
+	}
+	if err := j.Store.UpsertWeeklyResults(ctx, params); err != nil {
+		return WeeklySummary{}, fmt.Errorf("jobs: upsert weekly results: %w", err)
 	}
 
 	sum := WeeklySummary{WeekStart: weekStart.Format("2006-01-02"), Participants: len(rows), Winners: winners}

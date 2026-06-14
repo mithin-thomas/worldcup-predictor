@@ -38,7 +38,7 @@ type LeaderboardStore interface {
 	WeeklyLeaderboard(ctx context.Context, from, to time.Time) ([]LeaderboardRow, error)
 	OverallLeaderboard(ctx context.Context) ([]LeaderboardRow, error)
 	ListWeeklyResults(ctx context.Context, weekStart time.Time) ([]WeeklyResult, error)
-	UpsertWeeklyResult(ctx context.Context, p UpsertWeeklyResultParams) error
+	UpsertWeeklyResults(ctx context.Context, ps []UpsertWeeklyResultParams) error
 }
 
 var _ LeaderboardStore = (*SQLStore)(nil)
@@ -79,11 +79,19 @@ func (s *SQLStore) ListWeeklyResults(ctx context.Context, weekStart time.Time) (
 	return out, nil
 }
 
-func (s *SQLStore) UpsertWeeklyResult(ctx context.Context, p UpsertWeeklyResultParams) error {
-	if err := s.q.UpsertWeeklyResult(ctx, sqlc.UpsertWeeklyResultParams{
-		UserID: p.UserID, WeekStart: p.WeekStart, Points: p.Points, IsWinner: p.IsWinner,
-	}); err != nil {
-		return fmt.Errorf("store: upsert weekly result: %w", err)
+func (s *SQLStore) UpsertWeeklyResults(ctx context.Context, ps []UpsertWeeklyResultParams) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("store: begin weekly tx: %w", err)
 	}
-	return nil
+	q := s.q.WithTx(tx)
+	for _, p := range ps {
+		if err := q.UpsertWeeklyResult(ctx, sqlc.UpsertWeeklyResultParams{
+			UserID: p.UserID, WeekStart: p.WeekStart, Points: p.Points, IsWinner: p.IsWinner,
+		}); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("store: upsert weekly result: %w", err)
+		}
+	}
+	return tx.Commit()
 }
