@@ -135,30 +135,30 @@ function setupDefaultMocks() {
     data: [groupMatch],
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof useAdminMatches>);
+  } as unknown as ReturnType<typeof useAdminMatches>);
 
   vi.mocked(useAdminUsers).mockReturnValue({
     data: [adminUser, regularUser],
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof useAdminUsers>);
+  } as unknown as ReturnType<typeof useAdminUsers>);
 
   vi.mocked(useTeams).mockReturnValue({
     data: teams,
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof useTeams>);
+  } as unknown as ReturnType<typeof useTeams>);
 
   vi.mocked(useMe).mockReturnValue({
     data: { id: 99, email: "other@sayonetech.com", name: "Other Admin", role: "admin" as const },
     isLoading: false,
-  } as ReturnType<typeof useMe>);
+  } as unknown as ReturnType<typeof useMe>);
 
-  vi.mocked(useCreateMatch).mockReturnValue(noopMutation as ReturnType<typeof useCreateMatch>);
-  vi.mocked(useUpdateMatch).mockReturnValue(noopMutation as ReturnType<typeof useUpdateMatch>);
-  vi.mocked(useDeleteMatch).mockReturnValue(noopMutation as ReturnType<typeof useDeleteMatch>);
-  vi.mocked(useSetMatchResult).mockReturnValue(noopMutation as ReturnType<typeof useSetMatchResult>);
-  vi.mocked(useSetUserRole).mockReturnValue(noopMutation as ReturnType<typeof useSetUserRole>);
+  vi.mocked(useCreateMatch).mockReturnValue(noopMutation as unknown as ReturnType<typeof useCreateMatch>);
+  vi.mocked(useUpdateMatch).mockReturnValue(noopMutation as unknown as ReturnType<typeof useUpdateMatch>);
+  vi.mocked(useDeleteMatch).mockReturnValue(noopMutation as unknown as ReturnType<typeof useDeleteMatch>);
+  vi.mocked(useSetMatchResult).mockReturnValue(noopMutation as unknown as ReturnType<typeof useSetMatchResult>);
+  vi.mocked(useSetUserRole).mockReturnValue(noopMutation as unknown as ReturnType<typeof useSetUserRole>);
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ describe("Admin screen — matches tab", () => {
     vi.mocked(useDeleteMatch).mockReturnValue({
       ...noopMutation,
       mutate: deleteM,
-    } as ReturnType<typeof useDeleteMatch>);
+    } as unknown as ReturnType<typeof useDeleteMatch>);
 
     wrap(<Admin />);
 
@@ -223,7 +223,7 @@ describe("Admin screen — matches tab", () => {
     vi.mocked(useDeleteMatch).mockReturnValue({
       ...noopMutation,
       mutate: deleteM,
-    } as ReturnType<typeof useDeleteMatch>);
+    } as unknown as ReturnType<typeof useDeleteMatch>);
 
     wrap(<Admin />);
 
@@ -254,7 +254,7 @@ describe("Admin screen — matches tab", () => {
       data: [knockoutMatch],
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useAdminMatches>);
+    } as unknown as ReturnType<typeof useAdminMatches>);
 
     wrap(<Admin />);
 
@@ -285,7 +285,7 @@ describe("Admin screen — matches tab", () => {
       data: [],
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useAdminMatches>);
+    } as unknown as ReturnType<typeof useAdminMatches>);
 
     wrap(<Admin />);
     expect(screen.getByText("No matches yet")).toBeInTheDocument();
@@ -296,7 +296,7 @@ describe("Admin screen — matches tab", () => {
       data: undefined,
       isLoading: true,
       isError: false,
-    } as ReturnType<typeof useAdminMatches>);
+    } as unknown as ReturnType<typeof useAdminMatches>);
 
     wrap(<Admin />);
     expect(screen.getByLabelText("Loading matches")).toBeInTheDocument();
@@ -307,7 +307,7 @@ describe("Admin screen — matches tab", () => {
       data: undefined,
       isLoading: false,
       isError: true,
-    } as ReturnType<typeof useAdminMatches>);
+    } as unknown as ReturnType<typeof useAdminMatches>);
 
     wrap(<Admin />);
     expect(screen.getByRole("alert")).toBeInTheDocument();
@@ -319,7 +319,7 @@ describe("Admin screen — matches tab", () => {
       data: [groupMatch, groupMatch2],
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useAdminMatches>);
+    } as unknown as ReturnType<typeof useAdminMatches>);
 
     // Provide all 4 teams so the select can reflect the correct value
     vi.mocked(useTeams).mockReturnValue({
@@ -331,7 +331,7 @@ describe("Admin screen — matches tab", () => {
       ],
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useTeams>);
+    } as unknown as ReturnType<typeof useTeams>);
 
     wrap(<Admin />);
 
@@ -397,7 +397,7 @@ describe("Admin screen — users tab", () => {
     vi.mocked(useMe).mockReturnValue({
       data: { id: 1, email: "admin@sayonetech.com", name: "Admin User", role: "admin" as const },
       isLoading: false,
-    } as ReturnType<typeof useMe>);
+    } as unknown as ReturnType<typeof useMe>);
 
     wrap(<Admin />);
     fireEvent.click(screen.getByRole("tab", { name: "Users" }));
@@ -422,13 +422,13 @@ describe("Admin screen — users tab", () => {
     vi.mocked(useSetUserRole).mockReturnValue({
       ...noopMutation,
       mutate: setRoleM,
-    } as ReturnType<typeof useSetUserRole>);
+    } as unknown as ReturnType<typeof useSetUserRole>);
 
     // Both users, me is someone else (id=99)
     vi.mocked(useMe).mockReturnValue({
       data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const },
       isLoading: false,
-    } as ReturnType<typeof useMe>);
+    } as unknown as ReturnType<typeof useMe>);
 
     wrap(<Admin />);
     fireEvent.click(screen.getByRole("tab", { name: "Users" }));
@@ -454,12 +454,12 @@ describe("Admin screen — users tab", () => {
     vi.mocked(useSetUserRole).mockReturnValue({
       ...noopMutation,
       mutate: setRoleM,
-    } as ReturnType<typeof useSetUserRole>);
+    } as unknown as ReturnType<typeof useSetUserRole>);
 
     vi.mocked(useMe).mockReturnValue({
       data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const },
       isLoading: false,
-    } as ReturnType<typeof useMe>);
+    } as unknown as ReturnType<typeof useMe>);
 
     wrap(<Admin />);
     fireEvent.click(screen.getByRole("tab", { name: "Users" }));
@@ -477,7 +477,7 @@ describe("Admin screen — users tab", () => {
       data: [],
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useAdminUsers>);
+    } as unknown as ReturnType<typeof useAdminUsers>);
 
     wrap(<Admin />);
     fireEvent.click(screen.getByRole("tab", { name: "Users" }));
