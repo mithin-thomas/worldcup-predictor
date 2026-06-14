@@ -40,6 +40,9 @@ func (f *fakeStore) GetVenueIDBySourceID(_ context.Context, s int64) (int64, err
 func (f *fakeStore) GetTeamIDBySourceID(_ context.Context, s int64) (int64, error) {
 	return f.teamsBySrc[s], nil
 }
+func (f *fakeStore) UpsertPlayer(_ context.Context, _ store.UpsertPlayerParams) error {
+	return nil
+}
 
 func writeFixtures(t *testing.T) string {
 	t.Helper()

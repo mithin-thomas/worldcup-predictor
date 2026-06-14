@@ -94,6 +94,7 @@ type SeedStore interface {
 	UpsertMatch(ctx context.Context, p UpsertMatchParams) error
 	GetVenueIDBySourceID(ctx context.Context, sourceID int64) (int64, error)
 	GetTeamIDBySourceID(ctx context.Context, sourceID int64) (int64, error)
+	UpsertPlayer(ctx context.Context, p UpsertPlayerParams) error
 }
 
 type MatchStore interface {
