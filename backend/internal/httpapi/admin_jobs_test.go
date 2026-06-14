@@ -75,6 +75,15 @@ func TestRunJobUnknownJob400(t *testing.T) {
 	}
 }
 
+func TestRunJobNilRunnerUnavailable(t *testing.T) {
+	d, cookie, _ := adminJobsDeps(t, store.RoleAdmin)
+	d.JobRunner = nil // simulate a keyless dev boot (route registered, runner not wired)
+	rec := postJob(t, d, true, cookie, `{"job":"results-ingest"}`)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", rec.Code)
+	}
+}
+
 func TestRunJobAbsentInProduction(t *testing.T) {
 	d, cookie, _ := adminJobsDeps(t, store.RoleAdmin)
 	rec := postJob(t, d, false, cookie, `{"job":"results-ingest"}`)

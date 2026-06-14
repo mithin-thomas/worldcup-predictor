@@ -5,8 +5,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-// NewRouter wires all M1 routes. debug=true enables non-production-only routes
-// (none yet in M1; the debug job trigger arrives in a later milestone).
+// NewRouter wires the API routes. debug=true enables non-production-only routes
+// (currently the admin debug job trigger POST /api/admin/jobs/run).
 func NewRouter(d *Deps, debug bool) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)

@@ -19,6 +19,10 @@ func (d *Deps) PostRunJob(w http.ResponseWriter, r *http.Request) {
 	}
 	switch req.Job {
 	case "results-ingest":
+		if d.JobRunner == nil {
+			writeError(w, http.StatusServiceUnavailable, "job runner not configured")
+			return
+		}
 		summary, err := d.JobRunner.RunResultsIngest(r.Context())
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "job failed: "+err.Error())
