@@ -200,6 +200,14 @@ func (d *Deps) PutAdminMatchResult(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Result entry is allowed once a match has kicked off (covers manual entry for a
+	// played-but-not-yet-ingested match), but finalizing a future match is rejected
+	// because doing so would also set manual_override and permanently lock ingest out.
+	if now().Before(m.KickoffUTC) {
+		writeError(w, http.StatusBadRequest, "match has not kicked off yet")
+		return
+	}
+
 	knockout := m.Stage == store.StageKnockout
 
 	if req.WentToPenalties {

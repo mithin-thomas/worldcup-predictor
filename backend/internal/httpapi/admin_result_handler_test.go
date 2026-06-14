@@ -159,11 +159,9 @@ func TestPutAdminMatchResult_KnockoutShootoutDrawGivesBonus(t *testing.T) {
 	}
 	rs := newFakeResultsStore(m, preds)
 	d := &Deps{Results: rs}
-	penWinnerID := int64(2)
 	body := `{"home_score":1,"away_score":1,"went_to_penalties":true,"penalty_winner_team_id":2}`
 	req := adminUser(httptest.NewRequest(http.MethodPut, "/api/admin/matches/20/result", strings.NewReader(body)), 9)
 	req = withChiID(req, "20")
-	_ = penWinnerID
 	rec := httptest.NewRecorder()
 	d.PutAdminMatchResult(rec, req)
 	if rec.Code != http.StatusOK {
@@ -293,6 +291,45 @@ func TestPutAdminMatchResult_InvalidPenaltyWinner400(t *testing.T) {
 	d.PutAdminMatchResult(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400 (penalty winner must be home or away)", rec.Code)
+	}
+}
+
+func TestPutAdminMatchResult_BeforeKickoffRejected(t *testing.T) {
+	// Freeze now to a known time, then set the match kickoff to the future.
+	frozenNow := time.Date(2026, 6, 14, 10, 0, 0, 0, time.UTC)
+	old := now
+	now = func() time.Time { return frozenNow }
+	t.Cleanup(func() { now = old })
+
+	futureKickoff := frozenNow.Add(2 * time.Hour) // match hasn't kicked off yet
+	m := store.MatchForResult{
+		ID: 42, Stage: store.StageGroup,
+		HomeTeamID: p64(1), AwayTeamID: p64(2),
+		Status:     store.StatusScheduled,
+		KickoffUTC: futureKickoff,
+	}
+	rs := newFakeResultsStore(m, nil)
+	d := &Deps{Results: rs}
+	body := `{"home_score":1,"away_score":0}`
+	req := adminUser(httptest.NewRequest(http.MethodPut, "/api/admin/matches/42/result", strings.NewReader(body)), 9)
+	req = withChiID(req, "42")
+	rec := httptest.NewRecorder()
+	d.PutAdminMatchResult(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 (match has not kicked off yet)", rec.Code)
+	}
+	// No result write must have occurred.
+	if len(rs.updated) != 0 {
+		t.Errorf("UpdateMatchResult must not be called before kickoff, got %d calls", len(rs.updated))
+	}
+	// No prediction re-score must have occurred.
+	if len(rs.scored) != 0 {
+		t.Errorf("SetPredictionScore must not be called before kickoff, got %d calls", len(rs.scored))
+	}
+	// manual_override must not be set.
+	if rs.manualOverrideSet {
+		t.Error("SetMatchManualOverride must not be called before kickoff")
 	}
 }
 
