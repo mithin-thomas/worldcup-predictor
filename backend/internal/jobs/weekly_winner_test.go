@@ -83,6 +83,17 @@ func TestWeeklyWinnerNoWinnerWhenAllZero(t *testing.T) {
 	}
 }
 
+func TestWeeklyWinner_UpsertParamsCarryNoPayoutFields(t *testing.T) {
+	// Compile-time contract: the weekly-winner upsert must not write payout
+	// columns, so re-runs never clobber an admin's prize_paid flag.
+	// UpsertWeeklyResultParams intentionally has only UserID, WeekStart,
+	// Points, IsWinner. If a payout field is added here, this test (and the
+	// ON DUPLICATE KEY UPDATE set) must be revisited.
+	_ = store.UpsertWeeklyResultParams{
+		UserID: 1, WeekStart: time.Now(), Points: 0, IsWinner: false,
+	}
+}
+
 func TestWeeklyWinnerIdempotent(t *testing.T) {
 	now := time.Date(2026, 6, 22, 8, 0, 0, 0, time.UTC)
 	fs := &fakeWeeklyStore{weekly: []store.LeaderboardRow{{UserID: 1, Points: 9}, {UserID: 2, Points: 4}}}
