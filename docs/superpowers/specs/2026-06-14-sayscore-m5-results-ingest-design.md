@@ -88,7 +88,10 @@ drops the key + column.
 `type ResultsIngest struct { API; Store; Now func() time.Time; Alias map[int64]string }` with
 `Run(ctx) (Summary, error)`. Steps:
 
-1. Window: `dateFrom = (now IST − 1 day)`, `dateTo = now IST`, formatted as UTC `YYYY-MM-DD`.
+1. Window: `dateFrom = (now − 2 days)`, `dateTo = now`, computed from `now.UTC()` and formatted as
+   UTC `YYYY-MM-DD`. A ~2-day UTC span (rather than a tight 1-day IST window) deliberately overlaps
+   prior runs so a missed cron tick still gets picked up; re-fetching already-scored matches is free
+   because the recompute is idempotent.
 2. `matches := API.ListFinishedMatches(ctx, from, to)`; API error → return it (run aborts; next cron
    retries).
 3. Resolve `Alias` (`fd_team_id → fifa_code`) once; build/lookup `fifa_code → teams.id`.
