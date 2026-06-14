@@ -23,12 +23,12 @@ type FinalMatch struct {
 	PenaltyWinnerTeamID *int64
 }
 
-// SettingsStore is the settings read/write surface.
+// SettingsStore is the settings read/write surface (3 methods only).
+// ListFinalMatches is a plain *SQLStore method consumed via jobs.RecomputeStore.
 type SettingsStore interface {
 	GetSetting(ctx context.Context, key string) (string, bool, error)
 	UpsertSetting(ctx context.Context, key, value string) error
 	ListSettings(ctx context.Context) (map[string]string, error)
-	ListFinalMatches(ctx context.Context) ([]FinalMatch, error)
 }
 
 var _ SettingsStore = (*SQLStore)(nil)
