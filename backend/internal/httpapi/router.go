@@ -27,6 +27,10 @@ func NewRouter(d *Deps, debug bool) chi.Router {
 			priv.Get("/me", d.GetMe)
 			priv.Get("/matches", d.GetMatches)
 			priv.Put("/matches/{id}/prediction", d.PutPrediction)
+
+			if debug {
+				priv.With(d.RequireAdmin).Post("/admin/jobs/run", d.PostRunJob)
+			}
 		})
 	})
 

@@ -1,0 +1,31 @@
+package httpapi
+
+import (
+	"encoding/json"
+	"net/http"
+)
+
+type runJobRequest struct {
+	Job string `json:"job"`
+}
+
+// PostRunJob is the debug-only manual job trigger (registered only when debug).
+// Admin-gated. Currently supports "results-ingest"; "weekly-winner" arrives in M6.
+func (d *Deps) PostRunJob(w http.ResponseWriter, r *http.Request) {
+	var req runJobRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	switch req.Job {
+	case "results-ingest":
+		summary, err := d.JobRunner.RunResultsIngest(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "job failed: "+err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, summary)
+	default:
+		writeError(w, http.StatusBadRequest, "unknown job")
+	}
+}

@@ -46,10 +46,25 @@ func main() {
 	st := store.New(db)
 	seedAdmins(context.Background(), st, cfg.SeedAdminEmails, logger)
 
+	var jobRunner httpapi.JobRunner
+	if !cfg.IsProduction() && cfg.FootballDataAPIKey != "" {
+		if alias, err := loadAliasFile(cfg.SeedDataDir + "/fd_team_aliases.csv"); err == nil {
+			jobRunner = ingestRunner{jobs.ResultsIngest{
+				API:   sportsapi.New(cfg.FootballDataBaseURL, cfg.FootballDataAPIKey),
+				Store: st,
+				Now:   func() time.Time { return time.Now().UTC() },
+				Alias: alias,
+			}}
+		} else {
+			logger.Warn("job trigger disabled: alias load", "err", err)
+		}
+	}
+
 	deps := &httpapi.Deps{
 		Store:              st,
 		Matches:            st,
 		Predictions:        st,
+		JobRunner:          jobRunner,
 		Sessions:           auth.NewSessionManager(cfg.SessionSecret),
 		Verifier:           auth.GoogleTokenVerifier{ClientID: cfg.GoogleClientID},
 		AllowedEmailDomain: cfg.AllowedEmailDomain,
@@ -136,6 +151,13 @@ func loadAliasFile(path string) (map[int64]string, error) {
 	}
 	defer f.Close()
 	return jobs.LoadAliases(f)
+}
+
+// ingestRunner adapts jobs.ResultsIngest to httpapi.JobRunner.
+type ingestRunner struct{ ingest jobs.ResultsIngest }
+
+func (r ingestRunner) RunResultsIngest(ctx context.Context) (any, error) {
+	return r.ingest.Run(ctx)
 }
 
 // seedAdmins promotes any already-existing user in the seed list to admin and
