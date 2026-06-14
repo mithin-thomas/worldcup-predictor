@@ -93,6 +93,23 @@ func TestRunJobWeeklyWinner(t *testing.T) {
 	}
 }
 
+func TestRunJobBonusScore(t *testing.T) {
+	d, cookie, jr := adminJobsDeps(t, store.RoleAdmin)
+	rec := postJob(t, d, true, cookie, `{"job":"bonus-score"}`)
+	if rec.Code != http.StatusOK || jr.called == 0 {
+		t.Fatalf("status=%d called=%d, want 200 + dispatched", rec.Code, jr.called)
+	}
+}
+
+func TestRunJobBonusScoreNilRunner(t *testing.T) {
+	d, cookie, _ := adminJobsDeps(t, store.RoleAdmin)
+	d.JobRunner = nil
+	rec := postJob(t, d, true, cookie, `{"job":"bonus-score"}`)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", rec.Code)
+	}
+}
+
 func TestRunJobNilRunnerUnavailable(t *testing.T) {
 	d, cookie, _ := adminJobsDeps(t, store.RoleAdmin)
 	d.JobRunner = nil // simulate a keyless dev boot (route registered, runner not wired)

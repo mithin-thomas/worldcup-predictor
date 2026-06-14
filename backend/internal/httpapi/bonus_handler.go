@@ -2,10 +2,12 @@ package httpapi
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/sayonetech/worldcup-predictor/backend/internal/bonus"
+	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
 )
 
 type bonusPickDTO struct {
@@ -66,27 +68,29 @@ func (d *Deps) PutBonus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// validate all before writing any
+	picks := make([]store.BonusPickWrite, 0, len(req.Picks))
 	for _, p := range req.Picks {
 		c := bonus.Category(p.Category)
 		if !bonus.Valid(c) {
-			writeError(w, http.StatusBadRequest, "unknown category: "+p.Category)
+			writeError(w, http.StatusBadRequest, "invalid category")
 			return
 		}
 		ok, err := d.refExists(r, c, p.RefID)
 		if err != nil {
+			slog.Error("bonus ref validation failed", "err", err)
 			writeError(w, http.StatusInternalServerError, "validation failed")
 			return
 		}
 		if !ok {
-			writeError(w, http.StatusBadRequest, "invalid ref for "+p.Category)
+			writeError(w, http.StatusBadRequest, "invalid pick for category")
 			return
 		}
+		picks = append(picks, store.BonusPickWrite{Category: p.Category, RefID: p.RefID})
 	}
-	for _, p := range req.Picks {
-		if err := d.Bonus.UpsertBonusPrediction(r.Context(), u.ID, p.Category, p.RefID); err != nil {
-			writeError(w, http.StatusInternalServerError, "could not save picks")
-			return
-		}
+	if err := d.Bonus.UpsertBonusPredictions(r.Context(), u.ID, picks); err != nil {
+		slog.Error("could not save bonus picks", "err", err)
+		writeError(w, http.StatusInternalServerError, "could not save picks")
+		return
 	}
 	d.GetBonus(w, r) // return the updated set + lock state
 }

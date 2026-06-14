@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/sayonetech/worldcup-predictor/backend/internal/bonus"
@@ -25,21 +26,23 @@ func (d *Deps) PutBonusResults(w http.ResponseWriter, r *http.Request) {
 	for _, x := range req.Results {
 		c := bonus.Category(x.Category)
 		if !bonus.Valid(c) {
-			writeError(w, http.StatusBadRequest, "unknown category: "+x.Category)
+			writeError(w, http.StatusBadRequest, "invalid category")
 			return
 		}
 		ok, err := d.refExists(r, c, x.RefID)
 		if err != nil {
+			slog.Error("bonus result ref validation failed", "err", err)
 			writeError(w, http.StatusInternalServerError, "validation failed")
 			return
 		}
 		if !ok {
-			writeError(w, http.StatusBadRequest, "invalid ref for "+x.Category)
+			writeError(w, http.StatusBadRequest, "invalid ref for category")
 			return
 		}
 	}
 	for _, x := range req.Results {
 		if err := d.Bonus.UpsertBonusResult(r.Context(), x.Category, x.RefID); err != nil {
+			slog.Error("could not save bonus outcomes", "err", err)
 			writeError(w, http.StatusInternalServerError, "could not save outcomes")
 			return
 		}

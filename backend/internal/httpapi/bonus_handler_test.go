@@ -19,8 +19,9 @@ type fakeBonusStore struct {
 		cat string
 		ref int64
 	}
-	teamOK   bool
-	playerOK bool
+	teamOK       bool
+	playerOK     bool
+	resultsSaved int
 }
 
 func (f *fakeBonusStore) UpsertBonusPrediction(_ context.Context, _ int64, cat string, ref int64) error {
@@ -30,10 +31,22 @@ func (f *fakeBonusStore) UpsertBonusPrediction(_ context.Context, _ int64, cat s
 	}{cat, ref})
 	return nil
 }
+func (f *fakeBonusStore) UpsertBonusPredictions(_ context.Context, _ int64, picks []store.BonusPickWrite) error {
+	for _, p := range picks {
+		f.upserts = append(f.upserts, struct {
+			cat string
+			ref int64
+		}{p.Category, p.RefID})
+	}
+	return nil
+}
 func (f *fakeBonusStore) ListBonusPredictionsForUser(context.Context, int64) ([]store.BonusPick, error) {
 	return f.picks, nil
 }
-func (f *fakeBonusStore) UpsertBonusResult(context.Context, string, int64) error { return nil }
+func (f *fakeBonusStore) UpsertBonusResult(context.Context, string, int64) error {
+	f.resultsSaved++
+	return nil
+}
 func (f *fakeBonusStore) ListBonusResults(context.Context) ([]store.BonusResult, error) {
 	return nil, nil
 }
@@ -190,6 +203,38 @@ func TestGetBonus_LockedAfterLockAt(t *testing.T) {
 	_ = json.NewDecoder(rec.Body).Decode(&got)
 	if !got.Locked {
 		t.Error("should be locked on 29 Jun")
+	}
+}
+
+func TestPutBonusResults_ValidSaves(t *testing.T) {
+	st := &fakeBonusStore{teamOK: true, playerOK: true}
+	d := &Deps{Bonus: st}
+	body := `{"results":[{"category":"winner","ref_id":9},{"category":"golden_boot","ref_id":42}]}`
+	req := ctxUser(httptest.NewRequest(http.MethodPut, "/api/admin/bonus/results", strings.NewReader(body)), 1)
+	rec := httptest.NewRecorder()
+	d.PutBonusResults(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if st.resultsSaved != 2 {
+		t.Errorf("resultsSaved = %d, want 2", st.resultsSaved)
+	}
+}
+
+func TestPutBonusResults_BadSecondEntryWritesNothing(t *testing.T) {
+	// validate-all-then-write: the 2nd entry is an unknown category, so the whole
+	// batch is rejected (400) and NO outcome is written.
+	st := &fakeBonusStore{teamOK: true, playerOK: true}
+	d := &Deps{Bonus: st}
+	body := `{"results":[{"category":"winner","ref_id":9},{"category":"most_assists","ref_id":1}]}`
+	req := ctxUser(httptest.NewRequest(http.MethodPut, "/api/admin/bonus/results", strings.NewReader(body)), 1)
+	rec := httptest.NewRecorder()
+	d.PutBonusResults(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+	if st.resultsSaved != 0 {
+		t.Errorf("must write nothing on a rejected batch; got %d", st.resultsSaved)
 	}
 }
 

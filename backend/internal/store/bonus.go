@@ -28,9 +28,16 @@ type BonusPredictionRow struct {
 	RefID    int64
 }
 
+// BonusPickWrite is one validated pick to write atomically in UpsertBonusPredictions.
+type BonusPickWrite struct {
+	Category string
+	RefID    int64
+}
+
 // BonusStore is the read/write surface for tournament-bonus picks + outcomes.
 type BonusStore interface {
 	UpsertBonusPrediction(ctx context.Context, userID int64, category string, refID int64) error
+	UpsertBonusPredictions(ctx context.Context, userID int64, picks []BonusPickWrite) error
 	ListBonusPredictionsForUser(ctx context.Context, userID int64) ([]BonusPick, error)
 	UpsertBonusResult(ctx context.Context, category string, refID int64) error
 	ListBonusResults(ctx context.Context) ([]BonusResult, error)
@@ -49,6 +56,26 @@ func (s *SQLStore) UpsertBonusPrediction(ctx context.Context, userID int64, cate
 		return fmt.Errorf("store: upsert bonus prediction: %w", err)
 	}
 	return nil
+}
+
+// UpsertBonusPredictions writes all picks for a user atomically in a single
+// transaction, mirroring the UpsertWeeklyResults pattern. A mid-loop error
+// rolls back the entire batch so no partial write is committed.
+func (s *SQLStore) UpsertBonusPredictions(ctx context.Context, userID int64, picks []BonusPickWrite) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("store: begin bonus picks tx: %w", err)
+	}
+	q := s.q.WithTx(tx)
+	for _, p := range picks {
+		if err := q.UpsertBonusPrediction(ctx, sqlc.UpsertBonusPredictionParams{
+			UserID: userID, Category: sqlc.BonusPredictionsCategory(p.Category), RefID: p.RefID,
+		}); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("store: upsert bonus predictions: %w", err)
+		}
+	}
+	return tx.Commit()
 }
 
 func (s *SQLStore) ListBonusPredictionsForUser(ctx context.Context, userID int64) ([]BonusPick, error) {
