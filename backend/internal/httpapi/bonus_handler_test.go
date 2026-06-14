@@ -59,8 +59,10 @@ func (f *fakeBonusStore) PlayerExists(context.Context, int64) (bool, error)     
 
 // fakePlayerStore implements store.PlayerStore for picker tests.
 type fakePlayerStore struct {
-	teams   []store.TeamOption
-	players []store.PlayerOption
+	teams       []store.TeamOption
+	players     []store.PlayerOption
+	teamNames   map[int64]string
+	playerNames map[int64]string
 }
 
 func (f *fakePlayerStore) ListTeamsForPicker(context.Context) ([]store.TeamOption, error) {
@@ -68,6 +70,18 @@ func (f *fakePlayerStore) ListTeamsForPicker(context.Context) ([]store.TeamOptio
 }
 func (f *fakePlayerStore) SearchPlayers(_ context.Context, _ string) ([]store.PlayerOption, error) {
 	return f.players, nil
+}
+func (f *fakePlayerStore) TeamNameByID(_ context.Context, id int64) (string, error) {
+	if f.teamNames != nil {
+		return f.teamNames[id], nil
+	}
+	return "", nil
+}
+func (f *fakePlayerStore) PlayerNameByID(_ context.Context, id int64) (string, error) {
+	if f.playerNames != nil {
+		return f.playerNames[id], nil
+	}
+	return "", nil
 }
 
 // ctxUser injects a store.User into the request context (simulates RequireAuth).
@@ -162,7 +176,8 @@ func TestGetBonus_ReturnsLockState(t *testing.T) {
 	now = func() time.Time { return time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC) }
 	t.Cleanup(func() { now = old })
 	st := &fakeBonusStore{picks: []store.BonusPick{{Category: "winner", RefID: 9}}}
-	d := &Deps{Bonus: st, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
+	fp := &fakePlayerStore{teamNames: map[int64]string{9: "Brazil"}}
+	d := &Deps{Bonus: st, Players: fp, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
 	req := ctxUser(httptest.NewRequest(http.MethodGet, "/api/bonus", nil), 1)
 	rec := httptest.NewRecorder()
 	d.GetBonus(rec, req)
@@ -185,12 +200,100 @@ func TestGetBonus_ReturnsLockState(t *testing.T) {
 	}
 }
 
+// TestGetBonus_LabelResolvedPerRefType asserts that each pick in the response
+// carries a resolved label — team name for team-award categories, player name
+// for player-award categories (spec §11 label field).
+func TestGetBonus_LabelResolvedPerRefType(t *testing.T) {
+	old := now
+	now = func() time.Time { return time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC) }
+	t.Cleanup(func() { now = old })
+
+	picks := []store.BonusPick{
+		{Category: "winner", RefID: 9},       // team award → TeamNameByID
+		{Category: "golden_ball", RefID: 42}, // player award → PlayerNameByID
+	}
+	st := &fakeBonusStore{picks: picks}
+	fp := &fakePlayerStore{
+		teamNames:   map[int64]string{9: "Brazil"},
+		playerNames: map[int64]string{42: "Messi"},
+	}
+	d := &Deps{Bonus: st, Players: fp, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
+
+	req := ctxUser(httptest.NewRequest(http.MethodGet, "/api/bonus", nil), 1)
+	rec := httptest.NewRecorder()
+	d.GetBonus(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	var got struct {
+		Picks []struct {
+			Category string `json:"category"`
+			RefID    int64  `json:"ref_id"`
+			Label    string `json:"label"`
+		} `json:"picks"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got.Picks) != 2 {
+		t.Fatalf("picks count = %d, want 2", len(got.Picks))
+	}
+
+	byCategory := make(map[string]string, len(got.Picks))
+	for _, p := range got.Picks {
+		byCategory[p.Category] = p.Label
+	}
+
+	if got := byCategory["winner"]; got != "Brazil" {
+		t.Errorf("winner label = %q, want %q", got, "Brazil")
+	}
+	if got := byCategory["golden_ball"]; got != "Messi" {
+		t.Errorf("golden_ball label = %q, want %q", got, "Messi")
+	}
+}
+
+// TestGetBonus_StaleRefIDDegradesToEmptyLabel asserts that an unknown ref_id
+// produces an empty label string rather than failing the whole request.
+func TestGetBonus_StaleRefIDDegradesToEmptyLabel(t *testing.T) {
+	old := now
+	now = func() time.Time { return time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC) }
+	t.Cleanup(func() { now = old })
+
+	picks := []store.BonusPick{{Category: "winner", RefID: 999}} // unknown team
+	st := &fakeBonusStore{picks: picks}
+	fp := &fakePlayerStore{teamNames: map[int64]string{}} // id 999 not present → ""
+	d := &Deps{Bonus: st, Players: fp, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
+
+	req := ctxUser(httptest.NewRequest(http.MethodGet, "/api/bonus", nil), 1)
+	rec := httptest.NewRecorder()
+	d.GetBonus(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 even with unknown ref_id, got %d", rec.Code, rec.Code)
+	}
+	var got struct {
+		Picks []struct {
+			Label string `json:"label"`
+		} `json:"picks"`
+	}
+	_ = json.NewDecoder(rec.Body).Decode(&got)
+	if len(got.Picks) != 1 {
+		t.Fatalf("picks count = %d, want 1", len(got.Picks))
+	}
+	if got.Picks[0].Label != "" {
+		t.Errorf("label = %q, want empty string for unknown ref_id", got.Picks[0].Label)
+	}
+}
+
 func TestGetBonus_LockedAfterLockAt(t *testing.T) {
 	old := now
 	now = func() time.Time { return time.Date(2026, 6, 29, 0, 0, 0, 0, time.UTC) }
 	t.Cleanup(func() { now = old })
 	st := &fakeBonusStore{picks: []store.BonusPick{{Category: "runner_up", RefID: 5}}}
-	d := &Deps{Bonus: st, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
+	fp := &fakePlayerStore{teamNames: map[int64]string{5: "France"}}
+	d := &Deps{Bonus: st, Players: fp, BonusLockAt: time.Date(2026, 6, 28, 18, 29, 0, 0, time.UTC)}
 	req := ctxUser(httptest.NewRequest(http.MethodGet, "/api/bonus", nil), 1)
 	rec := httptest.NewRecorder()
 	d.GetBonus(rec, req)

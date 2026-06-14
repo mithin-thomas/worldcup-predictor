@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store/sqlc"
@@ -34,6 +35,10 @@ type UpsertPlayerParams struct {
 type PlayerStore interface {
 	ListTeamsForPicker(ctx context.Context) ([]TeamOption, error)
 	SearchPlayers(ctx context.Context, q string) ([]PlayerOption, error)
+	// TeamNameByID returns the team name for the given id, or "" if not found.
+	TeamNameByID(ctx context.Context, id int64) (string, error)
+	// PlayerNameByID returns the player name for the given id, or "" if not found.
+	PlayerNameByID(ctx context.Context, id int64) (string, error)
 }
 
 var _ PlayerStore = (*SQLStore)(nil)
@@ -70,6 +75,28 @@ func (s *SQLStore) SearchPlayers(ctx context.Context, q string) ([]PlayerOption,
 		out = append(out, PlayerOption{ID: r.ID, Name: r.Name, Position: r.Position, TeamCode: r.TeamCode})
 	}
 	return out, nil
+}
+
+func (s *SQLStore) TeamNameByID(ctx context.Context, id int64) (string, error) {
+	name, err := s.q.TeamNameByID(ctx, id)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("store: team name by id: %w", err)
+	}
+	return name, nil
+}
+
+func (s *SQLStore) PlayerNameByID(ctx context.Context, id int64) (string, error) {
+	name, err := s.q.PlayerNameByID(ctx, id)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("store: player name by id: %w", err)
+	}
+	return name, nil
 }
 
 func (s *SQLStore) TeamExists(ctx context.Context, id int64) (bool, error) {

@@ -18,3 +18,9 @@ SELECT COUNT(*) FROM players WHERE id = ?;
 
 -- name: TeamExists :one
 SELECT COUNT(*) FROM teams WHERE id = ? AND is_placeholder = 0;
+
+-- name: TeamNameByID :one
+SELECT name FROM teams WHERE id = ?;
+
+-- name: PlayerNameByID :one
+SELECT name FROM players WHERE id = ?;

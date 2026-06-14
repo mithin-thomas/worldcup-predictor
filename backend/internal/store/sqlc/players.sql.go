@@ -53,6 +53,17 @@ func (q *Queries) PlayerExists(ctx context.Context, id int64) (int64, error) {
 	return count, err
 }
 
+const playerNameByID = `-- name: PlayerNameByID :one
+SELECT name FROM players WHERE id = ?
+`
+
+func (q *Queries) PlayerNameByID(ctx context.Context, id int64) (string, error) {
+	row := q.db.QueryRowContext(ctx, playerNameByID, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
 const searchPlayers = `-- name: SearchPlayers :many
 SELECT p.id, p.name, p.position, t.code AS team_code
 FROM players p JOIN teams t ON t.id = p.team_id
@@ -105,6 +116,17 @@ func (q *Queries) TeamExists(ctx context.Context, id int64) (int64, error) {
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const teamNameByID = `-- name: TeamNameByID :one
+SELECT name FROM teams WHERE id = ?
+`
+
+func (q *Queries) TeamNameByID(ctx context.Context, id int64) (string, error) {
+	row := q.db.QueryRowContext(ctx, teamNameByID, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
 }
 
 const upsertPlayer = `-- name: UpsertPlayer :exec

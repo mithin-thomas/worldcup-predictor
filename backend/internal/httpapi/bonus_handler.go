@@ -14,6 +14,7 @@ type bonusPickDTO struct {
 	Category string `json:"category"`
 	RefType  string `json:"ref_type"`
 	RefID    int64  `json:"ref_id"`
+	Label    string `json:"label"`
 	Points   *int64 `json:"points,omitempty"`
 }
 
@@ -33,10 +34,27 @@ func (d *Deps) GetBonus(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]bonusPickDTO, 0, len(picks))
 	for _, p := range picks {
+		cat := bonus.Category(p.Category)
+		refType := bonus.RefTypeOf(cat)
+		var label string
+		if refType == bonus.RefTeam {
+			if name, err := d.Players.TeamNameByID(r.Context(), p.RefID); err != nil {
+				slog.Error("bonus: resolve team name", "ref_id", p.RefID, "err", err)
+			} else {
+				label = name
+			}
+		} else {
+			if name, err := d.Players.PlayerNameByID(r.Context(), p.RefID); err != nil {
+				slog.Error("bonus: resolve player name", "ref_id", p.RefID, "err", err)
+			} else {
+				label = name
+			}
+		}
 		out = append(out, bonusPickDTO{
 			Category: p.Category,
-			RefType:  string(bonus.RefTypeOf(bonus.Category(p.Category))),
+			RefType:  string(refType),
 			RefID:    p.RefID,
+			Label:    label,
 			Points:   p.Points,
 		})
 	}
