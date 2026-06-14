@@ -79,7 +79,9 @@ Maximum bonus = **100**. These are scored once, after the tournament concludes, 
 
 Fixtures sync (initial seed + re-sync), manual match create/edit/delete, result and penalty-winner correction, settings management (cron time, bonus lock time, admin list), and a manual "recompute points" action. All destructive actions require an explicit confirm.
 
-**Implemented (M8a):** the manual match CRUD, result/penalty-winner correction, and user promote/demote tools described above now exist as standard `RequireAdmin` routes (registered in all environments) — see §11. Every admin match write sets `manual_override`; result correction immediately re-scores predictions (idempotent) under the kickoff precondition. Fixtures sync, settings management, and the manual recompute action remain deferred (M8b); the polished bonus-outcomes UI is M8c.
+**Implemented (M8a):** the manual match CRUD, result/penalty-winner correction, and user promote/demote tools described above now exist as standard `RequireAdmin` routes (registered in all environments) — see §11. Every admin match write sets `manual_override`; result correction immediately re-scores predictions (idempotent) under the kickoff precondition.
+
+**Implemented (M8b):** **settings management** and the **manual recompute action** now exist as standard `RequireAdmin` routes (all environments) — see §11. Settings management edits exactly three validated keys — `results_cron`, `weekly_cron`, `bonus_lock_at` — via `GET/PUT /api/admin/settings`; values are validated before any write (no partial write). `bonus_lock_at` takes effect **live** (read per request by the bonus handler); `results_cron`/`weekly_cron` apply on the **next process restart**. The manual recompute (`POST /api/admin/recompute`) is an **idempotent points rebuild** that re-derives `predictions.points` (+ penalty bonus) and `bonus_predictions.points` from the stored results — it never touches match results or already-declared weekly winners (`weekly_results`). Fixtures sync remains deferred; the polished bonus-outcomes UI is M8c.
 
 **Mark weekly prize paid** — admins mark a weekly winner's ₹500 gift card paid or unpaid via `PUT /api/admin/winners/paid`; the status surfaces in the Hall of Fame (§3.5) for everyone. This is a **standard admin route** (`RequireAdmin`) registered in **all** environments — distinct from the debug-only job triggers below, which exist only outside production.
 
@@ -317,7 +319,7 @@ Indicative columns; refine in migrations.
 - **bonus_predictions**: `id`, `user_id`, `category` ENUM(winner, runner_up, golden_ball, golden_boot, golden_glove, young_player, fair_play), `ref_id` BIGINT (a team id for team awards — winner/runner_up/fair_play — or a player id for player awards — golden_ball/golden_boot/golden_glove/young_player; the category→ref-type mapping is a fixed code constant, so there is **no FK** on `ref_id` and integrity is validated server-side), `points` NULL (materialized once at tournament end). **UNIQUE(user_id, category)**.
 - **bonus_results**: `category` (PK), `ref_id` (the actual outcome, same polymorphic-by-category semantics as `bonus_predictions.ref_id`), set by admin after the tournament.
 - **weekly_results**: `id`, `user_id`, `week_start` (IST date), `points`, `is_winner` BOOL, `prize_paid` BOOL DEFAULT 0, `paid_at` DATETIME NULL. **UNIQUE(user_id, week_start)**.
-- **settings**: `key`, `value` — e.g. `results_cron`, `bonus_lock_at`, `weekly_cron`.
+- **settings**: `key` (PK), `value`, `updated_at` — a generic key/value store; the application reads/writes only the **three allowlisted keys** `results_cron`, `weekly_cron`, `bonus_lock_at` (implemented, M8b — migration `0009`). **Precedence:** env/config values seed any missing key on boot (idempotent; never overwriting an existing row), and the `settings` table is the runtime source of truth thereafter.
 - **audit_log** (optional): admin actions for traceability.
 
 ---
@@ -347,7 +349,7 @@ Bonus
 
 Admin (role=admin)
 
-All admin routes below are **standard `RequireAdmin` routes, registered in all environments** (not debug-gated). Match management and user-role management are **implemented (M8a)**; fixtures sync, settings, and recompute remain **deferred (M8b)**.
+All admin routes below are **standard `RequireAdmin` routes, registered in all environments** (not debug-gated). Match management and user-role management are **implemented (M8a)**; settings and recompute are **implemented (M8b)**; fixtures sync remains **deferred**.
 
 Match management (implemented, M8a) — every write sets `manual_override` so the results-ingest never overwrites an admin edit:
 
@@ -362,11 +364,15 @@ User management (implemented, M8a):
 - `GET    /api/admin/users` → 200 array of `{ id, email, name, avatar_url, role }`.
 - `POST   /api/admin/users/:id/role` — body `{ role: "admin"|"user" }` → 200 `{ id, role }`. Guards: 400 on demoting **yourself**, demoting the **last remaining admin**, or a bad role; 404 if the user is unknown.
 
-Deferred (M8b) / other:
+Settings & recompute (implemented, M8b) — standard `RequireAdmin` routes, registered in all environments:
 
-- `POST   /api/admin/fixtures/sync` *(deferred, M8b)*
-- `GET/PUT /api/admin/settings` *(deferred, M8b)*
-- `POST   /api/admin/recompute` *(deferred, M8b)*
+- `GET    /api/admin/settings` → 200 `{ "results_cron": "...", "weekly_cron": "...", "bonus_lock_at": "<RFC3339>" }` — the three runtime-editable operational settings as a flat key/value map. 500 if the settings store cannot be read. **Precedence:** env/config seeds the `settings` table on boot; the DB is the runtime source of truth thereafter (§10).
+- `PUT    /api/admin/settings` — body = any subset of the three keys (`results_cron`, `weekly_cron`, `bonus_lock_at`) → 200 with the **full updated map**. All keys+values are **validated before any write** (no partial write): 400 on an unknown key, an invalid cron expression (parsed with the same robfig standard parser the schedulers use, incl. `@`-descriptors like `@daily` / `@every 1h30m`), an invalid RFC3339 `bonus_lock_at`, an empty body, or invalid JSON; 500 on a store failure after validation passed. **Liveness:** `bonus_lock_at` takes effect **live** (the bonus handler reads it per request — still server-authoritative); `results_cron`/`weekly_cron` apply on the **next process restart**.
+- `POST   /api/admin/recompute` → 200 `{ "matches_rescored": N, "predictions_updated": N, "bonus_updated": N }`. **Idempotent** points rebuild: re-derives `predictions.points` (+ penalty bonus) and `bonus_predictions.points` from the stored match results and `bonus_results` (absolute SET, never increment). Read-only over `matches`; **never** writes match results or `weekly_results` (already-declared weekly winners are immutable historical facts). 500 on failure.
+
+Other:
+
+- `POST   /api/admin/fixtures/sync` *(deferred)*
 - `PUT    /api/admin/winners/paid` — body `{ "week_start": "YYYY-MM-DD", "user_id", "paid": bool }` → 200 `{ "week_start", "user_id", "prize_paid" }`. Marks a weekly winner's ₹500 gift card paid/unpaid. 400 on a bad date / non-positive `user_id` / bad JSON; 404 when no matching winner row. A **standard `RequireAdmin` route, registered in all environments** (not debug-gated).
 - `PUT    /api/admin/bonus/results` — body `{ "results": [ { "category", "ref_id" } ] }` → 200 `{ "saved": N }`. Upserts one or more tournament-award outcomes (validated like bonus picks: known category, `ref_id` exists in the correct table). 400 on a bad category / wrong-type ref / invalid JSON. A **standard `RequireAdmin` route, registered in all environments** (not debug-gated); the polished outcomes UI is deferred.
 - `POST   /api/admin/jobs/run` — body `{ "job": "results-ingest" | "weekly-winner" | "bonus-score" }`. **Debug-only**: registered only when `APP_ENV != production`; returns 404 in production. `bonus-score` idempotently materializes `bonus_predictions.points` from `bonus_results` (recompute, never increment).
