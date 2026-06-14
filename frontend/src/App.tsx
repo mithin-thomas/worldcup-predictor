@@ -1,5 +1,5 @@
 import { useMe, GoogleSignInButton, useLogout } from "./lib/auth";
-import { Fixtures } from "./routes/Fixtures";
+import { Home } from "./routes/Home";
 import sayscoreLogo from "./assets/sayscore-logo-dark.png";
 import sayscoreMark from "./assets/sayscore-logo-transparent.png";
 
@@ -54,7 +54,7 @@ export default function App() {
         </div>
       </header>
 
-      <Fixtures />
+      <Home />
     </div>
   );
 }

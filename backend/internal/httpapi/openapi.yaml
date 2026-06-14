@@ -15,6 +15,8 @@ tags:
   - name: Auth
   - name: Fixtures
   - name: Predictions
+  - name: Leaderboards
+  - name: Admin
 
 paths:
   /healthz:
@@ -180,6 +182,83 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
+  /api/winners:
+    get:
+      tags: [Leaderboards]
+      summary: Hall of Fame — past weekly champions
+      description: >
+        Returns every past weekly champion grouped by week, newest first.
+        Visible to all authenticated users (the ₹500 gift-card payout status is
+        transparent to everyone). `week_start` is the IST calendar Monday
+        (a DATE). Co-winners each appear as their own entry within the week.
+        An empty result returns `{ "weeks": [] }`.
+      responses:
+        "200":
+          description: Past champions grouped by week (newest first)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WinnersResponse" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/admin/winners/paid:
+    put:
+      tags: [Admin]
+      summary: Mark a weekly winner's ₹500 gift card paid or unpaid
+      description: >
+        Toggles a weekly winner's prize payout status. `paid=true` sets
+        `prize_paid` and records `paid_at`; `paid=false` clears both. A standard
+        admin route (`RequireAdmin`) registered in all environments — not
+        debug-gated like `/api/admin/jobs/run`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [week_start, user_id, paid]
+              properties:
+                week_start:
+                  type: string
+                  format: date
+                  description: IST calendar Monday (YYYY-MM-DD).
+                user_id: { type: integer, format: int64 }
+                paid: { type: boolean }
+      responses:
+        "200":
+          description: Updated payout status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  week_start: { type: string, format: date }
+                  user_id: { type: integer, format: int64 }
+                  prize_paid: { type: boolean }
+        "400":
+          description: Bad request (bad week_start, non-positive user_id, or invalid JSON body)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Not an admin
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: No matching weekly winner row
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -254,6 +333,27 @@ components:
         days:
           type: array
           items: { $ref: "#/components/schemas/Day" }
+    Winner:
+      type: object
+      properties:
+        user_id: { type: integer, format: int64 }
+        name: { type: string }
+        avatar_url: { type: string }
+        points: { type: integer, format: int64 }
+        prize_paid: { type: boolean, description: "true once the ₹500 gift card is marked paid" }
+    WinnerWeek:
+      type: object
+      properties:
+        week_start: { type: string, format: date, description: "IST calendar Monday (YYYY-MM-DD)" }
+        winners:
+          type: array
+          items: { $ref: "#/components/schemas/Winner" }
+    WinnersResponse:
+      type: object
+      properties:
+        weeks:
+          type: array
+          items: { $ref: "#/components/schemas/WinnerWeek" }
 
 # Authenticated endpoints require the session cookie; per-operation `security: []`
 # marks the public ones (healthz, sign-in).

@@ -19,6 +19,11 @@ func (f *fakeJobRunner) RunResultsIngest(context.Context) (any, error) {
 	return map[string]int{"updated": 1}, nil
 }
 
+func (f *fakeJobRunner) RunWeeklyWinner(context.Context) (any, error) {
+	f.called++
+	return map[string]int{"winners": 1}, nil
+}
+
 func adminJobsDeps(t *testing.T, role store.Role) (*Deps, *http.Cookie, *fakeJobRunner) {
 	t.Helper()
 	fs := newFakeStore()
@@ -67,11 +72,19 @@ func TestRunJobNonAdminForbidden(t *testing.T) {
 
 func TestRunJobUnknownJob400(t *testing.T) {
 	d, cookie, _ := adminJobsDeps(t, store.RoleAdmin)
-	for _, body := range []string{`{"job":"weekly-winner"}`, `{"job":"nope"}`} {
+	for _, body := range []string{`{"job":"nope"}`} {
 		rec := postJob(t, d, true, cookie, body)
 		if rec.Code != http.StatusBadRequest {
 			t.Fatalf("body %s: status = %d, want 400", body, rec.Code)
 		}
+	}
+}
+
+func TestRunJobWeeklyWinner(t *testing.T) {
+	d, cookie, jr := adminJobsDeps(t, store.RoleAdmin)
+	rec := postJob(t, d, true, cookie, `{"job":"weekly-winner"}`)
+	if rec.Code != http.StatusOK || jr.called == 0 {
+		t.Fatalf("status=%d called=%d", rec.Code, jr.called)
 	}
 }
 

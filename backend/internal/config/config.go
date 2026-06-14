@@ -24,6 +24,7 @@ type Config struct {
 	FootballDataAPIKey  string
 	FootballDataBaseURL string
 	ResultsCron         string
+	WeeklyCron          string
 }
 
 func (c Config) IsProduction() bool { return c.AppEnv == "production" }
@@ -53,6 +54,7 @@ func Load() (Config, error) {
 		FootballDataAPIKey:  os.Getenv("FOOTBALL_DATA_API_KEY"),
 		FootballDataBaseURL: getenv("FOOTBALL_DATA_BASE_URL", "https://api.football-data.org/v4"),
 		ResultsCron:         getenv("RESULTS_CRON", "0 3,8,13 * * *"),
+		WeeklyCron:          getenv("WEEKLY_CRON", "30 13 * * 1"),
 	}
 	if c.SessionSecret == "" {
 		return Config{}, fmt.Errorf("config: SESSION_SECRET is required")

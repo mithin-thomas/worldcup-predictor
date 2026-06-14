@@ -71,12 +71,15 @@ Maximum bonus = **100**. These are scored once, after the tournament concludes, 
 
 ### 3.5 Leaderboards
 
-- **Weekly**: every Monday, sum points from matches whose **kickoff** falls in the previous IST week (Mon 00:00 → Sun 23:59 IST). Attribution is by kickoff timestamp (deterministic, so a late result-correction never shifts points between weeks). Highest total(s) are the Weekly Winner(s). **Weekly ties stand** — they produce multiple co-winners, each eligible for the prize. Prize: ₹500 Amazon Gift Card.
+- **Weekly**: every Monday, sum points from matches whose **kickoff** falls in the previous IST week (Mon 00:00 → Sun 23:59 IST). Attribution is by kickoff timestamp (deterministic, so a late result-correction never shifts points between weeks). Highest total(s) are the Weekly Winner(s). **Weekly ties stand** — they produce multiple co-winners, and **every co-winner is paid the full prize** (the §5.1 tie-break does **not** apply to the weekly prize; it only decides distinct 1st/2nd for the overall standings). Prize: ₹500 Amazon Gift Card per weekly winner.
 - **Overall**: all match points + bonus points combined, for the final standings. **Final-standings ties are broken by the cascade in §5.1** (so 1st and 2nd are distinct winners). Prizes: 1st ₹5,000, 2nd ₹2,500.
+- **Hall of Fame**: past weekly champions are retained and shown to **all** users (newest week first) — each week lists its co-winner(s), their points, and the ₹500 gift-card payout status. Read-only for regular users; admins additionally toggle the payout status (§3.6).
 
 ### 3.6 Admin features
 
 Fixtures sync (initial seed + re-sync), manual match create/edit/delete, result and penalty-winner correction, settings management (cron time, bonus lock time, admin list), and a manual "recompute points" action. All destructive actions require an explicit confirm.
+
+**Mark weekly prize paid** — admins mark a weekly winner's ₹500 gift card paid or unpaid via `PUT /api/admin/winners/paid`; the status surfaces in the Hall of Fame (§3.5) for everyone. This is a **standard admin route** (`RequireAdmin`) registered in **all** environments — distinct from the debug-only job triggers below, which exist only outside production.
 
 **Debug-only job triggers** — for testing, admins can manually fire the scheduled jobs (`results-ingest`, `weekly-winner`) on demand. This is gated to non-production builds: the endpoint and its UI control exist **only when `APP_ENV != production`** and are not registered at all in production. It lets a developer run the daily ingest / weekly calc without waiting for the cron.
 
@@ -310,7 +313,7 @@ Indicative columns; refine in migrations.
 - **predictions**: `id`, `user_id`, `match_id`, `home_score`, `away_score`, `penalty_winner_team_id` NULL, `points` NULL, `penalty_bonus` NULL, `created_at`, `updated_at`. **UNIQUE(user_id, match_id)**.
 - **bonus_predictions**: `id`, `user_id`, `category` ENUM(winner, runner_up, golden_ball, golden_boot, golden_glove, young_player, fair_play), `value` (team or player ref / free text id), `points` NULL. **UNIQUE(user_id, category)**.
 - **bonus_results**: `category`, `value` (the actual outcome), set by admin after the tournament.
-- **weekly_results**: `id`, `user_id`, `week_start` (IST date), `points`, `is_winner` BOOL. **UNIQUE(user_id, week_start)**.
+- **weekly_results**: `id`, `user_id`, `week_start` (IST date), `points`, `is_winner` BOOL, `prize_paid` BOOL DEFAULT 0, `paid_at` DATETIME NULL. **UNIQUE(user_id, week_start)**.
 - **settings**: `key`, `value` — e.g. `results_cron`, `bonus_lock_at`, `weekly_cron`.
 - **audit_log** (optional): admin actions for traceability.
 
@@ -331,6 +334,7 @@ Predictions & fixtures
 Leaderboards
 - `GET /api/leaderboard?period=week&week=YYYY-MM-DD`
 - `GET /api/leaderboard?period=overall`
+- `GET /api/winners` — past weekly champions for the Hall of Fame, grouped by week, newest first: `{ "weeks": [ { "week_start": "YYYY-MM-DD", "winners": [ { "user_id", "name", "avatar_url", "points", "prize_paid" } ] } ] }`. `week_start` is the IST calendar Monday; empty → `{ "weeks": [] }`.
 
 Bonus
 - `GET /api/bonus` — categories, options, caller's picks, lock time.
@@ -342,6 +346,7 @@ Admin (role=admin)
 - `GET/PUT /api/admin/settings`
 - `POST   /api/admin/recompute`
 - `POST   /api/admin/users/:id/role`
+- `PUT    /api/admin/winners/paid` — body `{ "week_start": "YYYY-MM-DD", "user_id", "paid": bool }` → 200 `{ "week_start", "user_id", "prize_paid" }`. Marks a weekly winner's ₹500 gift card paid/unpaid. 400 on a bad date / non-positive `user_id` / bad JSON; 404 when no matching winner row. A **standard `RequireAdmin` route, registered in all environments** (not debug-gated).
 - `POST   /api/admin/jobs/run` — body `{ "job": "results-ingest" | "weekly-winner" }`. **Debug-only**: registered only when `APP_ENV != production`; returns 404 in production.
 
 Ops
