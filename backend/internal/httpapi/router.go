@@ -37,6 +37,17 @@ func NewRouter(d *Deps, debug bool) chi.Router {
 			priv.Get("/players", d.GetPlayers)
 			priv.With(d.RequireAdmin).Put("/admin/bonus/results", d.PutBonusResults)
 
+			// Admin match management (all environments — not debug-gated).
+			priv.With(d.RequireAdmin).Get("/admin/matches", d.GetAdminMatches)
+			priv.With(d.RequireAdmin).Post("/admin/matches", d.PostAdminMatch)
+			priv.With(d.RequireAdmin).Put("/admin/matches/{id}", d.PutAdminMatch)
+			priv.With(d.RequireAdmin).Put("/admin/matches/{id}/result", d.PutAdminMatchResult)
+			priv.With(d.RequireAdmin).Delete("/admin/matches/{id}", d.DeleteAdminMatch)
+
+			// Admin user management (all environments — not debug-gated).
+			priv.With(d.RequireAdmin).Get("/admin/users", d.GetAdminUsers)
+			priv.With(d.RequireAdmin).Post("/admin/users/{id}/role", d.PostUserRole)
+
 			if debug {
 				priv.With(d.RequireAdmin).Post("/admin/jobs/run", d.PostRunJob)
 			}
