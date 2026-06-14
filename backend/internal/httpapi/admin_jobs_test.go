@@ -24,6 +24,11 @@ func (f *fakeJobRunner) RunWeeklyWinner(context.Context) (any, error) {
 	return map[string]int{"winners": 1}, nil
 }
 
+func (f *fakeJobRunner) RunBonusScore(context.Context) (any, error) {
+	f.called++
+	return map[string]int{"scored": 0}, nil
+}
+
 func adminJobsDeps(t *testing.T, role store.Role) (*Deps, *http.Cookie, *fakeJobRunner) {
 	t.Helper()
 	fs := newFakeStore()

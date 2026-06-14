@@ -1,0 +1,140 @@
+package httpapi
+
+import (
+	"encoding/json"
+	"net/http"
+	"time"
+
+	"github.com/sayonetech/worldcup-predictor/backend/internal/bonus"
+)
+
+type bonusPickDTO struct {
+	Category string `json:"category"`
+	RefType  string `json:"ref_type"`
+	RefID    int64  `json:"ref_id"`
+	Points   *int64 `json:"points,omitempty"`
+}
+
+type bonusResponse struct {
+	LockAt string         `json:"lock_at"`
+	Locked bool           `json:"locked"`
+	Picks  []bonusPickDTO `json:"picks"`
+}
+
+// GetBonus returns the caller's bonus picks and the current lock state.
+func (d *Deps) GetBonus(w http.ResponseWriter, r *http.Request) {
+	u, _ := userFromContext(r.Context())
+	picks, err := d.Bonus.ListBonusPredictionsForUser(r.Context(), u.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load bonus picks")
+		return
+	}
+	out := make([]bonusPickDTO, 0, len(picks))
+	for _, p := range picks {
+		out = append(out, bonusPickDTO{
+			Category: p.Category,
+			RefType:  string(bonus.RefTypeOf(bonus.Category(p.Category))),
+			RefID:    p.RefID,
+			Points:   p.Points,
+		})
+	}
+	writeJSON(w, http.StatusOK, bonusResponse{
+		LockAt: d.BonusLockAt.Format(time.RFC3339),
+		Locked: !now().Before(d.BonusLockAt),
+		Picks:  out,
+	})
+}
+
+type putBonusRequest struct {
+	Picks []struct {
+		Category string `json:"category"`
+		RefID    int64  `json:"ref_id"`
+	} `json:"picks"`
+}
+
+// PutBonus upserts the caller's bonus picks. Server-authoritative lock: rejects
+// all writes when now >= BonusLockAt. Validates all picks before writing any.
+func (d *Deps) PutBonus(w http.ResponseWriter, r *http.Request) {
+	if !now().Before(d.BonusLockAt) { // server-authoritative lock
+		writeError(w, http.StatusForbidden, "bonus predictions are locked")
+		return
+	}
+	u, _ := userFromContext(r.Context())
+	var req putBonusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	// validate all before writing any
+	for _, p := range req.Picks {
+		c := bonus.Category(p.Category)
+		if !bonus.Valid(c) {
+			writeError(w, http.StatusBadRequest, "unknown category: "+p.Category)
+			return
+		}
+		ok, err := d.refExists(r, c, p.RefID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "validation failed")
+			return
+		}
+		if !ok {
+			writeError(w, http.StatusBadRequest, "invalid ref for "+p.Category)
+			return
+		}
+	}
+	for _, p := range req.Picks {
+		if err := d.Bonus.UpsertBonusPrediction(r.Context(), u.ID, p.Category, p.RefID); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not save picks")
+			return
+		}
+	}
+	d.GetBonus(w, r) // return the updated set + lock state
+}
+
+// refExists checks that refID exists in the correct table for the category's ref-type.
+func (d *Deps) refExists(r *http.Request, c bonus.Category, refID int64) (bool, error) {
+	if bonus.RefTypeOf(c) == bonus.RefTeam {
+		return d.Bonus.TeamExists(r.Context(), refID)
+	}
+	return d.Bonus.PlayerExists(r.Context(), refID)
+}
+
+// GetTeams returns all non-placeholder teams for the bonus team-award dropdowns.
+func (d *Deps) GetTeams(w http.ResponseWriter, r *http.Request) {
+	teams, err := d.Players.ListTeamsForPicker(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load teams")
+		return
+	}
+	type teamDTO struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+		Code string `json:"code"`
+	}
+	out := make([]teamDTO, 0, len(teams))
+	for _, x := range teams {
+		out = append(out, teamDTO{x.ID, x.Name, x.Code})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// GetPlayers searches players by name for the bonus player-award searchbox.
+func (d *Deps) GetPlayers(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	players, err := d.Players.SearchPlayers(r.Context(), q)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not search players")
+		return
+	}
+	type playerDTO struct {
+		ID       int64  `json:"id"`
+		Name     string `json:"name"`
+		TeamCode string `json:"team_code"`
+		Position string `json:"position"`
+	}
+	out := make([]playerDTO, 0, len(players))
+	for _, x := range players {
+		out = append(out, playerDTO{x.ID, x.Name, x.TeamCode, x.Position})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
