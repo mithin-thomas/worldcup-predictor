@@ -200,3 +200,13 @@ type Venue struct {
 	RegionCluster string `json:"region_cluster"`
 	AirportCode   string `json:"airport_code"`
 }
+
+type WeeklyResult struct {
+	ID        int64     `json:"id"`
+	UserID    int64     `json:"user_id"`
+	WeekStart time.Time `json:"week_start"`
+	Points    int32     `json:"points"`
+	IsWinner  bool      `json:"is_winner"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
