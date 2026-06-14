@@ -41,6 +41,20 @@ type PredictionToScore struct {
 	PenaltyWinnerTeamID *int64
 }
 
+// FinalMatch holds the scoreline fields needed by the recompute job for every
+// match that has status='final'. Scores are non-null in practice on FINAL rows;
+// the columns are nullable in the schema, so NULL is treated as 0.
+type FinalMatch struct {
+	ID                  int64
+	Stage               Stage
+	HomeTeamID          *int64
+	AwayTeamID          *int64
+	HomeScore           int32
+	AwayScore           int32
+	WentToPenalties     bool
+	PenaltyWinnerTeamID *int64
+}
+
 // ResultsStore is the results-ingest read/write surface. WithTx runs the closure
 // against a transaction-bound store (commit on nil error, else rollback).
 type ResultsStore interface {
@@ -163,6 +177,37 @@ func (s *SQLStore) SetMatchManualOverride(ctx context.Context, id int64) error {
 		return fmt.Errorf("store: set match manual override: %w", err)
 	}
 	return nil
+}
+
+// ListFinalMatches returns every match with status='final' with its scoreline.
+// Nullable score columns are mapped to 0 when NULL (FINAL matches always have
+// scores; absent values are treated as 0 to keep the recompute safe).
+func (s *SQLStore) ListFinalMatches(ctx context.Context) ([]FinalMatch, error) {
+	rows, err := s.q.ListFinalMatches(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("store: list final matches: %w", err)
+	}
+	out := make([]FinalMatch, 0, len(rows))
+	for _, r := range rows {
+		var homeScore, awayScore int32
+		if r.HomeScore.Valid {
+			homeScore = r.HomeScore.Int32
+		}
+		if r.AwayScore.Valid {
+			awayScore = r.AwayScore.Int32
+		}
+		out = append(out, FinalMatch{
+			ID:                  r.ID,
+			Stage:               Stage(r.Stage),
+			HomeTeamID:          ptrI64(r.HomeTeamID),
+			AwayTeamID:          ptrI64(r.AwayTeamID),
+			HomeScore:           homeScore,
+			AwayScore:           awayScore,
+			WentToPenalties:     r.WentToPenalties,
+			PenaltyWinnerTeamID: ptrI64(r.PenaltyWinnerTeamID),
+		})
+	}
+	return out, nil
 }
 
 // WithTx runs fn against a transaction-bound store; commits on success, else rolls back.

@@ -61,6 +61,11 @@ func TestValidateCron_StandardFiveField(t *testing.T) {
 		{"six fields", "0 0 3 * * *", false}, // 6-field not accepted by standard parser
 		{"bad minute", "99 3 * * *", false},
 		{"words", "not a cron", false},
+		// Descriptor expressions: valid for cron.New() standardParser (includes Descriptor flag)
+		// and must also be valid for our cronParser — FIX A parity.
+		{"@daily descriptor", "@daily", true},
+		{"@every 15m descriptor", "@every 15m", true},
+		{"clearly bad descriptor", "@bogus", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

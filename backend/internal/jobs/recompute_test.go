@@ -289,14 +289,23 @@ func TestRecompute_MultipleMatches(t *testing.T) {
 }
 
 // TestRecompute_EmptyFinalMatches verifies that a run with no final matches
-// returns a zero summary and still runs the bonus pass.
+// returns zero match/prediction counts AND still runs the bonus pass (FIX D).
+// We seed one bonus_result + one matching bonus_prediction so bonus.Score
+// returns > 0, and assert BonusUpdated == 1 and the setter was called.
 func TestRecompute_EmptyFinalMatches(t *testing.T) {
 	fakeStore := &fakeRecomputeStore{
 		matches:     []store.FinalMatch{},
 		predictions: map[int64][]store.PredictionToScore{},
 	}
-	fakeBonus := &recomputeBonusFake{}
-	job := Recompute{Store: fakeStore, Bonus: BonusScore{Store: fakeBonus}}
+	bonusStore := &recomputeBonusFake{
+		bonusPreds: []store.BonusPredictionRow{
+			{ID: 200, Category: "winner", RefID: 5},
+		},
+		bonusResults: []store.BonusResult{
+			{Category: "winner", RefID: 5},
+		},
+	}
+	job := Recompute{Store: fakeStore, Bonus: BonusScore{Store: bonusStore}}
 	summary, err := job.Run(context.Background())
 	if err != nil {
 		t.Fatalf("Run() error: %v", err)
@@ -306,5 +315,12 @@ func TestRecompute_EmptyFinalMatches(t *testing.T) {
 	}
 	if summary.PredictionsUpdated != 0 {
 		t.Errorf("PredictionsUpdated = %d, want 0", summary.PredictionsUpdated)
+	}
+	// Bonus pass must still run even with zero final matches.
+	if summary.BonusUpdated != 1 {
+		t.Errorf("BonusUpdated = %d, want 1 (bonus pass must run with no final matches)", summary.BonusUpdated)
+	}
+	if bonusStore.bonusWrites != 1 {
+		t.Errorf("bonus SetBonusPredictionPoints calls = %d, want 1", bonusStore.bonusWrites)
 	}
 }

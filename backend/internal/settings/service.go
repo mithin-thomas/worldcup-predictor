@@ -76,7 +76,11 @@ func (s *Service) BonusLockAt(ctx context.Context) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.Parse(time.RFC3339, v)
+	t, err := time.Parse(time.RFC3339, v)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("settings: parse bonus_lock_at: %w", err)
+	}
+	return t, nil
 }
 
 // SetAll validates every key+value (allowlist + per-key validator) before writing

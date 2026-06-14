@@ -29,11 +29,11 @@ func IsKey(k string) bool {
 	return false
 }
 
-// cronParser matches the standard 5-field spec the schedulers use.
-// cron.New() with no parser option uses the standard 5-field parser —
-// this matches what main.go passes to c.AddFunc, so validation == what the
-// scheduler accepts.
-var cronParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+// cronParser matches exactly the standardParser that cron.New() uses by default:
+// Minute | Hour | Dom | Month | Dow | Descriptor. The Descriptor flag is required
+// so that @daily, @hourly, @every 1h30m, etc. are accepted here just as they are
+// accepted by the scheduler — keeping the "validation == scheduler accepts" contract.
+var cronParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 
 // ValidateCron parses v with the same 5-field parser the schedulers use.
 func ValidateCron(v string) error {
