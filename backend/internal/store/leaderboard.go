@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -16,6 +17,17 @@ type LeaderboardRow struct {
 	Points    int64
 	Exact     int64
 	Correct   int64
+}
+
+// Winner is one past weekly champion (a weekly_results row with is_winner=1).
+type Winner struct {
+	WeekStart time.Time
+	UserID    int64
+	Name      string
+	AvatarURL string
+	Points    int64
+	PrizePaid bool
+	PaidAt    *time.Time
 }
 
 // WeeklyResult is a stored weekly_results row (for surfacing is_winner).
@@ -39,6 +51,8 @@ type LeaderboardStore interface {
 	OverallLeaderboard(ctx context.Context) ([]LeaderboardRow, error)
 	ListWeeklyResults(ctx context.Context, weekStart time.Time) ([]WeeklyResult, error)
 	UpsertWeeklyResults(ctx context.Context, ps []UpsertWeeklyResultParams) error
+	ListWinners(ctx context.Context) ([]Winner, error)
+	MarkWinnerPaid(ctx context.Context, weekStart time.Time, userID int64, paid bool, paidAt *time.Time) (bool, error)
 }
 
 var _ LeaderboardStore = (*SQLStore)(nil)
@@ -94,4 +108,45 @@ func (s *SQLStore) UpsertWeeklyResults(ctx context.Context, ps []UpsertWeeklyRes
 		}
 	}
 	return tx.Commit()
+}
+
+func (s *SQLStore) ListWinners(ctx context.Context) ([]Winner, error) {
+	rows, err := s.q.ListWinners(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("store: list winners: %w", err)
+	}
+	out := make([]Winner, 0, len(rows))
+	for _, r := range rows {
+		w := Winner{
+			WeekStart: r.WeekStart,
+			UserID:    r.UserID,
+			Name:      r.Name,
+			AvatarURL: r.AvatarUrl,
+			Points:    int64(r.Points),
+			PrizePaid: r.PrizePaid,
+		}
+		if r.PaidAt.Valid {
+			t := r.PaidAt.Time
+			w.PaidAt = &t
+		}
+		out = append(out, w)
+	}
+	return out, nil
+}
+
+func (s *SQLStore) MarkWinnerPaid(ctx context.Context, weekStart time.Time, userID int64, paid bool, paidAt *time.Time) (bool, error) {
+	var nt sql.NullTime
+	if paidAt != nil {
+		nt = sql.NullTime{Time: *paidAt, Valid: true}
+	}
+	n, err := s.q.MarkWinnerPaid(ctx, sqlc.MarkWinnerPaidParams{
+		PrizePaid: paid,
+		PaidAt:    nt,
+		WeekStart: weekStart,
+		UserID:    userID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("store: mark winner paid: %w", err)
+	}
+	return n > 0, nil
 }

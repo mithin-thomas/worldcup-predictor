@@ -33,6 +33,10 @@ func (f *fakeLeaderboardStore) ListWeeklyResults(context.Context, time.Time) ([]
 func (f *fakeLeaderboardStore) UpsertWeeklyResults(context.Context, []store.UpsertWeeklyResultParams) error {
 	return nil
 }
+func (f *fakeLeaderboardStore) ListWinners(context.Context) ([]store.Winner, error) { return nil, nil }
+func (f *fakeLeaderboardStore) MarkWinnerPaid(context.Context, time.Time, int64, bool, *time.Time) (bool, error) {
+	return false, nil
+}
 
 func lbDeps(t *testing.T, ls store.LeaderboardStore) (*Deps, *http.Cookie, int64) {
 	t.Helper()

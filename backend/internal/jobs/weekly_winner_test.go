@@ -29,6 +29,10 @@ func (f *fakeWeeklyStore) UpsertWeeklyResults(_ context.Context, ps []store.Upse
 	f.upserts = append(f.upserts, ps...)
 	return nil
 }
+func (f *fakeWeeklyStore) ListWinners(context.Context) ([]store.Winner, error) { return nil, nil }
+func (f *fakeWeeklyStore) MarkWinnerPaid(context.Context, time.Time, int64, bool, *time.Time) (bool, error) {
+	return false, nil
+}
 
 func TestWeeklyWinnerComputesPreviousWeekAndCoWinners(t *testing.T) {
 	// now = Mon 2026-06-22 13:30 IST (08:00 UTC) → previous week starts Mon 2026-06-15 00:00 IST.
