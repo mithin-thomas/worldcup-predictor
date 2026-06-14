@@ -10,7 +10,7 @@ type runJobRequest struct {
 }
 
 // PostRunJob is the debug-only manual job trigger (registered only when debug).
-// Admin-gated. Currently supports "results-ingest"; "weekly-winner" arrives in M6.
+// Admin-gated. Supports "results-ingest" and "weekly-winner".
 func (d *Deps) PostRunJob(w http.ResponseWriter, r *http.Request) {
 	var req runJobRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -24,6 +24,17 @@ func (d *Deps) PostRunJob(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		summary, err := d.JobRunner.RunResultsIngest(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "job failed: "+err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, summary)
+	case "weekly-winner":
+		if d.JobRunner == nil {
+			writeError(w, http.StatusServiceUnavailable, "job runner not configured")
+			return
+		}
+		summary, err := d.JobRunner.RunWeeklyWinner(r.Context())
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "job failed: "+err.Error())
 			return

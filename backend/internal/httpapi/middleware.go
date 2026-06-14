@@ -61,6 +61,7 @@ func (d *Deps) RequireAuth(next http.Handler) http.Handler {
 // JobRunner runs a named background job on demand (debug trigger). nil in prod.
 type JobRunner interface {
 	RunResultsIngest(ctx context.Context) (any, error)
+	RunWeeklyWinner(ctx context.Context) (any, error)
 }
 
 // RequireAdmin must follow RequireAuth; it 403s non-admin users.

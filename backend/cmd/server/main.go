@@ -46,24 +46,28 @@ func main() {
 	st := store.New(db)
 	seedAdmins(context.Background(), st, cfg.SeedAdminEmails, logger)
 
-	var jobRunner httpapi.JobRunner
-	if !cfg.IsProduction() && cfg.FootballDataAPIKey != "" {
+	weekly := jobs.WeeklyWinner{Store: st, Now: func() time.Time { return time.Now().UTC() }}
+	sj := serverJobs{weekly: weekly}
+	if cfg.FootballDataAPIKey != "" {
 		if alias, err := loadAliasFile(cfg.SeedDataDir + "/fd_team_aliases.csv"); err == nil {
-			jobRunner = ingestRunner{jobs.ResultsIngest{
+			ingest := jobs.ResultsIngest{
 				API:   sportsapi.New(cfg.FootballDataBaseURL, cfg.FootballDataAPIKey),
 				Store: st,
 				Now:   func() time.Time { return time.Now().UTC() },
 				Alias: alias,
-			}}
+			}
+			sj.ingest = &ingest
 		} else {
-			logger.Warn("job trigger disabled: alias load", "err", err)
+			logger.Warn("results ingest trigger disabled: alias load", "err", err)
 		}
 	}
+	var jobRunner httpapi.JobRunner = sj
 
 	deps := &httpapi.Deps{
 		Store:              st,
 		Matches:            st,
 		Predictions:        st,
+		Leaderboard:        st,
 		JobRunner:          jobRunner,
 		Sessions:           auth.NewSessionManager(cfg.SessionSecret),
 		Verifier:           auth.GoogleTokenVerifier{ClientID: cfg.GoogleClientID},
@@ -86,6 +90,11 @@ func main() {
 	scheduler := startResultsCron(cfg, st, logger)
 	if scheduler != nil {
 		defer scheduler.Stop()
+	}
+
+	weeklyScheduler := startWeeklyCron(cfg, weekly, logger)
+	if weeklyScheduler != nil {
+		defer weeklyScheduler.Stop()
 	}
 
 	go func() {
@@ -143,6 +152,27 @@ func startResultsCron(cfg config.Config, st *store.SQLStore, logger *slog.Logger
 	return c
 }
 
+// startWeeklyCron schedules the weekly-winner job on WEEKLY_CRON (IST). It needs
+// no external API, so it always runs.
+func startWeeklyCron(cfg config.Config, job jobs.WeeklyWinner, logger *slog.Logger) *cron.Cron {
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		loc = time.FixedZone("IST", 5*3600+1800)
+	}
+	c := cron.New(cron.WithLocation(loc))
+	if _, err := c.AddFunc(cfg.WeeklyCron, func() {
+		if _, err := job.Run(context.Background()); err != nil {
+			logger.Error("weekly-winner run", "err", err)
+		}
+	}); err != nil {
+		logger.Error("weekly-winner disabled: bad WEEKLY_CRON", "spec", cfg.WeeklyCron, "err", err)
+		return nil
+	}
+	c.Start()
+	logger.Info("weekly-winner scheduled", "cron", cfg.WeeklyCron, "tz", loc.String())
+	return c
+}
+
 // loadAliasFile opens + parses the fd-team-id alias CSV.
 func loadAliasFile(path string) (map[int64]string, error) {
 	f, err := os.Open(path)
@@ -153,11 +183,22 @@ func loadAliasFile(path string) (map[int64]string, error) {
 	return jobs.LoadAliases(f)
 }
 
-// ingestRunner adapts jobs.ResultsIngest to httpapi.JobRunner.
-type ingestRunner struct{ ingest jobs.ResultsIngest }
+// serverJobs adapts the background jobs to httpapi.JobRunner. ingest is nil when
+// no results API key is configured; weekly-winner always works (no external API).
+type serverJobs struct {
+	ingest *jobs.ResultsIngest
+	weekly jobs.WeeklyWinner
+}
 
-func (r ingestRunner) RunResultsIngest(ctx context.Context) (any, error) {
-	return r.ingest.Run(ctx)
+func (s serverJobs) RunResultsIngest(ctx context.Context) (any, error) {
+	if s.ingest == nil {
+		return nil, errors.New("results ingest not configured (no FOOTBALL_DATA_API_KEY)")
+	}
+	return s.ingest.Run(ctx)
+}
+
+func (s serverJobs) RunWeeklyWinner(ctx context.Context) (any, error) {
+	return s.weekly.Run(ctx)
 }
 
 // seedAdmins promotes any already-existing user in the seed list to admin and
