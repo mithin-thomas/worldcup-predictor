@@ -20,6 +20,10 @@ type Config struct {
 	AllowedEmailDomain string
 	SeedAdminEmails    []string
 	SeedDataDir        string
+
+	FootballDataAPIKey  string
+	FootballDataBaseURL string
+	ResultsCron         string
 }
 
 func (c Config) IsProduction() bool { return c.AppEnv == "production" }
@@ -45,6 +49,10 @@ func Load() (Config, error) {
 		SeedAdminEmails:    splitTrim(os.Getenv("SEED_ADMIN_EMAILS")),
 		// Static WC dataset (committed CSVs). Override only if data/ moves.
 		SeedDataDir: getenv("SEED_DATA_DIR", "./data"),
+
+		FootballDataAPIKey:  os.Getenv("FOOTBALL_DATA_API_KEY"),
+		FootballDataBaseURL: getenv("FOOTBALL_DATA_BASE_URL", "https://api.football-data.org/v4"),
+		ResultsCron:         getenv("RESULTS_CRON", "0 3,8,13 * * *"),
 	}
 	if c.SessionSecret == "" {
 		return Config{}, fmt.Errorf("config: SESSION_SECRET is required")
