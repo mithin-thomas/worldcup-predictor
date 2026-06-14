@@ -31,6 +31,12 @@ func NewRouter(d *Deps, debug bool) chi.Router {
 			priv.Get("/winners", d.GetWinners)
 			priv.With(d.RequireAdmin).Put("/admin/winners/paid", d.PutWinnerPaid)
 
+			priv.Get("/bonus", d.GetBonus)
+			priv.Put("/bonus", d.PutBonus)
+			priv.Get("/teams", d.GetTeams)
+			priv.Get("/players", d.GetPlayers)
+			priv.With(d.RequireAdmin).Put("/admin/bonus/results", d.PutBonusResults)
+
 			if debug {
 				priv.With(d.RequireAdmin).Post("/admin/jobs/run", d.PostRunJob)
 			}
