@@ -41,8 +41,9 @@ function fmtDateIST(utc: string): string {
 
 /** Convert a local-IST datetime-local input value to UTC RFC3339. */
 function istInputToUtcRfc3339(istValue: string): string {
-  // istValue looks like "2026-06-20T18:30" — treat as IST (+05:30)
-  const dt = new Date(`${istValue}:00+05:30`);
+  // Slice to YYYY-MM-DDTHH:mm to guard against browsers that include seconds
+  const normalised = istValue.slice(0, 16);
+  const dt = new Date(`${normalised}:00+05:30`);
   return dt.toISOString();
 }
 
@@ -65,11 +66,24 @@ interface ConfirmDialogProps {
 
 function ConfirmDialog({ message, confirmLabel = "Confirm", onConfirm, onCancel }: ConfirmDialogProps) {
   return (
-    <div className="admin-dialog-overlay" role="dialog" aria-modal="true" aria-label="Confirm action">
+    <div
+      className="admin-dialog-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Confirm action"
+      aria-describedby="confirm-dialog-msg"
+      onKeyDown={(e) => { if (e.key === "Escape") onCancel(); }}
+    >
       <div className="admin-dialog">
-        <p className="admin-dialog__msg">{message}</p>
+        <p id="confirm-dialog-msg" className="admin-dialog__msg">{message}</p>
         <div className="admin-dialog__actions">
-          <button type="button" className="btn-ghost admin-dialog__cancel" onClick={onCancel}>
+          {/* autoFocus the Cancel button — safest default for a destructive confirm */}
+          <button
+            type="button"
+            className="btn-ghost admin-dialog__cancel"
+            onClick={onCancel}
+            autoFocus
+          >
             Cancel
           </button>
           <button
@@ -325,20 +339,23 @@ function ResultForm({ match, teams, onSubmit, isPending, error, onCancel }: Resu
       </div>
 
       {isKnockout && (
-        <div className="admin-form__row admin-form__row--inline">
-          <label className="admin-form__label" htmlFor="rf-penalties">Went to penalties</label>
-          <input
-            id="rf-penalties"
-            type="checkbox"
-            className="admin-form__checkbox"
-            checked={penalties}
-            onChange={(e) => {
-              setPenalties(e.target.checked);
-              if (!e.target.checked) setPenWinner("");
-            }}
-            disabled={isPending}
-            aria-label="Match went to penalty shootout"
-          />
+        <div className="admin-form__row">
+          {/* Wrapping label makes the entire row (≥44px) the click target */}
+          <label className="admin-form__checkbox-row" htmlFor="rf-penalties">
+            <input
+              id="rf-penalties"
+              type="checkbox"
+              className="admin-form__checkbox"
+              checked={penalties}
+              onChange={(e) => {
+                setPenalties(e.target.checked);
+                if (!e.target.checked) setPenWinner("");
+              }}
+              disabled={isPending}
+              aria-label="Match went to penalty shootout"
+            />
+            <span className="admin-form__checkbox-label">Went to penalties</span>
+          </label>
         </div>
       )}
 
@@ -429,13 +446,20 @@ function MatchesSection() {
   const resultMatch = resultId != null ? list.find((m) => m.id === resultId) : undefined;
   const deleteMatch_ = deleteConfirmId != null ? list.find((m) => m.id === deleteConfirmId) : undefined;
 
+  // Disable per-row action buttons while any match mutation is in-flight (prevent double-submit)
+  const anyPending =
+    createMatch.isPending ||
+    updateMatch.isPending ||
+    setResult.isPending ||
+    deleteMatch.isPending;
+
   return (
     <div className="admin-matches">
       <div className="admin-section-header">
         <h2 className="admin-section-title">Matches</h2>
         <button
           type="button"
-          className="btn-brand"
+          className={showNewForm ? "btn-ghost" : "btn-brand"}
           onClick={() => {
             setShowNewForm((v) => !v);
             setEditingId(null);
@@ -477,6 +501,7 @@ function MatchesSection() {
             Edit Match: {editingMatch.home_team || editingMatch.home_code} vs {editingMatch.away_team || editingMatch.away_code}
           </h3>
           <MatchForm
+            key={editingMatch.id}
             initial={editingMatch}
             teams={teams}
             onSubmit={(values) => {
@@ -504,6 +529,7 @@ function MatchesSection() {
             Set Result: {resultMatch.home_team || resultMatch.home_code} vs {resultMatch.away_team || resultMatch.away_code}
           </h3>
           <ResultForm
+            key={resultMatch.id}
             match={resultMatch}
             teams={teams}
             onSubmit={(values) => {
@@ -576,6 +602,7 @@ function MatchesSection() {
                       type="button"
                       className="admin-action-btn"
                       aria-label={`Edit ${m.home_team} vs ${m.away_team}`}
+                      disabled={anyPending}
                       onClick={() => {
                         setEditingId(editingId === m.id ? null : m.id);
                         setResultId(null);
@@ -588,6 +615,7 @@ function MatchesSection() {
                       type="button"
                       className="admin-action-btn"
                       aria-label={`Set result for ${m.home_team} vs ${m.away_team}`}
+                      disabled={anyPending}
                       onClick={() => {
                         setResultId(resultId === m.id ? null : m.id);
                         setEditingId(null);
@@ -600,6 +628,7 @@ function MatchesSection() {
                       type="button"
                       className="admin-action-btn admin-action-btn--danger"
                       aria-label={`Delete ${m.home_team} vs ${m.away_team}`}
+                      disabled={anyPending}
                       onClick={() => setDeleteConfirmId(m.id)}
                       data-testid={`delete-btn-${m.id}`}
                     >
@@ -755,7 +784,19 @@ function UsersSection() {
 type AdminTab = "matches" | "users";
 
 export function Admin() {
+  const { data: me } = useMe();
   const [tab, setTab] = useState<AdminTab>("matches");
+
+  // Defense-in-depth: self-guard even though the nav already gates this route
+  if (me !== undefined && me?.role !== "admin") {
+    return (
+      <section className="admin" aria-label="Admin">
+        <p className="admin-alert" role="alert">
+          This area is for administrators only.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="admin" aria-label="Admin">

@@ -1847,9 +1847,9 @@ body {
 }
 
 .admin-match-item__status--live {
-  color: var(--brand);
-  background: color-mix(in oklch, var(--brand) 12%, transparent);
-  border-color: color-mix(in oklch, var(--brand) 30%, transparent);
+  color: var(--live);
+  background: color-mix(in oklch, var(--live) 12%, transparent);
+  border-color: color-mix(in oklch, var(--live) 30%, transparent);
 }
 
 .admin-match-item__override {
@@ -1859,9 +1859,10 @@ body {
   text-transform: uppercase;
   padding: 2px 6px;
   border-radius: 100px;
-  background: color-mix(in oklch, var(--brand) 14%, transparent);
-  border: 1px solid color-mix(in oklch, var(--brand) 30%, transparent);
-  color: var(--brand);
+  /* Neutral informational chip — not an action, so no coral/brand colour */
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
 }
 
 .admin-match-item__pen {
@@ -1907,6 +1908,11 @@ body {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
   box-shadow: none;
+}
+
+.admin-action-btn:active:not(:disabled) {
+  opacity: 0.80;
+  transform: scale(0.98);
 }
 
 .admin-action-btn:disabled {
@@ -2034,11 +2040,27 @@ body {
   font-weight: 600;
 }
 
+/* Checkbox row: the <label> is the full hit target (≥44px); the <input> stays 20×20 visually */
+.admin-form__checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-2) 0;
+  cursor: pointer;
+}
+
 .admin-form__checkbox {
   width: 20px;
   height: 20px;
+  flex: none;
   cursor: pointer;
   accent-color: var(--brand);
+}
+
+.admin-form__checkbox-label {
+  font-size: 13px;
+  color: var(--ink);
 }
 
 .admin-form__error {
@@ -2249,6 +2271,11 @@ body {
   box-shadow: none;
 }
 
+.admin-role-btn:active:not(:disabled) {
+  opacity: 0.80;
+  transform: scale(0.98);
+}
+
 .admin-role-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -2338,6 +2365,11 @@ body {
 .admin-dialog__confirm:hover {
   background: var(--danger-hover);
   border-color: var(--danger-hover);
+}
+
+.admin-dialog__confirm:active:not(:disabled) {
+  opacity: 0.80;
+  transform: scale(0.98);
 }
 
 .admin-dialog__confirm:focus-visible {

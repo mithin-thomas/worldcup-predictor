@@ -82,6 +82,26 @@ const knockoutMatch: import("../lib/admin").AdminMatch = {
   manual_override: true,
 };
 
+const groupMatch2: import("../lib/admin").AdminMatch = {
+  id: 11,
+  match_number: 2,
+  stage: "group",
+  round: "Group B",
+  home_team_id: 3,
+  home_team: "France",
+  home_code: "FRA",
+  away_team_id: 4,
+  away_team: "Germany",
+  away_code: "GER",
+  kickoff_utc: "2026-06-21T13:00:00Z",
+  status: "scheduled",
+  home_score: null,
+  away_score: null,
+  went_to_penalties: false,
+  penalty_winner_team_id: null,
+  manual_override: false,
+};
+
 const adminUser: import("../lib/admin").AdminUser = {
   id: 1,
   email: "admin@sayonetech.com",
@@ -291,6 +311,64 @@ describe("Admin screen — matches tab", () => {
 
     wrap(<Admin />);
     expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("FIX 1: switching Edit from match A to match B remounts with B's values", () => {
+    // Two matches: groupMatch (id=10, Brazil vs Argentina) and groupMatch2 (id=11, France vs Germany)
+    vi.mocked(useAdminMatches).mockReturnValue({
+      data: [groupMatch, groupMatch2],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useAdminMatches>);
+
+    // Provide all 4 teams so the select can reflect the correct value
+    vi.mocked(useTeams).mockReturnValue({
+      data: [
+        { id: 1, name: "Brazil", code: "BRA" },
+        { id: 2, name: "Argentina", code: "ARG" },
+        { id: 3, name: "France", code: "FRA" },
+        { id: 4, name: "Germany", code: "GER" },
+      ],
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof useTeams>);
+
+    wrap(<Admin />);
+
+    // Open Edit on match A (Brazil vs Argentina, id=10)
+    fireEvent.click(screen.getByRole("button", { name: /Edit Brazil vs Argentina/i }));
+    // The edit panel heading should reference A
+    expect(screen.getByText(/Edit Match: Brazil vs Argentina/i)).toBeInTheDocument();
+
+    // Now open Edit on match B (France vs Germany, id=11) — should replace A's form
+    fireEvent.click(screen.getByRole("button", { name: /Edit France vs Germany/i }));
+    // Panel heading should switch to B
+    expect(screen.getByText(/Edit Match: France vs Germany/i)).toBeInTheDocument();
+    // A's panel heading should no longer be visible
+    expect(screen.queryByText(/Edit Match: Brazil vs Argentina/i)).not.toBeInTheDocument();
+
+    // The home-team select should now show France (id=3), not Brazil (id=1)
+    const homeSelect = screen.getByLabelText("Home team") as HTMLSelectElement;
+    expect(homeSelect.value).toBe("3");
+  });
+
+  it("FIX 7: createMatch mutation error renders role=alert", () => {
+    vi.mocked(useCreateMatch).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: true,
+      error: new Error("Kickoff must be in the future"),
+    } as unknown as ReturnType<typeof useCreateMatch>);
+
+    wrap(<Admin />);
+
+    // Open the new-match form
+    fireEvent.click(screen.getByRole("button", { name: /\+ New Match/i }));
+
+    // The error alert (role="alert") from the form should be present
+    const alerts = screen.getAllByRole("alert");
+    expect(alerts.length).toBeGreaterThan(0);
+    expect(alerts.some((el) => el.textContent?.includes("Kickoff must be in the future"))).toBe(true);
   });
 });
 
