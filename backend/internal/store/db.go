@@ -68,7 +68,10 @@ func (s *SQLStore) GetUserByID(ctx context.Context, id int64) (User, error) {
 }
 
 func (s *SQLStore) SetUserRole(ctx context.Context, id int64, role Role) error {
-	return s.q.SetUserRole(ctx, sqlc.SetUserRoleParams{Role: sqlc.UsersRole(role), ID: id})
+	if err := s.q.SetUserRole(ctx, sqlc.SetUserRoleParams{Role: sqlc.UsersRole(role), ID: id}); err != nil {
+		return fmt.Errorf("store: set user role: %w", err)
+	}
+	return nil
 }
 
 func toUser(r sqlc.User) User {
