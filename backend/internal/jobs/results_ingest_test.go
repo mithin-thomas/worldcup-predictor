@@ -54,6 +54,10 @@ func (f *fakeStore) SetPredictionScore(_ context.Context, id int64, points, bonu
 	f.scored[id] = [2]int32{points, bonus}
 	return nil
 }
+func (f *fakeStore) FindMatchByID(_ context.Context, id int64) (store.MatchForResult, error) {
+	return store.MatchForResult{}, store.ErrNotFound
+}
+func (f *fakeStore) SetMatchManualOverride(context.Context, int64) error { return nil }
 func (f *fakeStore) WithTx(ctx context.Context, fn func(store.ResultsStore) error) error {
 	return fn(f) // tests run the closure directly (no real tx)
 }
