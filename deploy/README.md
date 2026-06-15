@@ -5,7 +5,7 @@ This folder holds the Docker stacks.
 | File | Stack | Frontend | Command |
 |---|---|---|---|
 | [`docker-compose.yml`](docker-compose.yml) | **Local / dev** | nginx, plain HTTP `:8080` | `make up` |
-| [`docker-compose.prod.yml`](docker-compose.prod.yml) | **Production** | Caddy, automatic HTTPS | `make up-prod` |
+| [`docker-compose.prod.yml`](docker-compose.prod.yml) | **Production** | Caddy, automatic HTTPS | `make deploy-prod` |
 
 The two are independent (different compose files and project names — `sayscore`
 vs `sayscore-prod`); they can even run side by side. This README covers
@@ -52,6 +52,13 @@ Production is driven by **one file**, `.env.prod` at the **repo root** (not in
 this folder). You do **not** need `backend/.env` or `frontend/.env` in prod —
 compose injects everything from `.env.prod`.
 
+**Where it's used:** only by the prod compose, via `--env-file .env.prod` (baked
+into the `make deploy-prod` / `up-prod` / `down-prod` / `logs-prod` targets). It
+populates the `${…}` placeholders in `deploy/docker-compose.prod.yml`, which then
+reach the containers (backend env, MySQL, Caddy's `SITE_ADDRESS`) and the image
+refs. Nothing identifying is hardcoded in the committed files — registry/account
+(in `BACKEND_IMAGE`/`FRONTEND_IMAGE`), domain, and secrets all live in `.env.prod`.
+
 ```bash
 cp .env.prod.example .env.prod
 # then edit .env.prod
@@ -59,6 +66,8 @@ cp .env.prod.example .env.prod
 
 | Var | Required | Notes |
 |---|---|---|
+| `BACKEND_IMAGE` | ✅ (host deploy) | Full backend image ref incl. registry+tag, e.g. `123…dkr.ecr.ap-south-1.amazonaws.com/sayscore:backend-latest`. Kept here (not in the public compose) so the account ID isn't committed. `make deploy-prod` pulls it. Optional if you build locally with `make up-prod` (falls back to `sayscore-backend:local`). |
+| `FRONTEND_IMAGE` | ✅ (host deploy) | Same for the Caddy frontend image, e.g. `…/sayscore:frontend-latest`. |
 | `SITE_ADDRESS` | ✅ | Public hostname, e.g. `sayscore.example.com`. Caddy gets the cert for it. Use `:80` for a local no-TLS smoke. |
 | `DB_PASSWORD` | ✅ | App DB user password. |
 | `DB_ROOT_PASSWORD` | ✅ | MySQL root password. |
@@ -77,11 +86,22 @@ cp .env.prod.example .env.prod
 
 ## Deploy
 
+The backend + frontend images are built and pushed to ECR by CI on every merge
+to `main` (`.github/workflows/deploy-ecr.yml`). On the host you **pull** those
+prebuilt images — no building on the box:
+
 ```bash
-make up-prod        # build images + start detached (or: docker compose \
-                    #   --env-file .env.prod -p sayscore-prod \
-                    #   -f deploy/docker-compose.prod.yml up -d --build)
+make deploy-prod    # docker compose --env-file .env.prod -p sayscore-prod \
+                    #   -f deploy/docker-compose.prod.yml pull && up -d
 ```
+
+This pulls `BACKEND_IMAGE` / `FRONTEND_IMAGE` (the ECR tags from `.env.prod`) and
+starts the stack. To roll out a new version, re-run `make deploy-prod` (it pulls
+the latest tags and recreates the changed containers).
+
+> **Local build instead of pull:** `make up-prod` builds the images on the spot
+> (uses the `sayscore-*:local` fallback tags when `BACKEND_IMAGE`/`FRONTEND_IMAGE`
+> are unset). Handy for testing the prod stack without ECR.
 
 First boot, Caddy obtains the certificate (a few seconds once DNS + ports are
 right). Then open `https://<your-domain>` and sign in with a
@@ -100,7 +120,7 @@ right). Then open `https://<your-domain>` and sign in with a
 **Redeploy a new version** — pull the new code, then:
 
 ```bash
-make up-prod        # rebuilds changed images and recreates containers
+make deploy-prod    # pulls the latest image tags and recreates changed containers
 ```
 
 Migrations and the (idempotent) seed run automatically on every boot; the seed
@@ -120,7 +140,7 @@ docker compose -p sayscore-prod -f deploy/docker-compose.prod.yml \
   mysqldump -u"$DB_USER" --single-transaction "$DB_NAME" > backup.sql
 ```
 
-**Rotate secrets** — change the value in `.env.prod` and `make up-prod`
+**Rotate secrets** — change the value in `.env.prod` and `make deploy-prod`
 (rotating `SESSION_SECRET` invalidates existing sessions → users re-login).
 
 ---
@@ -130,10 +150,13 @@ docker compose -p sayscore-prod -f deploy/docker-compose.prod.yml \
 - **No certificate / TLS errors** — confirm DNS points at the host and ports 80
   **and** 443 are open; check `make logs-prod` for the ACME challenge. For a
   quick HTTP-only check set `SITE_ADDRESS=:80`.
-- **`make up-prod` says "missing .env.prod"** — you haven't created it yet
+- **`make deploy-prod` (or `up-prod`) says "missing .env.prod"** — you haven't created it yet
   (`cp .env.prod.example .env.prod`).
 - **Port 80/443 already in use** — another web server (or the local stack on a
   shared host) is bound; stop it first.
 - **Google sign-in fails** — the prod origin isn't an Authorized JavaScript
-  origin on the OAuth client, or `GOOGLE_CLIENT_ID` differs from the one the
-  bundle was built with (rebuild after changing it: `make up-prod`).
+  origin on the OAuth client, or the `VITE_GOOGLE_CLIENT_ID` baked into the
+  frontend bundle differs from the OAuth client. The client id is baked at
+  **build time in CI** (the `deploy-ecr` workflow), so after changing it: update
+  the `VITE_GOOGLE_CLIENT_ID` repo secret, let CI rebuild the image on `main`,
+  then `make deploy-prod` to pull it.

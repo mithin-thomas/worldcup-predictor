@@ -58,7 +58,10 @@ services:
     restart: on-failure
 
   backend:
-    image: sayscore-backend:prod
+    # Full image ref comes from .env.prod (BACKEND_IMAGE, e.g. an ECR tag) so no
+    # registry/account is hardcoded in this public file. Falls back to a local
+    # tag when building locally.
+    image: ${BACKEND_IMAGE:-sayscore-backend:local}
     restart: unless-stopped
     build:
       context: ../backend
@@ -90,7 +93,9 @@ services:
     # No host port: Caddy proxies to backend:8000 on the internal network.
 
   caddy:
-    image: sayscore-frontend:prod
+    # Full image ref from .env.prod (FRONTEND_IMAGE, e.g. an ECR tag); local
+    # fallback when building locally.
+    image: ${FRONTEND_IMAGE:-sayscore-frontend:local}
     restart: unless-stopped
     build:
       context: ../frontend
