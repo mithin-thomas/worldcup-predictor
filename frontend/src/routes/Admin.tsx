@@ -16,6 +16,7 @@ import {
   useSettings,
   useSaveSettings,
   useRecompute,
+  useRunJob,
   useBonusResults,
   useSaveBonusResults,
   type AdminMatch,
@@ -23,6 +24,7 @@ import {
   type AdminSettings,
   type RecomputeSummary,
   type BonusResultRow,
+  type JobName,
 } from "../lib/admin";
 
 // ── IST helpers ───────────────────────────────────────────────────────────────
@@ -954,9 +956,11 @@ function UsersSection() {
 // ── Settings section ──────────────────────────────────────────────────────────
 
 function SettingsSection() {
+  const { data: me } = useMe();
   const { data: settings, isLoading, isError } = useSettings();
   const saveSettings = useSaveSettings();
   const recompute = useRecompute();
+  const runJob = useRunJob();
 
   const [form, setForm] = useState({
     resultsCron: "",
@@ -985,6 +989,27 @@ function SettingsSection() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [recomputeResult, setRecomputeResult] = useState<RecomputeSummary | null>(null);
   const [showRecomputeConfirm, setShowRecomputeConfirm] = useState(false);
+
+  // Debug jobs panel state
+  const [activeJob, setActiveJob] = useState<JobName | null>(null);
+  const [jobSummary, setJobSummary] = useState<Record<string, unknown> | null>(null);
+  const [jobError, setJobError] = useState<string | null>(null);
+
+  const handleRunJob = (job: JobName) => {
+    setActiveJob(job);
+    setJobSummary(null);
+    setJobError(null);
+    runJob.mutate(job, {
+      onSuccess: (data) => {
+        setActiveJob(null);
+        setJobSummary(data);
+      },
+      onError: (err) => {
+        setActiveJob(null);
+        setJobError(err instanceof Error ? err.message : "Job failed.");
+      },
+    });
+  };
 
   const handleRecomputeClick = () => {
     setRecomputeResult(null);
@@ -1221,6 +1246,64 @@ function SettingsSection() {
           </div>
         </div>
       </div>
+
+      {/* ── Background jobs (debug only) ── */}
+      {me?.debug === true && (
+        <div className="admin-panel" data-testid="debug-jobs-panel">
+          <h2 className="admin-panel__title">Background jobs (debug)</h2>
+          <p className="admin-settings__hint">
+            Manually trigger the scheduled jobs. Available in non-production only.
+          </p>
+
+          <div className="admin-settings__recompute-row admin-debug-jobs__row">
+            {(
+              [
+                { job: "results-ingest" as JobName, label: "Run results ingest" },
+                { job: "weekly-winner" as JobName, label: "Run weekly winner" },
+                { job: "bonus-score" as JobName, label: "Run bonus score" },
+              ] as { job: JobName; label: string }[]
+            ).map(({ job, label }) => {
+              const isRunning = activeJob === job;
+              return (
+                <button
+                  key={job}
+                  type="button"
+                  className="adm-btn"
+                  aria-label={label}
+                  disabled={runJob.isPending}
+                  onClick={() => handleRunJob(job)}
+                  data-testid={`run-job-${job}`}
+                >
+                  {isRunning ? "Running…" : label}
+                </button>
+              );
+            })}
+          </div>
+
+          {jobSummary !== null && (
+            <span
+              className="admin-settings__recompute-summary"
+              role="status"
+              aria-live="polite"
+              data-testid="job-summary"
+            >
+              {Object.entries(jobSummary).map(([k, v]) => (
+                <span key={k}>{k}: {String(v)}</span>
+              ))}
+            </span>
+          )}
+
+          {jobError !== null && (
+            <p
+              className="admin-settings__recompute-error"
+              role="alert"
+              data-testid="job-error"
+            >
+              {jobError}
+            </p>
+          )}
+        </div>
+      )}
 
       {showRecomputeConfirm && (
         <ConfirmDialog

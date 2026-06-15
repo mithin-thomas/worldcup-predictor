@@ -43,7 +43,7 @@ func (d *Deps) PostAuthGoogle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d.setSessionCookie(w, u.ID)
-	writeJSON(w, http.StatusOK, userResponse(u))
+	writeJSON(w, http.StatusOK, d.userResponse(u))
 }
 
 // PostAuthLogout clears the session cookie.

@@ -6,6 +6,7 @@ export type Me = {
   name: string;
   avatar_url: string;
   role: "user" | "admin";
+  debug: boolean;
 };
 
 export async function getMe(): Promise<Me | null> {

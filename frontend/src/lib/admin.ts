@@ -231,6 +231,35 @@ export function useSaveBonusResults() {
   });
 }
 
+// ── Background jobs (debug only) ──────────────────────────────────────────────
+
+export type JobName = "results-ingest" | "weekly-winner" | "bonus-score";
+
+export function useRunJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (job: JobName): Promise<Record<string, unknown>> => {
+      // Use the shared apiFetch client (credentials + error parsing) per CLAUDE.md.
+      const res = await apiFetch<Record<string, unknown>>("/admin/jobs/run", {
+        method: "POST",
+        body: JSON.stringify({ job }),
+      });
+      return res ?? {};
+    },
+    onSuccess: (_data, job) => {
+      if (job === "results-ingest") {
+        qc.invalidateQueries({ queryKey: ["matches"] });
+        qc.invalidateQueries({ queryKey: ["leaderboard"] });
+      } else if (job === "weekly-winner") {
+        qc.invalidateQueries({ queryKey: ["winners"] });
+        qc.invalidateQueries({ queryKey: ["leaderboard"] });
+      } else if (job === "bonus-score") {
+        qc.invalidateQueries({ queryKey: ["leaderboard"] });
+      }
+    },
+  });
+}
+
 // ── Recompute ─────────────────────────────────────────────────────────────────
 
 export function useRecompute() {

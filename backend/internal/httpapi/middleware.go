@@ -55,6 +55,7 @@ type Deps struct {
 	Verifier           auth.TokenVerifier
 	AllowedEmailDomain string
 	Secure             bool // Secure flag on the cookie (false for local http)
+	Debug              bool // non-production: enables the debug job-run route + surfaces a `debug` flag on /api/me
 }
 
 func userFromContext(ctx context.Context) (store.User, bool) {
