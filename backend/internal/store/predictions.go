@@ -45,10 +45,25 @@ type MatchByID struct {
 	Status     MatchStatus
 }
 
+// MatchPredictionRow is one user's pick for a match, with their display info.
+// Used to reveal others' predictions after a match locks (spec §4).
+// Points/PenaltyBonus are nil until the match is scored FINAL.
+type MatchPredictionRow struct {
+	UserID              int64
+	Name                string
+	AvatarURL           string
+	HomeScore           int32
+	AwayScore           int32
+	PenaltyWinnerTeamID *int64
+	Points              *int32
+	PenaltyBonus        *int32
+}
+
 // PredictionStore is the predictions write + caller-read surface.
 type PredictionStore interface {
 	UpsertPrediction(ctx context.Context, p UpsertPredictionParams) error
 	ListPredictionsByUser(ctx context.Context, userID int64) ([]Prediction, error)
+	ListMatchPredictionsWithUsers(ctx context.Context, matchID int64) ([]MatchPredictionRow, error)
 }
 
 var _ PredictionStore = (*SQLStore)(nil)
@@ -75,6 +90,27 @@ func (s *SQLStore) ListPredictionsByUser(ctx context.Context, userID int64) ([]P
 	for _, r := range rows {
 		out = append(out, Prediction{
 			MatchID:             r.MatchID,
+			HomeScore:           r.HomeScore,
+			AwayScore:           r.AwayScore,
+			PenaltyWinnerTeamID: ptrI64(r.PenaltyWinnerTeamID),
+			Points:              ptrI32(r.Points),
+			PenaltyBonus:        ptrI32(r.PenaltyBonus),
+		})
+	}
+	return out, nil
+}
+
+func (s *SQLStore) ListMatchPredictionsWithUsers(ctx context.Context, matchID int64) ([]MatchPredictionRow, error) {
+	rows, err := s.q.ListMatchPredictionsWithUsers(ctx, matchID)
+	if err != nil {
+		return nil, fmt.Errorf("store: list match predictions: %w", err)
+	}
+	out := make([]MatchPredictionRow, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, MatchPredictionRow{
+			UserID:              r.UserID,
+			Name:                r.Name,
+			AvatarURL:           r.AvatarUrl,
 			HomeScore:           r.HomeScore,
 			AwayScore:           r.AwayScore,
 			PenaltyWinnerTeamID: ptrI64(r.PenaltyWinnerTeamID),

@@ -106,3 +106,70 @@ func (d *Deps) PutPrediction(w http.ResponseWriter, r *http.Request) {
 		PenaltyWinnerTeamID: req.PenaltyWinnerTeamID,
 	})
 }
+
+// matchPredictionDTO is one player's revealed pick for a locked match.
+type matchPredictionDTO struct {
+	UserID              int64  `json:"user_id"`
+	Name                string `json:"name"`
+	AvatarURL           string `json:"avatar_url"`
+	HomeScore           int32  `json:"home_score"`
+	AwayScore           int32  `json:"away_score"`
+	PenaltyWinnerTeamID *int64 `json:"penalty_winner_team_id"`
+	Points              *int32 `json:"points"`
+	PenaltyBonus        *int32 `json:"penalty_bonus"`
+	IsMe                bool   `json:"is_me"`
+}
+
+// GetMatchPredictions reveals every player's prediction for a match — but only
+// once the match has locked at kickoff (spec §4 privacy). The lock is enforced
+// server-side from the stored kickoff, never the client clock.
+func (d *Deps) GetMatchPredictions(w http.ResponseWriter, r *http.Request) {
+	u, ok := userFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "not authenticated")
+		return
+	}
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid match id")
+		return
+	}
+
+	m, err := d.Matches.GetMatchByID(r.Context(), id)
+	if errors.Is(err, store.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "match not found")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load match")
+		return
+	}
+
+	// Privacy gate: others' predictions stay hidden until kickoff. Reveal only
+	// once now >= kickoff (same boundary as the write lock).
+	if now().Before(m.KickoffUTC) {
+		writeError(w, http.StatusForbidden, "predictions are hidden until kickoff")
+		return
+	}
+
+	rows, err := d.Predictions.ListMatchPredictionsWithUsers(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load predictions")
+		return
+	}
+	dtos := make([]matchPredictionDTO, 0, len(rows))
+	for _, p := range rows {
+		dtos = append(dtos, matchPredictionDTO{
+			UserID:              p.UserID,
+			Name:                p.Name,
+			AvatarURL:           p.AvatarURL,
+			HomeScore:           p.HomeScore,
+			AwayScore:           p.AwayScore,
+			PenaltyWinnerTeamID: p.PenaltyWinnerTeamID,
+			Points:              p.Points,
+			PenaltyBonus:        p.PenaltyBonus,
+			IsMe:                p.UserID == u.ID,
+		})
+	}
+	writeJSON(w, http.StatusOK, dtos)
+}

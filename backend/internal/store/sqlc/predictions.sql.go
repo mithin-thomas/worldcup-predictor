@@ -10,6 +10,63 @@ import (
 	"database/sql"
 )
 
+const listMatchPredictionsWithUsers = `-- name: ListMatchPredictionsWithUsers :many
+SELECT
+    u.id AS user_id, u.name, u.avatar_url,
+    p.home_score, p.away_score, p.penalty_winner_team_id,
+    p.points, p.penalty_bonus
+FROM predictions p
+JOIN users u ON u.id = p.user_id
+WHERE p.match_id = ?
+ORDER BY (p.points IS NULL), p.points DESC, u.name ASC, u.id ASC
+`
+
+type ListMatchPredictionsWithUsersRow struct {
+	UserID              int64         `json:"user_id"`
+	Name                string        `json:"name"`
+	AvatarUrl           string        `json:"avatar_url"`
+	HomeScore           int32         `json:"home_score"`
+	AwayScore           int32         `json:"away_score"`
+	PenaltyWinnerTeamID sql.NullInt64 `json:"penalty_winner_team_id"`
+	Points              sql.NullInt32 `json:"points"`
+	PenaltyBonus        sql.NullInt32 `json:"penalty_bonus"`
+}
+
+// All users' predictions for one match, with the player's name/avatar. Used to
+// reveal others' picks after a match locks at kickoff (privacy, spec §4).
+// Scored rows first (points desc), then alphabetical for not-yet-scored matches.
+func (q *Queries) ListMatchPredictionsWithUsers(ctx context.Context, matchID int64) ([]ListMatchPredictionsWithUsersRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMatchPredictionsWithUsers, matchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListMatchPredictionsWithUsersRow
+	for rows.Next() {
+		var i ListMatchPredictionsWithUsersRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Name,
+			&i.AvatarUrl,
+			&i.HomeScore,
+			&i.AwayScore,
+			&i.PenaltyWinnerTeamID,
+			&i.Points,
+			&i.PenaltyBonus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPredictionsByUser = `-- name: ListPredictionsByUser :many
 SELECT match_id, home_score, away_score, penalty_winner_team_id, points, penalty_bonus
 FROM predictions

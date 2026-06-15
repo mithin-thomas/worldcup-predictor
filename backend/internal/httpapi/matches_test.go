@@ -35,6 +35,9 @@ func (f *fakeListPredStore) ListPredictionsByUser(context.Context, int64) ([]sto
 	f.calls++
 	return f.preds, nil
 }
+func (f *fakeListPredStore) ListMatchPredictionsWithUsers(context.Context, int64) ([]store.MatchPredictionRow, error) {
+	return nil, nil
+}
 
 func authedMatchesDeps(t *testing.T, matches []store.MatchWithTeams, preds []store.Prediction) (*Deps, *http.Cookie, *fakeListPredStore) {
 	t.Helper()
