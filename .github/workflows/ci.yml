@@ -19,6 +19,11 @@ jobs:
           cache-dependency-path: backend/go.sum
       - name: Vet
         run: go vet ./...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.12.2
+          working-directory: backend
       - name: Test
         run: go test ./... -count=1
       - name: sqlc diff (generated code is up to date)
@@ -42,7 +47,36 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm exec eslint .
       - name: Type-check
         run: pnpm exec tsc --noEmit
+      - name: Test
+        run: pnpm vitest run
       - name: Build
         run: pnpm build
+
+  # Build-only validation of both production images (no registry push). Mirrors
+  # the build context + args from deploy/docker-compose.yml: each image's context
+  # is its own subdir, and the frontend bundle needs the VITE_* build args.
+  docker:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: false
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          push: false
+          build-args: |
+            VITE_GOOGLE_CLIENT_ID=ci
+            VITE_API_BASE_URL=/api
