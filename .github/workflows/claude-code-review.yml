@@ -3,12 +3,25 @@ name: Claude Code Review
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+    # Skip the review when a PR touches ONLY non-code files (docs, markdown,
+    # config metadata, assets). A PR that mixes code + docs still runs, since
+    # at least one changed file falls outside this ignore list.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "**.txt"
+      - "**.svg"
+      - "**.png"
+      - "**.jpg"
+      - "**.jpeg"
+      - "**.ico"
+      - "**.webp"
+      - "LICENSE"
+      - ".gitignore"
+      - "**/.gitignore"
+      - ".editorconfig"
+      - "**/.dockerignore"
+      - ".npmrc"
 
 jobs:
   claude-review:
