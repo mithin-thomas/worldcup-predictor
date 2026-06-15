@@ -29,7 +29,7 @@ func main() {
 		logger.Error("db", "err", err)
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	logger.Info("seeding fixtures from CSV", "dir", cfg.SeedDataDir)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)

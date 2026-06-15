@@ -9,7 +9,11 @@ import (
 // (currently the admin debug job trigger POST /api/admin/jobs/run).
 func NewRouter(d *Deps, debug bool) chi.Router {
 	r := chi.NewRouter()
-	r.Use(middleware.RealIP)
+	// RealIP normalizes r.RemoteAddr from proxy headers so the per-IP auth limiter
+	// keys on the real client. SA1019 flags X-Forwarded-For spoofing risk; that's
+	// acceptable here — this internal app runs behind a trusted nginx that sets the
+	// header, and the limiter is a best-effort throttle, not an authz boundary.
+	r.Use(middleware.RealIP) //nolint:staticcheck // trusted reverse proxy; see comment above
 	r.Use(middleware.Recoverer)
 
 	r.Get("/healthz", Healthz)

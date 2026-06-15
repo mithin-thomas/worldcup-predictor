@@ -11,7 +11,9 @@ import (
 
 func TestKeyedLimiter_AllowsThenBlocks(t *testing.T) {
 	kl := newKeyedLimiter(rate.Limit(0.0001), 2) // ~never refills; burst 2
-	if !kl.Allow("a") || !kl.Allow("a") {
+	first := kl.Allow("a")
+	second := kl.Allow("a")
+	if !first || !second {
 		t.Fatal("first 2 within burst should pass")
 	}
 	if kl.Allow("a") {

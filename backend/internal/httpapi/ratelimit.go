@@ -16,7 +16,7 @@ const (
 	authRate  = rate.Limit(10.0 / 60.0) // ~10/min per IP
 	authBurst = 5
 
-	writeRate  = rate.Limit(60.0 / 60.0) // ~60/min per user
+	writeRate  = rate.Limit(1.0) // ~60/min per user (1 req/sec sustained)
 	writeBurst = 20
 
 	limiterIdleTTL = 15 * time.Minute
