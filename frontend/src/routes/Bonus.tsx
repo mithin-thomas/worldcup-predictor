@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CATEGORIES,
   useBonus,
   useTeams,
-  usePlayerSearch,
   useSaveBonus,
   type BonusPick,
   type PlayerOption,
 } from "../lib/bonus";
+import { PlayerCombobox } from "../components/PlayerCombobox";
 
 // ── IST countdown to lock_at ─────────────────────────────────────────────────
 function useCountdown(lockAt: string | undefined): string {
@@ -51,186 +51,6 @@ function formatLockIST(lockAt: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-// ── Player combobox (hand-rolled, keyboard-accessible) ───────────────────────
-interface PlayerComboboxProps {
-  categoryKey: string;
-  categoryLabel: string;
-  disabled: boolean;
-  currentRefId: number | undefined;
-  /** Server-provided label (survives reload); falls back to optimistic on fresh pick */
-  currentLabel: string | undefined;
-  onSelect: (id: number, label: string) => void;
-}
-
-function PlayerCombobox({
-  categoryKey,
-  categoryLabel,
-  disabled,
-  currentRefId,
-  currentLabel,
-  onSelect,
-}: PlayerComboboxProps) {
-  const [query, setQuery] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
-  const [open, setOpen] = useState(false);
-  const [activeIdx, setActiveIdx] = useState(-1);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const { data: results = [], isFetching } = usePlayerSearch(debouncedQ);
-
-  // Debounce input → query
-  useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      setDebouncedQ(query);
-      setActiveIdx(-1);
-    }, 300);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [query]);
-
-  const listboxId = `combobox-list-${categoryKey}`;
-
-  const selectOption = (opt: PlayerOption) => {
-    onSelect(opt.id, `${opt.name} · ${opt.team_code}`);
-    setQuery("");
-    setDebouncedQ("");
-    setOpen(false);
-    setActiveIdx(-1);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // ArrowDown must open the listbox when closed (FIX 3)
-    if (e.key === "ArrowDown" && !open) {
-      e.preventDefault();
-      setOpen(true);
-      setActiveIdx(0);
-      return;
-    }
-    if (!open) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveIdx((i) => Math.min(i + 1, results.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIdx((i) => Math.max(i - 1, 0));
-    } else if (e.key === "Enter" && activeIdx >= 0) {
-      e.preventDefault();
-      if (results[activeIdx]) selectOption(results[activeIdx]);
-    } else if (e.key === "Escape") {
-      setOpen(false);
-      setActiveIdx(-1);
-    }
-  };
-
-  const displayValue = query;
-  const placeholder =
-    currentRefId != null ? (currentLabel ?? "Selected") : "Search players…";
-  // aria-label for accessible name (FIX 3)
-  const inputAriaLabel = `Search players for ${categoryLabel}`;
-
-  return (
-    <div className="bonus-combobox" data-testid={`player-combobox-${categoryKey}`}>
-      <div className="bonus-combobox__field">
-        <input
-          ref={inputRef}
-          type="text"
-          role="combobox"
-          aria-label={inputAriaLabel}
-          aria-expanded={open}
-          aria-controls={listboxId}
-          aria-autocomplete="list"
-          aria-activedescendant={
-            activeIdx >= 0 ? `${listboxId}-opt-${activeIdx}` : undefined
-          }
-          className="bonus-combobox__input"
-          placeholder={placeholder}
-          value={displayValue}
-          disabled={disabled}
-          autoComplete="off"
-          onChange={(e) => {
-            setQuery(e.target.value);
-            if (e.target.value) {
-              setOpen(true);
-            } else {
-              setOpen(false);
-            }
-          }}
-          onKeyDown={handleKeyDown}
-          onBlur={() => {
-            // slight delay so click on option registers first
-            setTimeout(() => setOpen(false), 150);
-          }}
-        />
-        {/* Clear SEARCH TEXT only — does not remove the saved pick (FIX 2) */}
-        {query && !disabled && (
-          <button
-            type="button"
-            className="bonus-combobox__clear"
-            aria-label="Clear search"
-            tabIndex={-1}
-            onMouseDown={(e) => {
-              e.preventDefault(); // keep focus on input
-              setQuery("");
-              setDebouncedQ("");
-              setOpen(false);
-            }}
-          >
-            ×
-          </button>
-        )}
-        {isFetching && <span className="bonus-combobox__spinner" aria-hidden="true" />}
-      </div>
-
-      {open && results.length > 0 && (
-        <ul
-          ref={listRef}
-          id={listboxId}
-          role="listbox"
-          className="bonus-combobox__list"
-          aria-label="Player results"
-        >
-          {results.map((opt, i) => (
-            <li
-              key={opt.id}
-              id={`${listboxId}-opt-${i}`}
-              role="option"
-              aria-selected={i === activeIdx}
-              className={`bonus-combobox__option${i === activeIdx ? " is-active" : ""}`}
-              onMouseDown={(e) => {
-                e.preventDefault(); // prevent blur before click
-                selectOption(opt);
-              }}
-            >
-              <span className="bonus-combobox__name">{opt.name}</span>
-              <span className="bonus-combobox__meta">
-                {opt.team_code}
-                {opt.position ? ` · ${opt.position}` : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {open && debouncedQ.length >= 2 && results.length === 0 && !isFetching && (
-        <div className="bonus-combobox__empty" role="status" aria-live="polite">
-          No players found for &ldquo;{debouncedQ}&rdquo;
-        </div>
-      )}
-
-      {/* Show server-sourced label for the saved pick (FIX 1 — survives reload) */}
-      {currentRefId != null && !query && currentLabel && (
-        <div className="bonus-combobox__selected" aria-live="polite">
-          <span className="bonus-combobox__selected-label">{currentLabel}</span>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ── Main Bonus screen ─────────────────────────────────────────────────────────
@@ -413,15 +233,17 @@ export function Bonus() {
                   </select>
                 ) : (
                   <PlayerCombobox
-                    categoryKey={cat.key}
-                    categoryLabel={cat.label}
+                    comboboxKey={cat.key}
+                    ariaLabel={`Search players for ${cat.label}`}
                     disabled={isDisabled}
                     currentRefId={pick?.ref_id}
                     currentLabel={
                       // Use optimistic label briefly during mutation; then server label
                       optimisticLabels[cat.key] ?? pick?.label
                     }
-                    onSelect={(id, label) => handlePlayerSelect(cat.key, id, label)}
+                    onSelect={(opt: PlayerOption) =>
+                      handlePlayerSelect(cat.key, opt.id, `${opt.name} · ${opt.team_code}`)
+                    }
                   />
                 )}
               </div>
