@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMe, GoogleSignInButton, useLogout } from "./lib/auth";
 import { Home } from "./routes/Home";
 import { Admin } from "./routes/Admin";
+import { HowToPlayModal } from "./components/HowToPlayModal";
+import { HelpIcon } from "./components/icons";
 // Auth screen: full dark wordmark logo
 import sayscoreLogo from "./assets/sayscore-logo-dark.png";
 // Topbar: transparent mark (works on the dark blurred glass topbar)
@@ -14,6 +16,9 @@ export default function App() {
   const { data: me, isLoading } = useMe();
   const logout = useLogout();
   const [view, setView] = useState<View>("predictions");
+  // Hooks must be declared unconditionally before any early return.
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpBtnRef = useRef<HTMLButtonElement>(null);
 
   // ---- Loading skeleton ----
   if (isLoading) {
@@ -98,8 +103,19 @@ export default function App() {
             )}
           </nav>
 
-          {/* RIGHT: user chip + logout */}
+          {/* RIGHT: help + user chip + logout */}
           <div className="topbar-r">
+            <button
+              type="button"
+              ref={helpBtnRef}
+              className="btn-help"
+              aria-label="How to play"
+              aria-haspopup="dialog"
+              aria-expanded={helpOpen}
+              onClick={() => setHelpOpen(true)}
+            >
+              <HelpIcon />
+            </button>
             <div className="user-chip" aria-label={`Signed in as ${me.name || me.email}`}>
               <span>{me.name || me.email}</span>
             </div>
@@ -122,6 +138,9 @@ export default function App() {
           <Admin />
         )}
       </div>
+
+      {/* ── How to Play modal ── */}
+      {helpOpen && <HowToPlayModal onClose={() => setHelpOpen(false)} />}
     </>
   );
 }

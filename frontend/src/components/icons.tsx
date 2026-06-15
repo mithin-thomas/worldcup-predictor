@@ -148,3 +148,23 @@ export function SparkIcon() {
     </svg>
   );
 }
+
+export function HelpIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9a2.7 2.7 0 0 1 5.2.9c0 1.8-2.7 2.7-2.7 2.7" />
+      <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
