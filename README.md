@@ -78,6 +78,39 @@ make dev               # frontend → http://localhost:5173  (Vite proxies /api 
 
 ---
 
+## Production (Caddy + HTTPS)
+
+The local stack (above) serves the SPA via nginx over plain HTTP. For a real
+deployment use the **production compose**, which swaps nginx for **Caddy** —
+automatic Let's Encrypt HTTPS, the same SPA + `/api` reverse-proxy, and an
+internal-app `robots.txt` (disallow all).
+
+```bash
+cp .env.prod.example .env.prod    # fill in: SITE_ADDRESS, DB/SESSION secrets, GOOGLE_CLIENT_ID, …
+make up-prod                      # build + run detached on :80 / :443
+```
+
+`make up-prod` runs `deploy/docker-compose.prod.yml` (project `sayscore-prod`):
+**MySQL → migrate → seed → backend (`APP_ENV=production`) → Caddy**. Differences
+from the local stack:
+
+- **Caddy** terminates TLS for `SITE_ADDRESS` (DNS must point at the host; ports
+  80 + 443 open). Certs persist in the `caddy_data` volume. Config:
+  [`frontend/Caddyfile`](frontend/Caddyfile), image built from
+  [`frontend/Dockerfile.prod`](frontend/Dockerfile.prod).
+- **`APP_ENV=production`** turns on Secure cookies and disables the debug
+  job-run route; `RESULTS_CRON_ENABLED` defaults to true.
+- **Secrets come from `.env.prod`** (gitignored) — `SESSION_SECRET`,
+  `GOOGLE_CLIENT_ID`, DB passwords, `FOOTBALL_DATA_API_KEY`, `SLACK_WEBHOOK_URL`.
+  MySQL and the backend are **not** published to the host; only Caddy is.
+- Add `https://SITE_ADDRESS` as an **Authorized JavaScript origin** on the OAuth
+  client (the client id is baked into the bundle at build time).
+
+`make down-prod` / `make logs-prod` / `make ps-prod` manage it. **Full
+deployment + operations guide:** [`deploy/README.md`](deploy/README.md).
+
+---
+
 ## Fixtures data
 
 The WC 2026 schedule is fixed, so SayScore seeds it from a committed SQL dump,
