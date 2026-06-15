@@ -1,0 +1,14 @@
+# golangci-lint v2 config (schema differs from v1 — `version: "2"` selects it).
+# A sensible, not-overbearing set. Formatting (gofmt) is handled by lefthook's
+# backend-fmt hook + the CI fmt step, not here.
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - govet        # suspicious constructs (vet)
+    - staticcheck  # broad correctness/style analysis
+    - errcheck     # unchecked errors
+    - ineffassign  # ineffectual assignments
+    - unused       # unused code
+    - misspell     # common English misspellings in comments/strings

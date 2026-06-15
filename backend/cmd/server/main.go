@@ -42,7 +42,7 @@ func main() {
 		logger.Error("db", "err", err)
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	st := store.New(db)
 	seedAdmins(context.Background(), st, cfg.SeedAdminEmails, logger)
@@ -228,7 +228,7 @@ func loadAliasFile(path string) (map[int64]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	return jobs.LoadAliases(f)
 }
 

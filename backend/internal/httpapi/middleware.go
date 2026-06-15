@@ -13,6 +13,12 @@ import (
 const sessionCookieName = "sayscore_session"
 const sessionTTL = 7 * 24 * time.Hour
 
+// sessionRefreshThreshold: re-issue the cookie once more than this duration has
+// elapsed since it was issued — i.e. when remaining TTL < sessionTTL - 24h (≈6d).
+// This slides the 7-day window forward on activity so active users stay logged in;
+// idle users whose cookie is never refreshed expire naturally after 7 days.
+const sessionRefreshThreshold = 24 * time.Hour
+
 type ctxKey int
 
 const userCtxKey ctxKey = iota
@@ -74,6 +80,12 @@ func (d *Deps) RequireAuth(next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, "user not found")
 			return
 		}
+		// Sliding refresh: re-issue the cookie once sessionRefreshThreshold (24h)
+		// has elapsed since it was issued (remaining TTL < sessionTTL - 24h ≈ 6d),
+		// sliding the 7-day window forward on activity. Idle users expire naturally.
+		if time.Unix(sess.ExpiresAt, 0).Sub(now()) < sessionTTL-sessionRefreshThreshold {
+			d.setSessionCookie(w, u.ID)
+		}
 		ctx := context.WithValue(r.Context(), userCtxKey, u)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -114,6 +126,19 @@ func (d *Deps) setSessionCookie(w http.ResponseWriter, userID int64) {
 		MaxAge:   int(sessionTTL.Seconds()),
 	})
 }
+
+// maxBodyBytes caps request body size; an over-limit body makes the handler's
+// json.Decode fail (→ 400). Applied once on the /api group.
+func maxBodyBytes(n int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, n)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+const maxBodyBytesLimit int64 = 1 << 20 // 1 MiB
 
 func (d *Deps) clearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{

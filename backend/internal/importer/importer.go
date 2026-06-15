@@ -36,7 +36,7 @@ func (imp *Importer) Run(ctx context.Context, dir string) (Result, error) {
 		return Result{}, err
 	}
 	venues, err := parseVenues(vf)
-	vf.Close()
+	_ = vf.Close()
 	if err != nil {
 		return Result{}, err
 	}
@@ -54,7 +54,7 @@ func (imp *Importer) Run(ctx context.Context, dir string) (Result, error) {
 		return Result{}, err
 	}
 	teams, err := parseTeams(tf)
-	tf.Close()
+	_ = tf.Close()
 	if err != nil {
 		return Result{}, err
 	}
@@ -72,7 +72,7 @@ func (imp *Importer) Run(ctx context.Context, dir string) (Result, error) {
 		return Result{}, err
 	}
 	stages, err := parseStages(sf)
-	sf.Close()
+	_ = sf.Close()
 	if err != nil {
 		return Result{}, err
 	}
@@ -82,7 +82,7 @@ func (imp *Importer) Run(ctx context.Context, dir string) (Result, error) {
 		return Result{}, err
 	}
 	matches, err := parseMatches(mf, stages)
-	mf.Close()
+	_ = mf.Close()
 	if err != nil {
 		return Result{}, err
 	}
@@ -113,7 +113,7 @@ func (imp *Importer) Run(ctx context.Context, dir string) (Result, error) {
 		return Result{}, err
 	}
 	players, err := parsePlayers(pf)
-	pf.Close()
+	_ = pf.Close()
 	if err != nil {
 		return Result{}, err
 	}
