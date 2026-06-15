@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useMe } from "../lib/auth";
 import { useTeams, type TeamOption } from "../lib/bonus";
 import { PlayerCombobox } from "../components/PlayerCombobox";
@@ -1332,15 +1332,15 @@ function BonusSection() {
           {saveMutation.isPending ? "Saving…" : "Save outcomes"}
         </button>
 
-        {saveStatus && (
-          <span
-            className="admin-bonus__save-status"
-            role="status"
-            aria-live="polite"
-          >
-            {saveStatus}
-          </span>
-        )}
+        {/* Always mounted so SRs announce updates; hidden until a save succeeds */}
+        <span
+          className="admin-bonus__save-status"
+          role="status"
+          aria-live="polite"
+          style={saveStatus ? undefined : { display: "none" }}
+        >
+          {saveStatus}
+        </span>
 
         {saveError && (
           <p className="admin-bonus__save-error" role="alert">
@@ -1356,9 +1356,44 @@ function BonusSection() {
 
 type AdminTab = "matches" | "users" | "settings" | "bonus";
 
+const ADMIN_TABS: AdminTab[] = ["matches", "users", "settings", "bonus"];
+
 export function Admin() {
   const { data: me } = useMe();
   const [tab, setTab] = useState<AdminTab>("matches");
+
+  // Refs to tab button elements — used for programmatic focus in roving tabindex
+  const tabRefs = useRef<Record<AdminTab, HTMLButtonElement | null>>({
+    matches: null,
+    users: null,
+    settings: null,
+    bonus: null,
+  });
+
+  // WAI-ARIA roving tabindex: ArrowLeft/ArrowRight move focus + activate tab
+  const handleTabKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>, current: AdminTab) => {
+      const idx = ADMIN_TABS.indexOf(current);
+      let next: AdminTab | null = null;
+
+      if (e.key === "ArrowRight") {
+        next = ADMIN_TABS[(idx + 1) % ADMIN_TABS.length];
+      } else if (e.key === "ArrowLeft") {
+        next = ADMIN_TABS[(idx - 1 + ADMIN_TABS.length) % ADMIN_TABS.length];
+      } else if (e.key === "Home") {
+        next = ADMIN_TABS[0];
+      } else if (e.key === "End") {
+        next = ADMIN_TABS[ADMIN_TABS.length - 1];
+      }
+
+      if (next !== null) {
+        e.preventDefault();
+        setTab(next);
+        tabRefs.current[next]?.focus();
+      }
+    },
+    [],
+  );
 
   // Defense-in-depth: self-guard even though the nav already gates this route
   if (me !== undefined && me?.role !== "admin") {
@@ -1375,46 +1410,58 @@ export function Admin() {
     <section className="admin" aria-label="Admin">
       <div className="admin__tabs" role="tablist" aria-label="Admin sections">
         <button
+          ref={(el) => { tabRefs.current.matches = el; }}
           type="button"
           role="tab"
           aria-selected={tab === "matches"}
           aria-controls="admin-panel-matches"
           id="admin-tab-matches"
           className={`admin__tab${tab === "matches" ? " is-active" : ""}`}
+          tabIndex={tab === "matches" ? 0 : -1}
           onClick={() => setTab("matches")}
+          onKeyDown={(e) => handleTabKeyDown(e, "matches")}
         >
           Matches
         </button>
         <button
+          ref={(el) => { tabRefs.current.users = el; }}
           type="button"
           role="tab"
           aria-selected={tab === "users"}
           aria-controls="admin-panel-users"
           id="admin-tab-users"
           className={`admin__tab${tab === "users" ? " is-active" : ""}`}
+          tabIndex={tab === "users" ? 0 : -1}
           onClick={() => setTab("users")}
+          onKeyDown={(e) => handleTabKeyDown(e, "users")}
         >
           Users
         </button>
         <button
+          ref={(el) => { tabRefs.current.settings = el; }}
           type="button"
           role="tab"
           aria-selected={tab === "settings"}
           aria-controls="admin-panel-settings"
           id="admin-tab-settings"
           className={`admin__tab${tab === "settings" ? " is-active" : ""}`}
+          tabIndex={tab === "settings" ? 0 : -1}
           onClick={() => setTab("settings")}
+          onKeyDown={(e) => handleTabKeyDown(e, "settings")}
         >
           Settings
         </button>
         <button
+          ref={(el) => { tabRefs.current.bonus = el; }}
           type="button"
           role="tab"
           aria-selected={tab === "bonus"}
           aria-controls="admin-panel-bonus"
           id="admin-tab-bonus"
           className={`admin__tab${tab === "bonus" ? " is-active" : ""}`}
+          tabIndex={tab === "bonus" ? 0 : -1}
           onClick={() => setTab("bonus")}
+          onKeyDown={(e) => handleTabKeyDown(e, "bonus")}
         >
           Bonus
         </button>

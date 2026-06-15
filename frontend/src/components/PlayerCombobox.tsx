@@ -34,8 +34,6 @@ export function PlayerCombobox({
   const [debouncedQ, setDebouncedQ] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: results = [], isFetching } = usePlayerSearch(debouncedQ);
@@ -92,7 +90,6 @@ export function PlayerCombobox({
     <div className="bonus-combobox" data-testid={`player-combobox-${comboboxKey}`}>
       <div className="bonus-combobox__field">
         <input
-          ref={inputRef}
           type="text"
           role="combobox"
           aria-label={ariaLabel}
@@ -138,7 +135,6 @@ export function PlayerCombobox({
 
       {open && results.length > 0 && (
         <ul
-          ref={listRef}
           id={listboxId}
           role="listbox"
           className="bonus-combobox__list"
