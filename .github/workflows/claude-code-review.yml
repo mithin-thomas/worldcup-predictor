@@ -58,7 +58,32 @@ jobs:
           # the PR (the "completes green, PR stays silent" symptom we chased for
           # ages). With --comment it posts inline findings, or a gh pr comment
           # summary when the diff is clean.
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment'
+          #
+          # In addition to the code/spec review, enforce the contribution
+          # standards: CONTRIBUTING.md + the PR template (both in the repo).
+          prompt: |
+            /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment
+
+            In the SAME review comment, also check this PR against the project's
+            contribution standards (read the files from the repo):
+
+            1. CONTRIBUTING.md — does the PR follow it? In particular: tests added
+               for new behavior, Conventional Commit messages, and — critically —
+               is `docs/REQUIREMENTS.md` updated for any NEW or CHANGED user-facing
+               behavior? Flag a behavior change that does not touch the spec.
+            2. .github/pull_request_template.md — does the PR description actually
+               fill every required section (Summary, Screenshots for UI changes,
+               How I tested, and the checklist), with no blank or placeholder
+               sections left in?
+            3. Locked decisions — if the PR edits a SETTLED decision in the spec
+               (the SSO `sayonetech.com` gate, server-authoritative kickoff/window
+               locks, admin roles, or prediction privacy/reveal), flag it as
+               requiring explicit maintainer sign-off; it must NOT be self-approved
+               by a same-PR spec edit.
+
+            Report these as a short checklist (✅ / ❌ with the specific gap and a
+            fix) alongside the code findings. Don't nitpick anything the guidelines
+            don't require.
           # NOTE: use_sticky_comment is effectively a no-op in agent mode (a
           # custom prompt with track_progress at its default of false), so it is
           # NOT the safety net. If a clean review still looks silent, or posts
