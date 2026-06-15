@@ -5,14 +5,8 @@
 #   <registry>/<repo>:backend-<sha>  + :backend-latest
 #   <registry>/<repo>:frontend-<sha> + :frontend-latest   (frontend = Caddy prod image)
 # The <registry> (account host) is resolved at runtime from the ECR login.
-#
-# This repo is PUBLIC, so nothing identifying is hardcoded — all config lives in
-# repository SECRETS (Settings → Secrets and variables → Actions → Secrets):
-#   - AWS_DEPLOY_ROLE_ARN     IAM role ARN assumed via OIDC (from devops)
-#   - AWS_REGION              e.g. ap-south-1
-#   - ECR_REPOSITORY          e.g. sayscore
-#   - VITE_GOOGLE_CLIENT_ID   prod Google OAuth client id (baked into the frontend
-#                             bundle at build time)
+
+
 name: Deploy — push images to ECR
 
 on:
