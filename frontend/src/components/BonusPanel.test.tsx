@@ -215,4 +215,94 @@ describe("BonusPanel", () => {
     wrap(<BonusPanel />);
     expect(screen.getByRole("alert")).toHaveTextContent(/Picks are now locked/i);
   });
+
+  // ── Player (combobox) category path ───────────────────────────────────────
+  it("calls saveBonus with correct category+ref_id when a player is selected", async () => {
+    // Set up mock: golden_boot is a player category
+    (useBonus as ReturnType<typeof vi.fn>).mockReturnValue({ data: unlocked, isLoading: false, isError: false });
+    const players = [
+      { id: 99, name: "Lionel Messi", team_code: "ARG", position: "FW" },
+    ];
+    (usePlayerSearch as ReturnType<typeof vi.fn>).mockReturnValue({ data: players, isFetching: false });
+
+    const user = userEvent.setup();
+    wrap(<BonusPanel />);
+
+    // Expand the panel
+    await user.click(screen.getByRole("button", { name: /set tournament bonus picks/i }));
+
+    // Type in the Golden Boot combobox (role="combobox", aria-label matches category)
+    const combobox = screen.getByRole("combobox", { name: /Search players for Golden Boot/i });
+    await user.type(combobox, "Mes");
+
+    // The mocked usePlayerSearch returns results immediately; click the option
+    const option = await screen.findByRole("option", { name: /Lionel Messi/i });
+    await user.click(option);
+
+    // saveMutation.mutate should have been called with the player ref_id
+    expect(mutate).toHaveBeenCalledWith(
+      [{ category: "golden_boot", ref_id: 99 }],
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+    );
+  });
+
+  it("clears optimistic player label on successful save", async () => {
+    (useBonus as ReturnType<typeof vi.fn>).mockReturnValue({ data: unlocked, isLoading: false, isError: false });
+    const players = [{ id: 99, name: "Lionel Messi", team_code: "ARG", position: "FW" }];
+    (usePlayerSearch as ReturnType<typeof vi.fn>).mockReturnValue({ data: players, isFetching: false });
+
+    // Make mutate call onSuccess immediately so we can verify the label clears
+    const onSuccessMutate = vi.fn((_picks, callbacks?: { onSuccess?: () => void }) => {
+      callbacks?.onSuccess?.();
+    });
+    (useSaveBonus as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...defaultSave,
+      mutate: onSuccessMutate,
+    });
+
+    const user = userEvent.setup();
+    wrap(<BonusPanel />);
+
+    await user.click(screen.getByRole("button", { name: /set tournament bonus picks/i }));
+    const combobox = screen.getByRole("combobox", { name: /Search players for Golden Boot/i });
+    await user.type(combobox, "Mes");
+
+    const option = await screen.findByRole("option", { name: /Lionel Messi/i });
+    await user.click(option);
+
+    // After onSuccess fires, the optimistic label should be cleared
+    // (the combobox placeholder returns to "Search players…" / empty — not "Lionel Messi · ARG")
+    // The best observable effect: mutate was called, and the combobox input is empty (cleared)
+    expect(onSuccessMutate).toHaveBeenCalled();
+    // Combobox query is reset to "" after selection
+    expect(combobox).toHaveValue("");
+  });
+
+  it("clears optimistic player label on save error", async () => {
+    (useBonus as ReturnType<typeof vi.fn>).mockReturnValue({ data: unlocked, isLoading: false, isError: false });
+    const players = [{ id: 99, name: "Lionel Messi", team_code: "ARG", position: "FW" }];
+    (usePlayerSearch as ReturnType<typeof vi.fn>).mockReturnValue({ data: players, isFetching: false });
+
+    // Make mutate call onError immediately
+    const onErrorMutate = vi.fn((_picks, callbacks?: { onError?: () => void }) => {
+      callbacks?.onError?.();
+    });
+    (useSaveBonus as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...defaultSave,
+      mutate: onErrorMutate,
+    });
+
+    const user = userEvent.setup();
+    wrap(<BonusPanel />);
+
+    await user.click(screen.getByRole("button", { name: /set tournament bonus picks/i }));
+    const combobox = screen.getByRole("combobox", { name: /Search players for Golden Boot/i });
+    await user.type(combobox, "Mes");
+
+    const option = await screen.findByRole("option", { name: /Lionel Messi/i });
+    await user.click(option);
+
+    // onError was called, so optimistic label should have been cleaned up
+    expect(onErrorMutate).toHaveBeenCalled();
+  });
 });

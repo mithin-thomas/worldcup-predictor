@@ -196,9 +196,7 @@ describe("MatchCard", () => {
     wrap(<MatchCard match={ko} />);
 
     // Pick Spain as shootout winner
-    const penGroup = screen.getByRole("group", { name: /shootout winner/i });
-    await user.click(penGroup.querySelector("button[aria-pressed]")?.nextElementSibling as HTMLElement
-      ?? screen.getByRole("button", { name: "ESP" }));
+    await user.click(screen.getByRole("button", { name: "ESP" }));
     await user.click(screen.getByRole("button", { name: /save prediction/i }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
