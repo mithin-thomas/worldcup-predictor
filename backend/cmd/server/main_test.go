@@ -38,6 +38,14 @@ func TestJobMessage(t *testing.T) {
 			wantTitle:   "Tournament bonus scoring",
 			wantInDetai: []string{"7 pick(s) updated"},
 		},
+		{
+			// An unhandled summary type must fall back safely and NOT serialise
+			// its fields into the Slack message (no struct dump leaks).
+			name:        "unknown summary type falls back safely",
+			summary:     struct{ Secret string }{Secret: "leak-me"},
+			wantTitle:   "Background job",
+			wantInDetai: []string{"Completed"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

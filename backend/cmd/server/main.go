@@ -317,7 +317,10 @@ func jobMessage(summary any) (title, detail string) {
 		return "Tournament bonus scoring",
 			fmt.Sprintf("Re-scored tournament bonus picks against the declared outcomes — %d pick(s) updated.", s.Scored)
 	default:
-		return "Background job", fmt.Sprintf("%+v", summary)
+		// Unknown summary type: never serialise the struct (would leak field
+		// values to Slack). Emit a safe, generic line — known jobs are handled
+		// above; this only fires if a new job type is added without a case.
+		return "Background job", "Completed (see server logs for details)."
 	}
 }
 
