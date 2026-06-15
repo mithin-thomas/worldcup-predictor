@@ -1136,8 +1136,8 @@ input  { font-family: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  min-height: 32px;
+  padding: 8px 12px;
+  min-height: 44px;
   border-radius: var(--r-pill);
   border: 1px solid var(--border-2);
   background: var(--surface-2);
