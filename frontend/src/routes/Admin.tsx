@@ -4,7 +4,7 @@ import { useTeams, type TeamOption } from "../lib/bonus";
 import { PlayerCombobox } from "../components/PlayerCombobox";
 import { Avatar } from "../components/Avatar";
 import { Flag } from "../components/Flag";
-import { PlusIcon, ShieldIcon, UserIcon, EditIcon, FlagSmIcon, TrashIcon } from "../components/icons";
+import { PlusIcon, ShieldIcon, UserIcon, EditIcon, FlagSmIcon, TrashIcon, ChevronDownIcon } from "../components/icons";
 import {
   useAdminMatches,
   useAdminUsers,
@@ -462,6 +462,9 @@ function ResultForm({ match, teams, onSubmit, isPending, error, onCancel }: Resu
 
 // ── Matches section ───────────────────────────────────────────────────────────
 
+// How many matches the admin list shows before "Load more" (paged like Home).
+const ADMIN_MATCHES_PAGE = 10;
+
 function MatchesSection() {
   const { data: matches, isLoading, isError } = useAdminMatches();
   const { data: teams = [] } = useTeams();
@@ -475,6 +478,7 @@ function MatchesSection() {
   const [resultId, setResultId] = useState<number | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [matchStatus, setMatchStatus] = useState<string | null>(null);
+  const [shown, setShown] = useState(ADMIN_MATCHES_PAGE);
 
   if (isLoading) {
     return (
@@ -500,9 +504,13 @@ function MatchesSection() {
 
   const list = matches ?? [];
 
-  // Group by IST date
+  // Page the list like the Home fixtures: show a window, "Load more" extends it.
+  const visible = list.slice(0, shown);
+  const remaining = list.length - visible.length;
+
+  // Group only the visible window by IST date (preserving order)
   const byDate = new Map<string, AdminMatch[]>();
-  for (const m of list) {
+  for (const m of visible) {
     const dateKey = fmtDateIST(m.kickoff_utc);
     const group = byDate.get(dateKey) ?? [];
     group.push(m);
@@ -747,6 +755,20 @@ function MatchesSection() {
             </div>
           </div>
         ))
+      )}
+
+      {/* ── Load more (paged like the Home fixtures) ── */}
+      {remaining > 0 && (
+        <button
+          type="button"
+          className="load-more"
+          onClick={() => setShown((s) => s + ADMIN_MATCHES_PAGE)}
+          aria-label={`Load ${Math.min(ADMIN_MATCHES_PAGE, remaining)} more matches`}
+        >
+          Load more
+          <span className="lm-count">{remaining} left</span>
+          <ChevronDownIcon />
+        </button>
       )}
 
       {/* ── Delete confirm dialog ── */}

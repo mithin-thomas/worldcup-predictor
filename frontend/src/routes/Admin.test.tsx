@@ -449,6 +449,34 @@ describe("Admin screen — matches tab", () => {
     expect(alerts.length).toBeGreaterThan(0);
     expect(alerts.some((el) => el.textContent?.includes("Kickoff must be in the future"))).toBe(true);
   });
+
+  it("pages the match list with Load more (like the Home fixtures)", () => {
+    // 12 matches → first 10 shown, "Load more" reveals the rest
+    const many = Array.from({ length: 12 }, (_, i) => ({
+      ...groupMatch,
+      id: 100 + i,
+      home_team: `Home ${i}`,
+      away_team: `Away ${i}`,
+      kickoff_utc: `2026-06-${String((i % 27) + 1).padStart(2, "0")}T13:00:00Z`,
+    }));
+    vi.mocked(useAdminMatches).mockReturnValue({
+      data: many,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useAdminMatches>);
+
+    wrap(<Admin />);
+
+    // 10 visible, "Load more" present with "2 left"
+    expect(screen.getAllByRole("article")).toHaveLength(10);
+    const loadMore = screen.getByRole("button", { name: /Load .*more matches/i });
+    expect(screen.getByText(/2 left/i)).toBeInTheDocument();
+
+    // Click → all 12 visible, button gone
+    fireEvent.click(loadMore);
+    expect(screen.getAllByRole("article")).toHaveLength(12);
+    expect(screen.queryByText(/left/i)).toBeNull();
+  });
 });
 
 describe("Admin screen — users tab", () => {
