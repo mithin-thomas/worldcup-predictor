@@ -239,23 +239,12 @@ export function useRunJob() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (job: JobName): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${BASE}/admin/jobs/run`, {
+      // Use the shared apiFetch client (credentials + error parsing) per CLAUDE.md.
+      const res = await apiFetch<Record<string, unknown>>("/admin/jobs/run", {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ job }),
       });
-      if (!res.ok) {
-        let msg = `${res.status}`;
-        try {
-          const json = (await res.json()) as { error?: string };
-          if (json.error) msg = json.error;
-        } catch {
-          // ignore parse failure
-        }
-        throw new Error(msg);
-      }
-      return res.json() as Promise<Record<string, unknown>>;
+      return res ?? {};
     },
     onSuccess: (_data, job) => {
       if (job === "results-ingest") {
