@@ -18,12 +18,17 @@ func NewRouter(d *Deps, debug bool) chi.Router {
 	r.Get("/docs", GetDocs)
 	r.Get("/openapi.yaml", GetOpenAPISpec)
 
+	authLimiter := newKeyedLimiter(authRate, authBurst)
+	writeLimiter := newKeyedLimiter(writeRate, writeBurst)
+
 	r.Route("/api", func(api chi.Router) {
-		api.Post("/auth/google", d.PostAuthGoogle)
+		api.Use(maxBodyBytes(maxBodyBytesLimit))
+		api.With(rateLimitIP(authLimiter)).Post("/auth/google", d.PostAuthGoogle)
 		api.Post("/auth/logout", d.PostAuthLogout)
 
 		api.Group(func(priv chi.Router) {
 			priv.Use(d.RequireAuth)
+			priv.Use(rateLimitWrites(writeLimiter)) // after RequireAuth: needs user in context
 			priv.Get("/me", d.GetMe)
 			priv.Get("/matches", d.GetMatches)
 			priv.Put("/matches/{id}/prediction", d.PutPrediction)
