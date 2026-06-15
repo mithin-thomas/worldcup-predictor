@@ -73,6 +73,10 @@ services:
       DB_PASSWORD: wcp
       DB_NAME: wcp
       TZ: Asia/Kolkata
+      # Don't auto-run the results-ingest cron in the local/demo stack — it would
+      # fetch live results and overwrite seeded demo data. Trigger it on demand
+      # from Admin → Settings → "Background jobs (debug)" when testing.
+      RESULTS_CRON_ENABLED: "false"
       # The results-ingest scheduler + debug trigger read the fd-team alias map
       # from here; the dataset is mounted below.
       SEED_DATA_DIR: /app/data

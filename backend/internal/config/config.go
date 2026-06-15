@@ -26,6 +26,10 @@ type Config struct {
 	FootballDataBaseURL string
 	ResultsCron         string
 	WeeklyCron          string
+	// ResultsCronEnabled gates the SCHEDULED results-ingest job. When false the
+	// cron does not start, but the manual admin trigger still works (debug). The
+	// Docker stack sets this false so demo data isn't auto-overwritten.
+	ResultsCronEnabled bool
 
 	SlackWebhookURL string
 
@@ -60,6 +64,7 @@ func Load() (Config, error) {
 		FootballDataBaseURL: getenv("FOOTBALL_DATA_BASE_URL", "https://api.football-data.org/v4"),
 		ResultsCron:         getenv("RESULTS_CRON", "0 3,8,13 * * *"),
 		WeeklyCron:          getenv("WEEKLY_CRON", "30 13 * * 1"),
+		ResultsCronEnabled:  getbool("RESULTS_CRON_ENABLED", true),
 		// Optional Slack Incoming Webhook for cron-completion notifications.
 		// Empty disables Slack (jobs still run; nothing is posted).
 		SlackWebhookURL: os.Getenv("SLACK_WEBHOOK_URL"),
@@ -85,6 +90,18 @@ func getenv(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// getbool parses a boolean env var. Empty/unrecognised falls back to def.
+func getbool(key string, def bool) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return def
+	}
 }
 
 func splitTrim(s string) []string {
