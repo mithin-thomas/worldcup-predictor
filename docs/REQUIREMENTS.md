@@ -74,7 +74,8 @@ Maximum bonus = **100**. These are scored once, after the tournament concludes, 
 
 - **Weekly**: every Monday, sum points from matches whose **kickoff** falls in the previous IST week (Mon 00:00 → Sun 23:59 IST). Attribution is by kickoff timestamp (deterministic, so a late result-correction never shifts points between weeks). Highest total(s) are the Weekly Winner(s). **Weekly ties stand** — they produce multiple co-winners, and **every co-winner is paid the full prize** (the §5.1 tie-break does **not** apply to the weekly prize; it only decides distinct 1st/2nd for the overall standings). Prize: ₹500 Amazon Gift Card per weekly winner.
 - **Overall**: all match points + bonus points combined, for the final standings. **Final-standings ties are broken by the cascade in §5.1** (so 1st and 2nd are distinct winners). Prizes: 1st ₹5,000, 2nd ₹2,500.
-- **Hall of Fame**: past weekly champions are retained and shown to **all** users (newest week first) — each week lists its co-winner(s), their points, and the ₹500 gift-card payout status. Read-only for regular users; admins additionally toggle the payout status (§3.6).
+- **Hall of Fame**: past weekly champions are retained and shown to **all** users (newest week first) — each week lists its co-winner(s), their points, and the ₹500 gift-card payout status. Read-only for regular users; admins additionally toggle the payout status (§3.6). The UI pages **one week at a time** with Prev/Next.
+- **Presentation**: the leaderboard panel shows the **top 5** for the selected period (Overall/Weekly) with a **"View full leaderboard"** modal — scrollable, paginated — for the complete list. The current user's row is marked "(You)", and an off-page "Your rank: N" line shows when they fall outside the visible rows.
 
 ### 3.6 Admin features
 
@@ -88,13 +89,19 @@ Fixtures sync (initial seed + re-sync), manual match create/edit/delete, result 
 
 **Mark weekly prize paid** — admins mark a weekly winner's ₹500 gift card paid or unpaid via `PUT /api/admin/winners/paid`; the status surfaces in the Hall of Fame (§3.5) for everyone. This is a **standard admin route** (`RequireAdmin`) registered in **all** environments — distinct from the debug-only job triggers below, which exist only outside production.
 
-**Debug-only job triggers** — for testing, admins can manually fire the scheduled jobs (`results-ingest`, `weekly-winner`) on demand. This is gated to non-production builds: the endpoint and its UI control exist **only when `APP_ENV != production`** and are not registered at all in production. It lets a developer run the daily ingest / weekly calc without waiting for the cron.
+**Debug-only job triggers** — for testing, admins can manually fire the scheduled jobs (`results-ingest`, `weekly-winner`, `bonus-score`) on demand. This is gated to non-production builds: the endpoint and its UI control exist **only when `APP_ENV != production`** and are not registered at all in production. It lets a developer run the daily ingest / weekly calc without waiting for the cron. `/api/me` exposes a `debug` flag so the SPA reveals these controls only in non-production.
+
+### 3.7 Help / how to play
+
+A **Help** button in the top bar opens a "How to play" modal summarising the rules for players: the scoring tiers (§3.3) and knockout penalty bonus, the tournament bonus and its lock (§3.4), the weekly/overall leaderboards and prizes (§3.5), the 3-day prediction window (§3.2), and prediction privacy (§4). Its content mirrors this spec.
 
 ---
 
 ## 4. Privacy of predictions
 
 Other participants' predictions for a match are **hidden until that match locks** (kickoff). After lock, predictions and earned points may be shown. This prevents copying and keeps the game fair. (Decision recorded in §17.)
+
+**Implemented:** `GET /api/matches/{id}/predictions` returns every player's pick for a match — name, scoreline, shootout winner, and earned points once FINAL — but **only once the match has locked** (`403` before kickoff, server-authoritative). The UI reveals them in a scrollable modal on locked/past matches ("Others' picks").
 
 ---
 
@@ -150,6 +157,9 @@ Run in-process via a cron scheduler on a single backend instance (use a leader-l
 Kickoff **locking is real-time** (enforced on every prediction write) and is *not* part of these jobs.
 
 Both jobs are also invokable on demand via the **debug-only** admin trigger (§3.6), available only when `APP_ENV != production`, for local testing.
+
+- **`RESULTS_CRON_ENABLED`** (default `true`) gates the *scheduled* results-ingest only: when `false` the cron does not start, but the manual/debug trigger still works. The local Docker stack sets it `false` so seeded demo data isn't overwritten by live results; production leaves it `true`.
+- **Slack notifications (optional)** — if `SLACK_WEBHOOK_URL` is set, every job run (scheduled *and* manual) posts a human-readable completion message to Slack (job name, IST timestamp, a result summary, or the error). This makes the cron's liveness observable.
 
 ---
 
@@ -456,12 +466,15 @@ Install once per clone with `lefthook install` (wired into the Makefile / postin
 - **backend/Dockerfile** — multi-stage: build a static binary on `golang:1.22`, run on a minimal base (distroless/alpine). Migrations run via a one-shot command or an init step.
 - **frontend/Dockerfile** — multi-stage: `node` build → static assets served by `nginx`, which also proxies `/api` to the backend.
 - **Production** — the same images deploy to AWS (ECS Fargate or a single Docker host), pointing `DB_*` at **RDS MySQL** instead of the compose MySQL container. The scheduler runs in the single backend instance; if you scale out, add a leader lock. Set `TZ=Asia/Kolkata`.
+- **Production compose (`deploy/docker-compose.prod.yml`)** — swaps the nginx frontend for **Caddy**: automatic Let's Encrypt HTTPS for `$SITE_ADDRESS`, SPA serving, the `/api` reverse-proxy, and an internal `robots.txt` (`Disallow: /` — the app is SSO-gated). MySQL and the backend are **not** published to the host; only Caddy (80/443). The whole stack is driven by a single `.env.prod` (no separate `backend/.env`/`frontend/.env`). `APP_ENV=production` turns on Secure cookies and disables the debug job route. Full guide: `deploy/README.md`.
 
 ### Environment variables
 
-Backend: `APP_ENV`, `HTTP_PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `ALLOWED_EMAIL_DOMAIN=sayonetech.com`, `SEED_ADMIN_EMAILS`, `FOOTBALL_DATA_API_KEY`, `FOOTBALL_DATA_BASE_URL=https://api.football-data.org/v4`, `RESULTS_CRON=0 3,8,13 * * *`, `WEEKLY_CRON=30 13 * * 1`, `BONUS_LOCK_AT=2026-06-28T23:59:00+05:30`, `TZ=Asia/Kolkata`.
+Backend: `APP_ENV`, `HTTP_PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `ALLOWED_EMAIL_DOMAIN=sayonetech.com`, `SEED_ADMIN_EMAILS`, `FOOTBALL_DATA_API_KEY`, `FOOTBALL_DATA_BASE_URL=https://api.football-data.org/v4`, `RESULTS_CRON=0 3,8,13 * * *`, `WEEKLY_CRON=30 13 * * 1`, `RESULTS_CRON_ENABLED=true`, `SLACK_WEBHOOK_URL` (optional), `BONUS_LOCK_AT=2026-06-28T23:59:00+05:30`, `TZ=Asia/Kolkata`.
 
 Frontend (Vite): `VITE_GOOGLE_CLIENT_ID`, `VITE_API_BASE_URL`.
+
+Production-only (`deploy/docker-compose.prod.yml`, via `.env.prod`): `SITE_ADDRESS` (Caddy public hostname for auto-HTTPS) and `DB_ROOT_PASSWORD`.
 
 ---
 

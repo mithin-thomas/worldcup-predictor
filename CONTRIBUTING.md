@@ -59,6 +59,10 @@ If your change adds or changes any user-facing behavior, **add/edit it in
   that isn't in the spec gets flagged as a "spec violation" (this is exactly what happens
   otherwise). Documenting it in the spec is how the review passes.
 
+> An AI assistant (e.g. Claude Code) will usually make this spec edit for you as part of the
+> change — but **verify the spec update is actually in your PR's diff** before requesting
+> review. If it's missing, add it.
+
 Docs/chore-only PRs (no behavior change) can skip this.
 
 ### 2. Describe the change in the PR
