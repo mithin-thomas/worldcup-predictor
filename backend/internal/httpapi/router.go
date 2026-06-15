@@ -24,7 +24,7 @@ func NewRouter(d *Deps, debug bool) chi.Router {
 	r.Route("/api", func(api chi.Router) {
 		api.Use(maxBodyBytes(maxBodyBytesLimit))
 		api.With(rateLimitIP(authLimiter)).Post("/auth/google", d.PostAuthGoogle)
-		api.Post("/auth/logout", d.PostAuthLogout)
+		api.With(rateLimitIP(authLimiter)).Post("/auth/logout", d.PostAuthLogout)
 
 		api.Group(func(priv chi.Router) {
 			priv.Use(d.RequireAuth)

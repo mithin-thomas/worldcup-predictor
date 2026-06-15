@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"golang.org/x/time/rate"
 )
@@ -68,5 +69,67 @@ func TestRateLimitWrites_OnlyMutating_PerUser(t *testing.T) {
 	}
 	if withUser(http.MethodPut, 2).Code != 200 {
 		t.Fatal("different user isolated")
+	}
+}
+
+// TestRateLimitIP_AuthRetryAfter asserts the auth limiter's 429 advertises a
+// wait > 1s (specifically 6s for 10/min), not the old hardcoded "1".
+func TestRateLimitIP_AuthRetryAfter(t *testing.T) {
+	kl := newKeyedLimiter(authRate, authBurst) // same params as production auth limiter
+	h := rateLimitIP(kl)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) }))
+	call := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/google", nil)
+		req.RemoteAddr = "5.6.7.8:1234"
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+	// Exhaust burst to guarantee a 429.
+	for i := 0; i < authBurst; i++ {
+		call()
+	}
+	rec := call()
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 after burst exhausted, got %d", rec.Code)
+	}
+	ra := rec.Header().Get("Retry-After")
+	if ra == "" {
+		t.Fatal("429 must set Retry-After")
+	}
+	if ra == "1" {
+		t.Fatalf("Retry-After must reflect real refill time for auth limiter (10/min → 6s), got %q", ra)
+	}
+	// ceil(1 / (10/60)) = ceil(6) = 6
+	if ra != "6" {
+		t.Fatalf("expected Retry-After: 6 for auth limiter (10/min), got %q", ra)
+	}
+}
+
+// TestKeyedLimiter_IdleSweep verifies the unbounded-growth guard: entries idle
+// for longer than limiterIdleTTL are removed during the next Allow call.
+func TestKeyedLimiter_IdleSweep(t *testing.T) {
+	kl := newKeyedLimiter(rate.Limit(1), 1)
+
+	// Seed key "a" so it has an entry in the map.
+	kl.Allow("a")
+
+	// Back-date "a"'s lastSeen past the idle TTL so the sweep will evict it.
+	kl.mu.Lock()
+	kl.keys["a"].lastSeen = time.Now().Add(-(limiterIdleTTL + time.Second))
+	kl.mu.Unlock()
+
+	// Allow("b") triggers the opportunistic sweep inside Allow.
+	kl.Allow("b")
+
+	kl.mu.Lock()
+	_, aPresent := kl.keys["a"]
+	_, bPresent := kl.keys["b"]
+	kl.mu.Unlock()
+
+	if aPresent {
+		t.Error("idle key 'a' should have been swept from the map")
+	}
+	if !bPresent {
+		t.Error("active key 'b' should be present in the map")
 	}
 }

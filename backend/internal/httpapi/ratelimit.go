@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"math"
 	"net"
 	"net/http"
 	"strconv"
@@ -68,8 +69,19 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
-func tooMany(w http.ResponseWriter) {
-	w.Header().Set("Retry-After", strconv.Itoa(1))
+// retryAfterSecs returns the number of seconds a client should wait before
+// retrying after a 429: ceil(1 / rate), minimum 1.
+// auth bucket (10/min = 1/6s) → 6s; writes bucket (60/min = 1s) → 1s.
+func retryAfterSecs(kl *keyedLimiter) int {
+	secs := int(math.Ceil(1.0 / float64(kl.limit)))
+	if secs < 1 {
+		secs = 1
+	}
+	return secs
+}
+
+func tooMany(w http.ResponseWriter, kl *keyedLimiter) {
+	w.Header().Set("Retry-After", strconv.Itoa(retryAfterSecs(kl)))
 	writeError(w, http.StatusTooManyRequests, "rate limited")
 }
 
@@ -78,7 +90,7 @@ func rateLimitIP(kl *keyedLimiter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !kl.Allow(clientIP(r)) {
-				tooMany(w)
+				tooMany(w, kl)
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -88,6 +100,7 @@ func rateLimitIP(kl *keyedLimiter) func(http.Handler) http.Handler {
 
 // rateLimitWrites throttles mutating methods by session user ID; reads pass through.
 // Must run AFTER RequireAuth (needs the user in context).
+// The "anon" fallback key is defensive — in normal wiring RequireAuth always sets a user.
 func rateLimitWrites(kl *keyedLimiter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +114,7 @@ func rateLimitWrites(kl *keyedLimiter) func(http.Handler) http.Handler {
 				key = strconv.FormatInt(u.ID, 10)
 			}
 			if !kl.Allow(key) {
-				tooMany(w)
+				tooMany(w, kl)
 				return
 			}
 			next.ServeHTTP(w, r)
