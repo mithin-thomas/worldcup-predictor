@@ -4,6 +4,18 @@ const BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export type AdminSettings = {
+  results_cron: string;
+  weekly_cron: string;
+  bonus_lock_at: string; // RFC3339
+};
+
+export type RecomputeSummary = {
+  matches_rescored: number;
+  predictions_updated: number;
+  bonus_updated: number;
+};
+
 export type AdminMatch = {
   id: number;
   match_number: number;
@@ -155,5 +167,44 @@ export function useSetUserRole() {
         body: JSON.stringify({ role }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "users"] }),
+  });
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+
+export function useSettings() {
+  return useQuery<AdminSettings>({
+    queryKey: ["admin", "settings"],
+    queryFn: () => apiFetch<AdminSettings>("/admin/settings"),
+  });
+}
+
+export function useSaveSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Partial<AdminSettings>) =>
+      apiFetch<AdminSettings>("/admin/settings", {
+        method: "PUT",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "settings"] });
+      qc.invalidateQueries({ queryKey: ["bonus"] });
+    },
+  });
+}
+
+// ── Recompute ─────────────────────────────────────────────────────────────────
+
+export function useRecompute() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<RecomputeSummary>("/admin/recompute", { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leaderboard"] });
+      qc.invalidateQueries({ queryKey: ["bonus"] });
+      qc.invalidateQueries({ queryKey: ["winners"] });
+    },
   });
 }

@@ -44,6 +44,55 @@ func (q *Queries) GetMatchByID(ctx context.Context, id int64) (GetMatchByIDRow, 
 	return i, err
 }
 
+const listFinalMatches = `-- name: ListFinalMatches :many
+SELECT id, stage, home_team_id, away_team_id, home_score, away_score,
+       went_to_penalties, penalty_winner_team_id
+FROM matches WHERE status = 'final'
+`
+
+type ListFinalMatchesRow struct {
+	ID                  int64         `json:"id"`
+	Stage               MatchesStage  `json:"stage"`
+	HomeTeamID          sql.NullInt64 `json:"home_team_id"`
+	AwayTeamID          sql.NullInt64 `json:"away_team_id"`
+	HomeScore           sql.NullInt32 `json:"home_score"`
+	AwayScore           sql.NullInt32 `json:"away_score"`
+	WentToPenalties     bool          `json:"went_to_penalties"`
+	PenaltyWinnerTeamID sql.NullInt64 `json:"penalty_winner_team_id"`
+}
+
+func (q *Queries) ListFinalMatches(ctx context.Context) ([]ListFinalMatchesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFinalMatches)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListFinalMatchesRow
+	for rows.Next() {
+		var i ListFinalMatchesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Stage,
+			&i.HomeTeamID,
+			&i.AwayTeamID,
+			&i.HomeScore,
+			&i.AwayScore,
+			&i.WentToPenalties,
+			&i.PenaltyWinnerTeamID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMatchesWithTeams = `-- name: ListMatchesWithTeams :many
 SELECT
     m.id, m.source_id, m.match_number, m.stage, m.round, m.group_letter, m.match_label,

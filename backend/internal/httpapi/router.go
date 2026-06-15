@@ -48,6 +48,11 @@ func NewRouter(d *Deps, debug bool) chi.Router {
 			priv.With(d.RequireAdmin).Get("/admin/users", d.GetAdminUsers)
 			priv.With(d.RequireAdmin).Post("/admin/users/{id}/role", d.PostUserRole)
 
+			// Admin settings + recompute (all environments — not debug-gated).
+			priv.With(d.RequireAdmin).Get("/admin/settings", d.GetAdminSettings)
+			priv.With(d.RequireAdmin).Put("/admin/settings", d.PutAdminSettings)
+			priv.With(d.RequireAdmin).Post("/admin/recompute", d.PostRecompute)
+
 			if debug {
 				priv.With(d.RequireAdmin).Post("/admin/jobs/run", d.PostRunJob)
 			}

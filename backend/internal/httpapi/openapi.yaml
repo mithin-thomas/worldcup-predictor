@@ -704,6 +704,120 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
+  /api/admin/settings:
+    get:
+      tags: [Admin]
+      summary: Get runtime-editable admin settings
+      description: >
+        Returns the three runtime-editable operational settings as a flat
+        key/value map. Env/config values seed the `settings` table on boot; the
+        DB is the runtime source of truth thereafter. A standard admin route
+        (`RequireAdmin`) registered in all environments.
+      responses:
+        "200":
+          description: Current settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Settings" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Not an admin
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Could not load settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    put:
+      tags: [Admin]
+      summary: Update admin settings
+      description: >
+        Validates and persists any subset of the three allowlisted keys
+        (`results_cron`, `weekly_cron`, `bonus_lock_at`). Validation runs before
+        any write, so a 400 leaves the store untouched (no partial write). Cron
+        values are parsed with the same robfig standard parser the schedulers
+        use (5 fields plus `@`-descriptors such as `@daily`, `@every 1h30m`);
+        `bonus_lock_at` must be an RFC3339 timestamp. Returns the full updated
+        settings map. Liveness: `bonus_lock_at` takes effect live (read per
+        request by the bonus handler); `results_cron`/`weekly_cron` apply on the
+        next process restart.
+      requestBody:
+        required: true
+        description: >
+          Any subset of the three keys. An empty object is rejected (400).
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SettingsInput" }
+      responses:
+        "200":
+          description: Full updated settings map
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Settings" }
+        "400":
+          description: >
+            Unknown setting key, invalid cron expression, invalid RFC3339
+            timestamp, empty body, or invalid JSON. Nothing is written.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Not an admin
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Store failure after validation passed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/admin/recompute:
+    post:
+      tags: [Admin]
+      summary: Recompute materialized points from stored results
+      description: >
+        Idempotently re-derives `predictions.points` (+ penalty bonus) and
+        `bonus_predictions.points` from the stored match results and
+        `bonus_results` (absolute SET, never increment — re-running yields
+        identical points). The admin "rebuild standings from what's stored"
+        action after a correction, partial job failure, or data restore. It is
+        read-only over `matches` and **never** writes match results or
+        `weekly_results` — a declared weekly winner is a historical fact. A
+        standard admin route (`RequireAdmin`) registered in all environments.
+      responses:
+        "200":
+          description: Recompute summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecomputeSummary" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Not an admin
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Recompute failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -723,6 +837,36 @@ components:
       type: object
       properties:
         error: { type: string }
+    Settings:
+      type: object
+      description: >
+        The three runtime-editable operational settings as a flat key/value map.
+      properties:
+        results_cron:
+          type: string
+          description: "Cron expression for the results-ingest job (robfig standard parser; e.g. \"*/5 * * * *\" or \"@every 5m\"). Applies on next restart."
+        weekly_cron:
+          type: string
+          description: "Cron expression for the weekly-winner job. Applies on next restart."
+        bonus_lock_at:
+          type: string
+          format: date-time
+          description: "RFC3339 timestamp at/after which tournament-bonus picks lock. Takes effect live."
+    SettingsInput:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      description: "Any subset of the three allowlisted keys. Empty object rejected (400)."
+      properties:
+        results_cron: { type: string }
+        weekly_cron: { type: string }
+        bonus_lock_at: { type: string, format: date-time }
+    RecomputeSummary:
+      type: object
+      properties:
+        matches_rescored: { type: integer, description: "FINAL matches re-scored." }
+        predictions_updated: { type: integer, description: "Prediction rows whose materialized points were re-set." }
+        bonus_updated: { type: integer, description: "Bonus-prediction rows re-materialized from bonus_results." }
     AdminMatch:
       type: object
       properties:

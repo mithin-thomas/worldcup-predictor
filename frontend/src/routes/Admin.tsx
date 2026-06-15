@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMe } from "../lib/auth";
 import { useTeams, type TeamOption } from "../lib/bonus";
 import {
@@ -9,8 +9,13 @@ import {
   useDeleteMatch,
   useSetMatchResult,
   useSetUserRole,
+  useSettings,
+  useSaveSettings,
+  useRecompute,
   type AdminMatch,
   type AdminUser,
+  type AdminSettings,
+  type RecomputeSummary,
 } from "../lib/admin";
 
 // ── IST helpers ───────────────────────────────────────────────────────────────
@@ -55,6 +60,26 @@ function utcToIstInput(utc: string): string {
   return ist.toISOString().slice(0, 16);
 }
 
+/**
+ * Convert an IST datetime-local value to RFC3339 with +05:30 offset.
+ * The server accepts any valid RFC3339; using IST offset keeps bonus_lock_at
+ * human-readable in the DB (as the spec examples show).
+ */
+function istInputToIstRfc3339(istValue: string): string {
+  const normalised = istValue.slice(0, 16);
+  return `${normalised}:00+05:30`;
+}
+
+/**
+ * Convert an RFC3339 timestamp (any offset, including +05:30 or Z) to the
+ * IST datetime-local input value.
+ */
+function rfc3339ToIstInput(rfc: string): string {
+  const d = new Date(rfc);
+  const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+  return ist.toISOString().slice(0, 16);
+}
+
 // ── Confirm dialog ────────────────────────────────────────────────────────────
 
 interface ConfirmDialogProps {
@@ -62,9 +87,14 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  variant?: "danger" | "brand";
 }
 
-function ConfirmDialog({ message, confirmLabel = "Confirm", onConfirm, onCancel }: ConfirmDialogProps) {
+function ConfirmDialog({ message, confirmLabel = "Confirm", onConfirm, onCancel, variant = "danger" }: ConfirmDialogProps) {
+  const confirmClass = variant === "brand"
+    ? "admin-dialog__confirm admin-dialog__confirm--brand"
+    : "admin-dialog__confirm";
+
   return (
     <div
       className="admin-dialog-overlay"
@@ -88,7 +118,7 @@ function ConfirmDialog({ message, confirmLabel = "Confirm", onConfirm, onCancel 
           </button>
           <button
             type="button"
-            className="admin-dialog__confirm"
+            className={confirmClass}
             onClick={onConfirm}
             data-testid="confirm-dialog-confirm"
           >
@@ -779,9 +809,296 @@ function UsersSection() {
   );
 }
 
-// ── Admin screen (segmented control: Matches | Users) ─────────────────────────
+// ── Settings section ──────────────────────────────────────────────────────────
 
-type AdminTab = "matches" | "users";
+function SettingsSection() {
+  const { data: settings, isLoading, isError } = useSettings();
+  const saveSettings = useSaveSettings();
+  const recompute = useRecompute();
+
+  // Local form state — prefilled from the query, editable by the user.
+  // Grouped into one object so the effect below can call setState once.
+  const [form, setForm] = useState({
+    resultsCron: "",
+    weeklyCron: "",
+    // bonus_lock_at is stored as RFC3339; shown/edited in IST datetime-local
+    bonusLockAt: "",
+  });
+
+  // useRef flag avoids making `initialised` a state variable (no render needed
+  // for the flag itself); lets us call setForm once in the effect (single setState).
+  const initialisedRef = useRef(false);
+
+  // Seed form from server response on first load (idiomatic: effect with single setState)
+  useEffect(() => {
+    if (settings && !initialisedRef.current) {
+      initialisedRef.current = true;
+      setForm({
+        resultsCron: settings.results_cron,
+        weeklyCron: settings.weekly_cron,
+        bonusLockAt: rfc3339ToIstInput(settings.bonus_lock_at),
+      });
+    }
+  }, [settings]);
+
+  const { resultsCron, weeklyCron, bonusLockAt } = form;
+  const setResultsCron = (v: string) => setForm((f) => ({ ...f, resultsCron: v }));
+  const setWeeklyCron = (v: string) => setForm((f) => ({ ...f, weeklyCron: v }));
+  const setBonusLockAt = (v: string) => setForm((f) => ({ ...f, bonusLockAt: v }));
+
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [recomputeResult, setRecomputeResult] = useState<RecomputeSummary | null>(null);
+  const [showRecomputeConfirm, setShowRecomputeConfirm] = useState(false);
+
+  // Reset recompute result when confirming dialog opens/closes
+  const handleRecomputeClick = () => {
+    setRecomputeResult(null);
+    setShowRecomputeConfirm(true);
+  };
+
+  const handleRecomputeConfirm = () => {
+    setShowRecomputeConfirm(false);
+    recompute.mutate(undefined, {
+      onSuccess: (data) => {
+        setRecomputeResult(data);
+      },
+    });
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaveError(null);
+    setRecomputeResult(null);
+
+    let bonusRfc3339: string;
+    try {
+      bonusRfc3339 = istInputToIstRfc3339(bonusLockAt);
+      // Quick validity check
+      if (isNaN(new Date(bonusRfc3339).getTime())) throw new Error("invalid");
+    } catch {
+      setSaveError("Invalid bonus lock date/time.");
+      return;
+    }
+
+    const payload: Partial<AdminSettings> = {
+      results_cron: resultsCron.trim(),
+      weekly_cron: weeklyCron.trim(),
+      bonus_lock_at: bonusRfc3339,
+    };
+
+    saveSettings.mutate(payload, {
+      onSuccess: (updated) => {
+        // Reconcile form with the server's returned full set
+        setForm({
+          resultsCron: updated.results_cron,
+          weeklyCron: updated.weekly_cron,
+          bonusLockAt: rfc3339ToIstInput(updated.bonus_lock_at),
+        });
+      },
+      onError: (err) => {
+        setSaveError(err instanceof Error ? err.message : "Failed to save settings.");
+      },
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="admin-settings__skeleton" aria-busy="true" aria-label="Loading settings">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="admin-settings__skeleton-field" aria-hidden="true">
+            <div className="skeleton skeleton--text admin-settings__skeleton-label" />
+            <div className="skeleton admin-settings__skeleton-input" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <p className="admin-alert" role="alert">
+        Could not load settings. Please refresh and try again.
+      </p>
+    );
+  }
+
+  return (
+    <div className="admin-settings">
+      {/* ── Settings form ── */}
+      <div className="admin-panel">
+        <h2 className="admin-section-title">Settings</h2>
+        <form className="admin-form" onSubmit={handleSave} noValidate>
+          <div className="admin-settings__fields">
+            {/* results_cron */}
+            <div className="admin-settings__field">
+              <label className="admin-form__label" htmlFor="sf-results-cron">
+                Results cron
+              </label>
+              <input
+                id="sf-results-cron"
+                type="text"
+                className="admin-form__input mono"
+                value={resultsCron}
+                onChange={(e) => setResultsCron(e.target.value)}
+                disabled={saveSettings.isPending}
+                placeholder="e.g. 0 3,8,13 * * *"
+                aria-label="Results cron expression"
+                aria-describedby="sf-results-cron-note"
+                spellCheck={false}
+                autoComplete="off"
+              />
+              <p className="admin-settings__hint" id="sf-results-cron-note">
+                e.g. <span className="mono">0 3,8,13 * * *</span> — standard 5-field cron (minute hour dom month dow)
+              </p>
+              <span className="admin-settings__restart-note" data-testid="results-cron-restart-note">
+                Applies after restart
+              </span>
+            </div>
+
+            {/* weekly_cron */}
+            <div className="admin-settings__field">
+              <label className="admin-form__label" htmlFor="sf-weekly-cron">
+                Weekly cron
+              </label>
+              <input
+                id="sf-weekly-cron"
+                type="text"
+                className="admin-form__input mono"
+                value={weeklyCron}
+                onChange={(e) => setWeeklyCron(e.target.value)}
+                disabled={saveSettings.isPending}
+                placeholder="e.g. 30 13 * * 1"
+                aria-label="Weekly cron expression"
+                aria-describedby="sf-weekly-cron-note"
+                spellCheck={false}
+                autoComplete="off"
+              />
+              <p className="admin-settings__hint" id="sf-weekly-cron-note">
+                e.g. <span className="mono">30 13 * * 1</span> — runs every Monday at 13:30 IST
+              </p>
+              <span className="admin-settings__restart-note" data-testid="weekly-cron-restart-note">
+                Applies after restart
+              </span>
+            </div>
+
+            {/* bonus_lock_at */}
+            <div className="admin-settings__field">
+              <div className="admin-settings__label-row">
+                <label className="admin-form__label" htmlFor="sf-bonus-lock-at">
+                  Bonus lock at (IST)
+                </label>
+                <span className="admin-settings__live-badge" data-testid="bonus-lock-live-badge">
+                  live
+                </span>
+              </div>
+              <input
+                id="sf-bonus-lock-at"
+                type="datetime-local"
+                className="admin-form__input"
+                value={bonusLockAt}
+                onChange={(e) => setBonusLockAt(e.target.value)}
+                disabled={saveSettings.isPending}
+                aria-label="Bonus lock date and time (IST)"
+                aria-describedby="sf-bonus-lock-note"
+              />
+              <p className="admin-settings__hint" id="sf-bonus-lock-note">
+                Date and time in IST — takes effect immediately after Save.
+              </p>
+            </div>
+          </div>
+
+          {saveError && (
+            <p className="admin-settings__save-error" role="alert">
+              {saveError}
+            </p>
+          )}
+
+          {saveSettings.isError && !saveError && (
+            <p className="admin-settings__save-error" role="alert">
+              {saveSettings.error instanceof Error
+                ? saveSettings.error.message
+                : "Failed to save settings."}
+            </p>
+          )}
+
+          <div className="admin-settings__actions">
+            <button
+              type="submit"
+              className="btn-brand admin-form__submit"
+              disabled={saveSettings.isPending}
+            >
+              {saveSettings.isPending ? "Saving…" : "Save settings"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* ── Recompute ── */}
+      <div className="admin-panel">
+        <div className="admin-settings__recompute">
+          <h2 className="admin-settings__recompute-title">Recompute points</h2>
+          <p className="admin-settings__recompute-desc">
+            Re-derives all materialized points from stored match results and bonus outcomes —
+            idempotent and safe to run any time. Won't change match results or past weekly winners.
+          </p>
+
+          <div className="admin-settings__recompute-row">
+            <button
+              type="button"
+              className="btn-brand"
+              onClick={handleRecomputeClick}
+              disabled={recompute.isPending}
+              aria-label="Recompute all points"
+            >
+              {recompute.isPending ? "Recomputing…" : "Recompute"}
+            </button>
+
+            {recompute.isError && (
+              <p className="admin-settings__recompute-error" role="alert">
+                {recompute.error instanceof Error
+                  ? recompute.error.message
+                  : "Recompute failed. Please try again."}
+              </p>
+            )}
+
+            {/* Always rendered so SRs announce updates; content populated when result arrives */}
+            <span
+              className="admin-settings__recompute-summary"
+              role="status"
+              aria-live="polite"
+              data-testid="recompute-summary"
+              style={recomputeResult ? undefined : { display: "none" }}
+            >
+              {recomputeResult && (
+                <>
+                  <span>{recomputeResult.matches_rescored} matches rescored</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{recomputeResult.predictions_updated} predictions</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{recomputeResult.bonus_updated} bonus</span>
+                </>
+              )}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {showRecomputeConfirm && (
+        <ConfirmDialog
+          message="Recompute all points from stored results? This won't change match results or past weekly winners."
+          confirmLabel="Recompute"
+          onConfirm={handleRecomputeConfirm}
+          onCancel={() => setShowRecomputeConfirm(false)}
+          variant="brand"
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Admin screen (segmented control: Matches | Users | Settings) ──────────────
+
+type AdminTab = "matches" | "users" | "settings";
 
 export function Admin() {
   const { data: me } = useMe();
@@ -823,6 +1140,17 @@ export function Admin() {
         >
           Users
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "settings"}
+          aria-controls="admin-panel-settings"
+          id="admin-tab-settings"
+          className={`admin__tab${tab === "settings" ? " is-active" : ""}`}
+          onClick={() => setTab("settings")}
+        >
+          Settings
+        </button>
       </div>
 
       <div
@@ -843,6 +1171,16 @@ export function Admin() {
         className="admin__panel"
       >
         <UsersSection />
+      </div>
+
+      <div
+        id="admin-panel-settings"
+        role="tabpanel"
+        aria-labelledby="admin-tab-settings"
+        hidden={tab !== "settings"}
+        className="admin__panel"
+      >
+        <SettingsSection />
       </div>
     </section>
   );

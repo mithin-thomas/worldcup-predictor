@@ -291,6 +291,12 @@ type Prediction struct {
 	UpdatedAt           time.Time     `json:"updated_at"`
 }
 
+type Setting struct {
+	Key       string    `json:"key"`
+	Value     string    `json:"value"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type Team struct {
 	ID            int64  `json:"id"`
 	SourceID      int64  `json:"source_id"`

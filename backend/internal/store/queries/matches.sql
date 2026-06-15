@@ -33,3 +33,8 @@ ORDER BY m.kickoff_utc, m.match_number;
 SELECT id, stage, home_team_id, away_team_id, kickoff_utc, status, manual_override, api_fixture_id
 FROM matches
 WHERE id = ?;
+
+-- name: ListFinalMatches :many
+SELECT id, stage, home_team_id, away_team_id, home_score, away_score,
+       went_to_penalties, penalty_winner_team_id
+FROM matches WHERE status = 'final';

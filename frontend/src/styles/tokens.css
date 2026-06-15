@@ -2378,6 +2378,22 @@ body {
   box-shadow: none;
 }
 
+/* Brand variant — non-destructive confirm (e.g., Recompute) */
+.admin-dialog__confirm--brand {
+  background: var(--brand);
+  color: var(--on-brand);
+  border-color: var(--brand);
+}
+
+.admin-dialog__confirm--brand:hover {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+
+.admin-dialog__confirm--brand:focus-visible {
+  outline-color: var(--brand);
+}
+
 /* ── Matches container ───────────────────────────────────────────────────── */
 .admin-matches {
   display: flex;
@@ -2385,7 +2401,195 @@ body {
   gap: var(--space-4);
 }
 
+/* ─── Admin Settings section (M8b / impeccable) ──────────────────────────────
+ *
+ * Visual contract:
+ * — Reuses all existing .admin* tokens/classes; no new palette colours
+ * — JetBrains Mono (.mono) for cron field values and recompute summary numbers
+ * — --brand coral for Save (primary) and Recompute (non-destructive primary)
+ * — Restart note: subtle surface-2 callout, left-border accent in --muted
+ * — Live badge: green --live tint to signal immediate effect
+ * — Recompute section divided from the settings form by a border
+ * — Success summary: mono numerics in --live tint
+ * — ≥44px targets; :focus-visible rings; prefers-reduced-motion fallback
+ */
+
+/* ── Settings container ─────────────────────────────────────────────────── */
+.admin-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ── Field group ─────────────────────────────────────────────────────────── */
+.admin-settings__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ── Individual field block ──────────────────────────────────────────────── */
+.admin-settings__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Hint text beneath a field (e.g., example cron, restart note, live badge) */
+.admin-settings__hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* "Applies after restart" note — slightly more prominent than a plain hint */
+.admin-settings__restart-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* "Live" badge next to bonus_lock_at label — signals immediate effect */
+.admin-settings__live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: var(--space-2);
+  padding: 2px 7px;
+  background: color-mix(in oklch, var(--live) 14%, transparent);
+  border: 1px solid color-mix(in oklch, var(--live) 35%, transparent);
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--live);
+  vertical-align: middle;
+}
+
+/* Label row: inline flex so the live badge sits next to the label text */
+.admin-settings__label-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+/* ── Save action row ─────────────────────────────────────────────────────── */
+.admin-settings__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+/* Inline save error / success message */
+.admin-settings__save-error {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger-fg);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+/* ── Recompute divider section ───────────────────────────────────────────── */
+.admin-settings__recompute {
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.admin-settings__recompute-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.admin-settings__recompute-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 52ch;
+}
+
+/* Row: button + any inline error side by side */
+.admin-settings__recompute-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Inline mutation error for recompute */
+.admin-settings__recompute-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger-fg);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+/* Success summary after recompute — mono numerics in a subtle live-tinted chip */
+.admin-settings__recompute-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in oklch, var(--live) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--live) 30%, transparent);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--live);
+  font-family: "JetBrains Mono", "Fira Mono", monospace;
+  font-feature-settings: "tnum";
+}
+
+/* ── Skeleton for the settings tab ──────────────────────────────────────── */
+.admin-settings__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.admin-settings__skeleton-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-settings__skeleton-label {
+  height: 11px;
+  width: 100px;
+}
+
+.admin-settings__skeleton-input {
+  height: 44px;
+  width: 100%;
+  border-radius: var(--radius-md);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .btn-brand,
+  .btn-ghost,
   .admin__tab,
   .admin-match-item,
   .admin-action-btn,
@@ -2393,5 +2597,6 @@ body {
   .admin-form__input,
   .admin-user-item,
   .admin-role-btn,
-  .admin-dialog__confirm { transition: none; }
+  .admin-dialog__confirm,
+  .admin-dialog__confirm--brand { transition: none; }
 }

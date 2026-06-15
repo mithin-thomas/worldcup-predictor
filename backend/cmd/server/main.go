@@ -14,6 +14,7 @@ import (
 	"github.com/sayonetech/worldcup-predictor/backend/internal/config"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/httpapi"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/jobs"
+	"github.com/sayonetech/worldcup-predictor/backend/internal/settings"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/sportsapi"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
 
@@ -46,6 +47,30 @@ func main() {
 	st := store.New(db)
 	seedAdmins(context.Background(), st, cfg.SeedAdminEmails, logger)
 
+	// Build the settings service and seed missing keys from env defaults on boot.
+	settingsSvc := &settings.Service{
+		Store: st,
+		Defaults: map[string]string{
+			settings.KeyResultsCron: cfg.ResultsCron,
+			settings.KeyWeeklyCron:  cfg.WeeklyCron,
+			settings.KeyBonusLockAt: cfg.BonusLockAt.Format(time.RFC3339),
+		},
+	}
+	if err := settingsSvc.EnsureSeeded(context.Background()); err != nil {
+		logger.Warn("settings seed failed (continuing)", "err", err)
+	}
+
+	// Read cron expressions from settings at boot (DB overrides env if seeded).
+	bootCtx := context.Background()
+	resultsCronExpr, err := settingsSvc.Get(bootCtx, settings.KeyResultsCron)
+	if err != nil || resultsCronExpr == "" {
+		resultsCronExpr = cfg.ResultsCron
+	}
+	weeklyCronExpr, err := settingsSvc.Get(bootCtx, settings.KeyWeeklyCron)
+	if err != nil || weeklyCronExpr == "" {
+		weeklyCronExpr = cfg.WeeklyCron
+	}
+
 	weekly := jobs.WeeklyWinner{Store: st, Now: func() time.Time { return time.Now().UTC() }}
 	sj := serverJobs{weekly: weekly, bonus: jobs.BonusScore{Store: st}}
 	if cfg.FootballDataAPIKey != "" {
@@ -63,6 +88,9 @@ func main() {
 	}
 	var jobRunner httpapi.JobRunner = sj
 
+	// Recompute job + adapter implementing httpapi.RecomputeRunner.
+	recomputeJob := jobs.Recompute{Store: st, Bonus: jobs.BonusScore{Store: st}}
+
 	deps := &httpapi.Deps{
 		Store:              st,
 		Matches:            st,
@@ -73,7 +101,8 @@ func main() {
 		AdminMatches:       st,
 		AdminUsers:         st,
 		Results:            st,
-		BonusLockAt:        cfg.BonusLockAt,
+		Settings:           settingsSvc,
+		Recompute:          recomputeAdapter{r: recomputeJob},
 		JobRunner:          jobRunner,
 		Sessions:           auth.NewSessionManager(cfg.SessionSecret),
 		Verifier:           auth.GoogleTokenVerifier{ClientID: cfg.GoogleClientID},
@@ -93,12 +122,12 @@ func main() {
 
 	// Results-ingest scheduler (in-process). Only runs when an API key is set;
 	// local dev without a key still boots.
-	scheduler := startResultsCron(cfg, st, logger)
+	scheduler := startResultsCron(resultsCronExpr, cfg, st, logger)
 	if scheduler != nil {
 		defer scheduler.Stop()
 	}
 
-	weeklyScheduler := startWeeklyCron(cfg, weekly, logger)
+	weeklyScheduler := startWeeklyCron(weeklyCronExpr, cfg, weekly, logger)
 	if weeklyScheduler != nil {
 		defer weeklyScheduler.Stop()
 	}
@@ -122,12 +151,16 @@ func main() {
 	}
 }
 
-// startResultsCron builds the results-ingest job and schedules it on RESULTS_CRON
-// (IST). Returns nil (and logs) when no API key is configured.
-func startResultsCron(cfg config.Config, st *store.SQLStore, logger *slog.Logger) *cron.Cron {
+// startResultsCron builds the results-ingest job and schedules it on cronExpr
+// (IST). Falls back to cfg.ResultsCron if cronExpr is empty. Returns nil (and
+// logs) when no API key is configured or the cron expression is invalid.
+func startResultsCron(cronExpr string, cfg config.Config, st *store.SQLStore, logger *slog.Logger) *cron.Cron {
 	if cfg.FootballDataAPIKey == "" {
 		logger.Info("results-ingest disabled (no FOOTBALL_DATA_API_KEY)")
 		return nil
+	}
+	if cronExpr == "" {
+		cronExpr = cfg.ResultsCron
 	}
 	alias, err := loadAliasFile(cfg.SeedDataDir + "/fd_team_aliases.csv")
 	if err != nil {
@@ -145,38 +178,48 @@ func startResultsCron(cfg config.Config, st *store.SQLStore, logger *slog.Logger
 		loc = time.FixedZone("IST", 5*3600+1800)
 	}
 	c := cron.New(cron.WithLocation(loc))
-	if _, err := c.AddFunc(cfg.ResultsCron, func() {
+	if _, err := c.AddFunc(cronExpr, func() {
 		if _, err := job.Run(context.Background()); err != nil {
 			logger.Error("results-ingest run", "err", err)
 		}
 	}); err != nil {
-		logger.Error("results-ingest disabled: bad RESULTS_CRON", "spec", cfg.ResultsCron, "err", err)
+		logger.Error("results-ingest disabled: bad RESULTS_CRON", "spec", cronExpr, "err", err)
 		return nil
 	}
 	c.Start()
-	logger.Info("results-ingest scheduled", "cron", cfg.ResultsCron, "tz", loc.String())
+	logger.Info("results-ingest scheduled", "cron", cronExpr, "tz", loc.String())
 	return c
 }
 
-// startWeeklyCron schedules the weekly-winner job on WEEKLY_CRON (IST). It needs
-// no external API, so it always runs.
-func startWeeklyCron(cfg config.Config, job jobs.WeeklyWinner, logger *slog.Logger) *cron.Cron {
+// startWeeklyCron schedules the weekly-winner job on cronExpr (IST). Falls back
+// to cfg.WeeklyCron if cronExpr is empty. Always runs (no external API needed).
+func startWeeklyCron(cronExpr string, cfg config.Config, job jobs.WeeklyWinner, logger *slog.Logger) *cron.Cron {
+	if cronExpr == "" {
+		cronExpr = cfg.WeeklyCron
+	}
 	loc, err := time.LoadLocation("Asia/Kolkata")
 	if err != nil {
 		loc = time.FixedZone("IST", 5*3600+1800)
 	}
 	c := cron.New(cron.WithLocation(loc))
-	if _, err := c.AddFunc(cfg.WeeklyCron, func() {
+	if _, err := c.AddFunc(cronExpr, func() {
 		if _, err := job.Run(context.Background()); err != nil {
 			logger.Error("weekly-winner run", "err", err)
 		}
 	}); err != nil {
-		logger.Error("weekly-winner disabled: bad WEEKLY_CRON", "spec", cfg.WeeklyCron, "err", err)
+		logger.Error("weekly-winner disabled: bad WEEKLY_CRON", "spec", cronExpr, "err", err)
 		return nil
 	}
 	c.Start()
-	logger.Info("weekly-winner scheduled", "cron", cfg.WeeklyCron, "tz", loc.String())
+	logger.Info("weekly-winner scheduled", "cron", cronExpr, "tz", loc.String())
 	return c
+}
+
+// recomputeAdapter wraps jobs.Recompute to satisfy httpapi.RecomputeRunner.
+type recomputeAdapter struct{ r jobs.Recompute }
+
+func (a recomputeAdapter) Run(ctx context.Context) (any, error) {
+	return a.r.Run(ctx)
 }
 
 // loadAliasFile opens + parses the fd-team-id alias CSV.

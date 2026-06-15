@@ -13,6 +13,9 @@ vi.mock("../lib/admin", () => ({
   useDeleteMatch: vi.fn(),
   useSetMatchResult: vi.fn(),
   useSetUserRole: vi.fn(),
+  useSettings: vi.fn(),
+  useSaveSettings: vi.fn(),
+  useRecompute: vi.fn(),
 }));
 
 vi.mock("../lib/auth", () => ({
@@ -31,6 +34,9 @@ import {
   useDeleteMatch,
   useSetMatchResult,
   useSetUserRole,
+  useSettings,
+  useSaveSettings,
+  useRecompute,
 } from "../lib/admin";
 import { useMe } from "../lib/auth";
 import { useTeams } from "../lib/bonus";
@@ -125,6 +131,12 @@ const noopMutation = {
   error: null,
 };
 
+const defaultSettings: import("../lib/admin").AdminSettings = {
+  results_cron: "0 3,8,13 * * *",
+  weekly_cron: "30 13 * * 1",
+  bonus_lock_at: "2026-06-28T23:59:00+05:30",
+};
+
 function wrap(ui: React.ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
@@ -159,6 +171,15 @@ function setupDefaultMocks() {
   vi.mocked(useDeleteMatch).mockReturnValue(noopMutation as unknown as ReturnType<typeof useDeleteMatch>);
   vi.mocked(useSetMatchResult).mockReturnValue(noopMutation as unknown as ReturnType<typeof useSetMatchResult>);
   vi.mocked(useSetUserRole).mockReturnValue(noopMutation as unknown as ReturnType<typeof useSetUserRole>);
+
+  vi.mocked(useSettings).mockReturnValue({
+    data: defaultSettings,
+    isLoading: false,
+    isError: false,
+  } as unknown as ReturnType<typeof useSettings>);
+
+  vi.mocked(useSaveSettings).mockReturnValue(noopMutation as unknown as ReturnType<typeof useSaveSettings>);
+  vi.mocked(useRecompute).mockReturnValue(noopMutation as unknown as ReturnType<typeof useRecompute>);
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -483,5 +504,191 @@ describe("Admin screen — users tab", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Users" }));
 
     expect(screen.getByText("No users yet")).toBeInTheDocument();
+  });
+});
+
+describe("Admin screen — settings tab", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  it("renders the Settings tab in the segmented control", () => {
+    wrap(<Admin />);
+    expect(screen.getByRole("tab", { name: "Settings" })).toBeInTheDocument();
+  });
+
+  it("renders all three setting values when the tab is selected", () => {
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    const resultsCronInput = screen.getByLabelText("Results cron expression") as HTMLInputElement;
+    const weeklyCronInput = screen.getByLabelText("Weekly cron expression") as HTMLInputElement;
+
+    expect(resultsCronInput.value).toBe("0 3,8,13 * * *");
+    expect(weeklyCronInput.value).toBe("30 13 * * 1");
+    // bonus_lock_at is shown as a datetime-local in IST — just check it's populated
+    const bonusInput = screen.getByLabelText("Bonus lock date and time (IST)") as HTMLInputElement;
+    expect(bonusInput.value).not.toBe("");
+  });
+
+  it("shows the 'Applies after restart' note on cron fields", () => {
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    const notes = screen.getAllByTestId(/.*restart-note/);
+    expect(notes.length).toBeGreaterThanOrEqual(2);
+    notes.forEach((n) => expect(n.textContent).toMatch(/applies after restart/i));
+  });
+
+  it("shows 'live' badge on the bonus_lock_at field", () => {
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    expect(screen.getByTestId("bonus-lock-live-badge")).toBeInTheDocument();
+    expect(screen.getByTestId("bonus-lock-live-badge").textContent?.toLowerCase()).toContain("live");
+  });
+
+  it("shows a role=alert when useSaveSettings returns an error", () => {
+    vi.mocked(useSaveSettings).mockReturnValue({
+      mutate: vi.fn((_vars, opts) => {
+        opts?.onError?.(new Error("invalid cron expression"), undefined, undefined);
+      }),
+      isPending: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof useSaveSettings>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    // Submit the form
+    fireEvent.click(screen.getByRole("button", { name: /save settings/i }));
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toBeInTheDocument();
+    expect(alert.textContent).toMatch(/invalid cron expression/i);
+  });
+
+  it("shows skeleton while settings are loading", () => {
+    vi.mocked(useSettings).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    } as unknown as ReturnType<typeof useSettings>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    expect(screen.getByLabelText("Loading settings")).toBeInTheDocument();
+  });
+
+  it("shows a role=alert error when settings fail to load", () => {
+    vi.mocked(useSettings).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof useSettings>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("requires confirm before calling recompute.mutate", () => {
+    const recomputeMutate = vi.fn();
+    vi.mocked(useRecompute).mockReturnValue({
+      mutate: recomputeMutate,
+      isPending: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof useRecompute>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    // Click Recompute button — should show confirm dialog first
+    fireEvent.click(screen.getByRole("button", { name: /recompute all points/i }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText(/recompute all points from stored results/i)).toBeInTheDocument();
+
+    // Mutation not yet called
+    expect(recomputeMutate).not.toHaveBeenCalled();
+
+    // Cancel — dialog gone, mutation still not called
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(recomputeMutate).not.toHaveBeenCalled();
+  });
+
+  it("FIX 7: bonus_lock_at input is pre-filled with IST rendering of server value", () => {
+    // Server sends "2026-06-28T23:59:00+05:30"; datetime-local value should be "2026-06-28T23:59"
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    const bonusInput = screen.getByLabelText("Bonus lock date and time (IST)") as HTMLInputElement;
+    expect(bonusInput.value).toBe("2026-06-28T23:59");
+  });
+
+  it("FIX 7: submitting Settings form calls save mutation with IST RFC3339 bonus_lock_at and trimmed crons", () => {
+    const mutateSpy = vi.fn();
+    vi.mocked(useSaveSettings).mockReturnValue({
+      mutate: mutateSpy,
+      isPending: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof useSaveSettings>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /save settings/i }));
+
+    expect(mutateSpy).toHaveBeenCalledTimes(1);
+    const payload = mutateSpy.mock.calls[0][0] as Record<string, string>;
+    expect(payload.results_cron).toBe("0 3,8,13 * * *");
+    expect(payload.weekly_cron).toBe("30 13 * * 1");
+    // IST RFC3339: "2026-06-28T23:59:00+05:30"
+    expect(payload.bonus_lock_at).toBe("2026-06-28T23:59:00+05:30");
+  });
+
+  it("calls recompute.mutate after confirming and shows the returned summary", () => {
+    const summary: import("../lib/admin").RecomputeSummary = {
+      matches_rescored: 12,
+      predictions_updated: 48,
+      bonus_updated: 30,
+    };
+
+    const recomputeMutate = vi.fn((_vars, opts) => {
+      opts?.onSuccess?.(summary, undefined, undefined);
+    });
+    vi.mocked(useRecompute).mockReturnValue({
+      mutate: recomputeMutate,
+      isPending: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof useRecompute>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /recompute all points/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    // Confirm
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
+
+    // Dialog gone, mutate called
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(recomputeMutate).toHaveBeenCalledTimes(1);
+
+    // Summary shown
+    const summaryEl = screen.getByTestId("recompute-summary");
+    expect(summaryEl).toBeInTheDocument();
+    expect(summaryEl.textContent).toMatch(/12 matches rescored/);
+    expect(summaryEl.textContent).toMatch(/48 predictions/);
+    expect(summaryEl.textContent).toMatch(/30 bonus/);
   });
 });
