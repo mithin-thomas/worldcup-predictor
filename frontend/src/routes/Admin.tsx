@@ -2,6 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useMe } from "../lib/auth";
 import { useTeams, type TeamOption } from "../lib/bonus";
 import { PlayerCombobox } from "../components/PlayerCombobox";
+import { Avatar } from "../components/Avatar";
+import { Flag } from "../components/Flag";
+import { PlusIcon } from "../components/icons";
 import {
   useAdminMatches,
   useAdminUsers,
@@ -82,6 +85,59 @@ function rfc3339ToIstInput(rfc: string): string {
   const d = new Date(rfc);
   const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
   return ist.toISOString().slice(0, 16);
+}
+
+// ── Inline shield + user icon for role tags ───────────────────────────────────
+
+function ShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 22s8-4 8-10V6l-8-3-8 3v6c0 6 8 10 8 10Z" />
+    </svg>
+  );
+}
+
+function UserIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M20 21a8 8 0 1 0-16 0" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z" />
+    </svg>
+  );
+}
+
+function FlagSmIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+      <line x1="4" y1="22" x2="4" y2="15" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  );
 }
 
 // ── Confirm dialog ────────────────────────────────────────────────────────────
@@ -480,7 +536,7 @@ function MatchesSection() {
   const resultMatch = resultId != null ? list.find((m) => m.id === resultId) : undefined;
   const deleteMatch_ = deleteConfirmId != null ? list.find((m) => m.id === deleteConfirmId) : undefined;
 
-  // Disable per-row action buttons while any match mutation is in-flight (prevent double-submit)
+  // Disable per-row action buttons while any match mutation is in-flight
   const anyPending =
     createMatch.isPending ||
     updateMatch.isPending ||
@@ -488,12 +544,19 @@ function MatchesSection() {
     deleteMatch.isPending;
 
   return (
-    <div className="admin-matches">
-      <div className="admin-section-header">
-        <h2 className="admin-section-title">Matches</h2>
+    <div className="adm-matches">
+      {/* ── Section header ── */}
+      <div className="adm-section-head">
+        <div>
+          <h2 className="adm-h2">Matches</h2>
+          <p className="adm-sub">
+            {list.filter((m) => m.status !== "final").length} scheduled ·{" "}
+            {list.filter((m) => m.status === "final").length} completed
+          </p>
+        </div>
         <button
           type="button"
-          className={showNewForm ? "btn-ghost" : "btn-brand"}
+          className={showNewForm ? "btn-ghost" : "btn-primary"}
           onClick={() => {
             setShowNewForm((v) => !v);
             setEditingId(null);
@@ -501,10 +564,11 @@ function MatchesSection() {
           }}
           aria-expanded={showNewForm}
         >
-          {showNewForm ? "Cancel" : "+ New Match"}
+          {showNewForm ? "Cancel" : <><PlusIcon /> New Match</>}
         </button>
       </div>
 
+      {/* ── New match form panel ── */}
       {showNewForm && (
         <div className="admin-panel">
           <h3 className="admin-panel__title">New Match</h3>
@@ -529,6 +593,7 @@ function MatchesSection() {
         </div>
       )}
 
+      {/* ── Edit form panel ── */}
       {editingMatch && (
         <div className="admin-panel">
           <h3 className="admin-panel__title">
@@ -557,6 +622,7 @@ function MatchesSection() {
         </div>
       )}
 
+      {/* ── Result form panel ── */}
       {resultMatch && (
         <div className="admin-panel">
           <h3 className="admin-panel__title">
@@ -584,6 +650,7 @@ function MatchesSection() {
         </div>
       )}
 
+      {/* ── Match list (date-grouped) ── */}
       {list.length === 0 ? (
         <div className="admin-empty">
           <p className="admin-empty__title">No matches yet</p>
@@ -593,89 +660,108 @@ function MatchesSection() {
         </div>
       ) : (
         Array.from(byDate.entries()).map(([dateKey, dayMatches]) => (
-          <div key={dateKey} className="admin-day">
-            <h3 className="admin-day__header">{dateKey}</h3>
-            <ul className="admin-match-list">
-              {dayMatches.map((m) => (
-                <li key={m.id} className="admin-match-item">
-                  <div className="admin-match-item__teams">
-                    <span className="admin-match-item__team">
-                      <span className="admin-match-item__code mono">{m.home_code}</span>
-                      <span className="admin-match-item__name">{m.home_team}</span>
-                    </span>
-                    <span className="admin-match-item__score mono" aria-label="Score">
-                      {m.home_score != null && m.away_score != null
-                        ? `${m.home_score} – ${m.away_score}`
-                        : "vs"}
-                    </span>
-                    <span className="admin-match-item__team admin-match-item__team--away">
-                      <span className="admin-match-item__name">{m.away_team}</span>
-                      <span className="admin-match-item__code mono">{m.away_code}</span>
-                    </span>
-                  </div>
+          <div key={dateKey} className="adm-date-group">
+            {/* Date label — reuse the shared .date-label / .dl-* classes from tokens.css */}
+            <div className="date-label">
+              <span className="dl-rel">{dateKey}</span>
+              <span className="dl-line" />
+            </div>
+            <div className="adm-match-stack">
+              {dayMatches.map((m) => {
+                const isFinal = m.status === "final";
+                const hasScore = m.home_score != null && m.away_score != null;
 
-                  <div className="admin-match-item__meta">
-                    <time className="admin-match-item__kickoff mono" dateTime={m.kickoff_utc}>
-                      {fmtKickoffIST(m.kickoff_utc)} IST
-                    </time>
-                    <span className={`admin-match-item__status admin-match-item__status--${m.status}`}>
-                      {m.status}
-                    </span>
-                    {m.manual_override && (
-                      <span className="admin-match-item__override" title="Manually managed">
-                        override
+                return (
+                  <article key={m.id} className="adm-match">
+                    {/* ── Teams row ── */}
+                    <div className="adm-match-main">
+                      <div className="adm-team">
+                        <Flag code={m.home_code} size={28} />
+                        <span className="adm-team-name">{m.home_team}</span>
+                        <span className="mono adm-code">{m.home_code}</span>
+                      </div>
+
+                      <div className="adm-score">
+                        {hasScore
+                          ? <span className="mono">{m.home_score} – {m.away_score}</span>
+                          : <span className="mono muted">vs</span>}
+                      </div>
+
+                      <div className="adm-team adm-team--away">
+                        <span className="mono adm-code">{m.away_code}</span>
+                        <span className="adm-team-name">{m.away_team}</span>
+                        <Flag code={m.away_code} size={28} />
+                      </div>
+                    </div>
+
+                    {/* ── Footer: time · round · status · actions ── */}
+                    <div className="adm-match-foot">
+                      <time className="adm-when mono" dateTime={m.kickoff_utc}>
+                        {fmtKickoffIST(m.kickoff_utc)} IST
+                      </time>
+                      {m.round && <span className="eyebrow">{m.round}</span>}
+
+                      {isFinal
+                        ? <span className="pill final-pill">Final</span>
+                        : m.status === "live"
+                          ? <span className="pill live">Live</span>
+                          : <span className="pill open">Scheduled</span>}
+
+                      {m.manual_override && (
+                        <span className="adm-match-badge">override</span>
+                      )}
+                      {m.went_to_penalties && (
+                        <span className="adm-match-badge">pen</span>
+                      )}
+
+                      <span className="adm-actions">
+                        <button
+                          type="button"
+                          className="adm-btn"
+                          aria-label={`Edit ${m.home_team} vs ${m.away_team}`}
+                          disabled={anyPending}
+                          onClick={() => {
+                            setEditingId(editingId === m.id ? null : m.id);
+                            setResultId(null);
+                            setShowNewForm(false);
+                          }}
+                        >
+                          <EditIcon /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="adm-btn"
+                          aria-label={`Set result for ${m.home_team} vs ${m.away_team}`}
+                          disabled={anyPending}
+                          onClick={() => {
+                            setResultId(resultId === m.id ? null : m.id);
+                            setEditingId(null);
+                            setShowNewForm(false);
+                          }}
+                        >
+                          <FlagSmIcon /> Result
+                        </button>
+                        <button
+                          type="button"
+                          className="adm-btn adm-btn--danger"
+                          aria-label={`Delete ${m.home_team} vs ${m.away_team}`}
+                          disabled={anyPending}
+                          onClick={() => setDeleteConfirmId(m.id)}
+                          data-testid={`delete-btn-${m.id}`}
+                        >
+                          <TrashIcon /> Delete
+                        </button>
                       </span>
-                    )}
-                    {m.went_to_penalties && (
-                      <span className="admin-match-item__pen">pen</span>
-                    )}
-                  </div>
-
-                  <div className="admin-match-item__actions">
-                    <button
-                      type="button"
-                      className="admin-action-btn"
-                      aria-label={`Edit ${m.home_team} vs ${m.away_team}`}
-                      disabled={anyPending}
-                      onClick={() => {
-                        setEditingId(editingId === m.id ? null : m.id);
-                        setResultId(null);
-                        setShowNewForm(false);
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-action-btn"
-                      aria-label={`Set result for ${m.home_team} vs ${m.away_team}`}
-                      disabled={anyPending}
-                      onClick={() => {
-                        setResultId(resultId === m.id ? null : m.id);
-                        setEditingId(null);
-                        setShowNewForm(false);
-                      }}
-                    >
-                      Result
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-action-btn admin-action-btn--danger"
-                      aria-label={`Delete ${m.home_team} vs ${m.away_team}`}
-                      disabled={anyPending}
-                      onClick={() => setDeleteConfirmId(m.id)}
-                      data-testid={`delete-btn-${m.id}`}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         ))
       )}
 
+      {/* ── Delete confirm dialog ── */}
       {deleteMatch_ && (
         <ConfirmDialog
           message={`Delete "${deleteMatch_.home_team || deleteMatch_.home_code} vs ${deleteMatch_.away_team || deleteMatch_.away_code}"? This will also remove all predictions for this match.`}
@@ -733,9 +819,13 @@ function UsersSection() {
   const list = users ?? [];
 
   return (
-    <div className="admin-users">
-      <div className="admin-section-header">
-        <h2 className="admin-section-title">Users</h2>
+    <div className="adm-users">
+      {/* ── Section header ── */}
+      <div className="adm-section-head">
+        <div>
+          <h2 className="adm-h2">Users</h2>
+          <p className="adm-sub">{list.length} players</p>
+        </div>
       </div>
 
       {setRole.isError && (
@@ -754,33 +844,53 @@ function UsersSection() {
           </p>
         </div>
       ) : (
-        <ul className="admin-user-list">
+        <div className="card adm-table">
+          {/* ── Header row ── */}
+          <div className="adm-tr adm-th">
+            <span>Player</span>
+            <span className="ta-c">Predictions</span>
+            <span className="ta-c">Points</span>
+            <span className="ta-r">Role</span>
+          </div>
+
           {list.map((u) => {
             const isSelf = me?.id === u.id;
             const isAdmin = u.role === "admin";
 
             return (
-              <li key={u.id} className="admin-user-item">
-                <div className="admin-user-item__info">
-                  <span className="admin-user-item__name">{u.name || u.email}</span>
-                  <span className="admin-user-item__email muted">{u.email}</span>
-                </div>
-                <div className="admin-user-item__right">
+              <div key={u.id} className="adm-tr">
+                {/* Player cell */}
+                <span className="adm-user">
+                  <Avatar name={u.name || u.email} avatarUrl={u.avatar_url} size={34} />
+                  <span className="adm-user-txt">
+                    <span className="adm-user-name">{u.name || u.email}</span>
+                    <span className="adm-user-email mono">{u.email}</span>
+                  </span>
+                </span>
+
+                {/* Predictions — not in AdminUser type; show "—" */}
+                <span className="ta-c mono adm-user-stat">—</span>
+
+                {/* Points — not in AdminUser type; show "—" */}
+                <span className="ta-c mono adm-user-stat">—</span>
+
+                {/* Role */}
+                <span className="ta-r">
                   <span
-                    className={`admin-role-badge admin-role-badge--${u.role}`}
+                    className={`role-tag role-tag--${u.role}`}
                     aria-label={`Role: ${u.role}`}
                   >
+                    {isAdmin ? <ShieldIcon /> : <UserIcon />}
                     {u.role}
                   </span>
                   {!isSelf && (
                     <button
                       type="button"
-                      className={`admin-role-btn${isAdmin ? " admin-role-btn--demote" : " admin-role-btn--promote"}`}
+                      className={`adm-role-action${isAdmin ? " adm-role-action--demote" : " adm-role-action--promote"}`}
                       aria-label={isAdmin ? `Demote ${u.name || u.email} to user` : `Make ${u.name || u.email} an admin`}
                       disabled={setRole.isPending}
                       onClick={() => {
                         if (isAdmin) {
-                          // demote requires confirm
                           setDemoteConfirm(u);
                         } else {
                           setRole.mutate({ id: u.id, role: "admin" });
@@ -790,11 +900,11 @@ function UsersSection() {
                       {isAdmin ? "Make user" : "Make admin"}
                     </button>
                   )}
-                </div>
-              </li>
+                </span>
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
 
       {demoteConfirm && (
@@ -820,20 +930,14 @@ function SettingsSection() {
   const saveSettings = useSaveSettings();
   const recompute = useRecompute();
 
-  // Local form state — prefilled from the query, editable by the user.
-  // Grouped into one object so the effect below can call setState once.
   const [form, setForm] = useState({
     resultsCron: "",
     weeklyCron: "",
-    // bonus_lock_at is stored as RFC3339; shown/edited in IST datetime-local
     bonusLockAt: "",
   });
 
-  // useRef flag avoids making `initialised` a state variable (no render needed
-  // for the flag itself); lets us call setForm once in the effect (single setState).
   const initialisedRef = useRef(false);
 
-  // Seed form from server response on first load (idiomatic: effect with single setState)
   useEffect(() => {
     if (settings && !initialisedRef.current) {
       initialisedRef.current = true;
@@ -854,7 +958,6 @@ function SettingsSection() {
   const [recomputeResult, setRecomputeResult] = useState<RecomputeSummary | null>(null);
   const [showRecomputeConfirm, setShowRecomputeConfirm] = useState(false);
 
-  // Reset recompute result when confirming dialog opens/closes
   const handleRecomputeClick = () => {
     setRecomputeResult(null);
     setShowRecomputeConfirm(true);
@@ -877,7 +980,6 @@ function SettingsSection() {
     let bonusRfc3339: string;
     try {
       bonusRfc3339 = istInputToIstRfc3339(bonusLockAt);
-      // Quick validity check
       if (isNaN(new Date(bonusRfc3339).getTime())) throw new Error("invalid");
     } catch {
       setSaveError("Invalid bonus lock date/time.");
@@ -892,7 +994,6 @@ function SettingsSection() {
 
     saveSettings.mutate(payload, {
       onSuccess: (updated) => {
-        // Reconcile form with the server's returned full set
         setForm({
           resultsCron: updated.results_cron,
           weeklyCron: updated.weekly_cron,
@@ -928,9 +1029,16 @@ function SettingsSection() {
 
   return (
     <div className="admin-settings">
+      {/* ── Settings header ── */}
+      <div className="adm-section-head">
+        <div>
+          <h2 className="adm-h2">Settings</h2>
+          <p className="adm-sub">Cron schedules and tournament configuration</p>
+        </div>
+      </div>
+
       {/* ── Settings form ── */}
       <div className="admin-panel">
-        <h2 className="admin-section-title">Settings</h2>
         <form className="admin-form" onSubmit={handleSave} noValidate>
           <div className="admin-settings__fields">
             {/* results_cron */}
@@ -1028,7 +1136,7 @@ function SettingsSection() {
           <div className="admin-settings__actions">
             <button
               type="submit"
-              className="btn-brand admin-form__submit"
+              className="btn-primary admin-form__submit"
               disabled={saveSettings.isPending}
             >
               {saveSettings.isPending ? "Saving…" : "Save settings"}
@@ -1065,7 +1173,6 @@ function SettingsSection() {
               </p>
             )}
 
-            {/* Always rendered so SRs announce updates; content populated when result arrives */}
             <span
               className="admin-settings__recompute-summary"
               role="status"
@@ -1102,7 +1209,6 @@ function SettingsSection() {
 
 // ── Bonus outcomes section ────────────────────────────────────────────────────
 
-// Canonical label map — mirrors bonus.Categories from backend
 const BONUS_CATEGORY_LABELS: Record<string, string> = {
   winner:       "World Cup Winner",
   runner_up:    "Runner-Up",
@@ -1118,11 +1224,8 @@ function BonusSection() {
   const { data: teams = [] } = useTeams();
   const saveMutation = useSaveBonusResults();
 
-  // Local picks: category → ref_id (only categories that have a selection)
   const [picks, setPicks] = useState<Record<string, number>>({});
-  // Optimistic player labels for player-type categories
   const [playerLabels, setPlayerLabels] = useState<Record<string, string>>({});
-  // Seed local picks from server data once loaded
   const seededRef = useRef(false);
 
   useEffect(() => {
@@ -1164,8 +1267,7 @@ function BonusSection() {
     saveMutation.mutate(entries, {
       onSuccess: () => {
         setSaveStatus("Saved — standings updated");
-        // Invalidation is handled by the hook's onSuccess
-        seededRef.current = false; // allow re-seeding from fresh query data
+        seededRef.current = false;
         setPlayerLabels({});
       },
       onError: (err) => {
@@ -1176,7 +1278,6 @@ function BonusSection() {
     });
   };
 
-  // ── Skeleton ─────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div
@@ -1194,7 +1295,6 @@ function BonusSection() {
     );
   }
 
-  // ── Load error ────────────────────────────────────────────────────────────────
   if (isError) {
     return (
       <p className="admin-alert" role="alert">
@@ -1207,25 +1307,20 @@ function BonusSection() {
 
   return (
     <div className="admin-bonus">
-      <div className="admin-section-header">
-        <h2 className="admin-section-title">Bonus Outcomes</h2>
+      {/* ── Section header ── */}
+      <div className="adm-section-head">
+        <div>
+          <h2 className="adm-h2">Bonus Outcomes</h2>
+          <p className="adm-sub">Set the seven award winners — saving updates standings immediately</p>
+        </div>
       </div>
-
-      <p className="admin-bonus__intro">
-        Enter the seven award winners after the tournament; saving updates
-        standings immediately.
-      </p>
 
       <ol className="admin-bonus__list" aria-label="Bonus award categories">
         {rows.map((row) => {
-          const catLabel =
-            BONUS_CATEGORY_LABELS[row.category] ?? row.category;
+          const catLabel = BONUS_CATEGORY_LABELS[row.category] ?? row.category;
           const currentRefId = picks[row.category];
           const isSet = row.set || currentRefId > 0;
 
-          // For display in the "current outcome" chip:
-          // player-type: prefer optimistic label, then server label
-          // team-type: resolve from teams list or server label
           const currentOutcomeLabel: string | null =
             row.ref_type === "player"
               ? (playerLabels[row.category] ??
@@ -1242,7 +1337,6 @@ function BonusSection() {
               className={`admin-bonus-row${isSet ? " admin-bonus-row--set" : " admin-bonus-row--unset"}`}
               data-testid={`bonus-row-${row.category}`}
             >
-              {/* Label + points */}
               <div className="admin-bonus-row__label-wrap">
                 <span className="admin-bonus-row__label">{catLabel}</span>
                 <span
@@ -1253,7 +1347,6 @@ function BonusSection() {
                 </span>
               </div>
 
-              {/* Current outcome chip */}
               <div className="admin-bonus-row__outcome">
                 {currentOutcomeLabel ? (
                   <span
@@ -1272,7 +1365,6 @@ function BonusSection() {
                 )}
               </div>
 
-              {/* Picker: team <select> or player combobox */}
               <div className="admin-bonus-row__ctrl">
                 {row.ref_type === "team" ? (
                   <select
@@ -1320,11 +1412,11 @@ function BonusSection() {
         })}
       </ol>
 
-      {/* ── Save outcomes button + status ──────────────────────────────────── */}
+      {/* ── Save outcomes button + status ── */}
       <div className="admin-bonus__actions">
         <button
           type="button"
-          className="btn-brand admin-bonus__save-btn"
+          className="btn-primary admin-bonus__save-btn"
           onClick={handleSave}
           disabled={saveMutation.isPending}
           aria-label="Save bonus outcomes"
@@ -1332,7 +1424,6 @@ function BonusSection() {
           {saveMutation.isPending ? "Saving…" : "Save outcomes"}
         </button>
 
-        {/* Always mounted so SRs announce updates; hidden until a save succeeds */}
         <span
           className="admin-bonus__save-status"
           role="status"
@@ -1352,17 +1443,23 @@ function BonusSection() {
   );
 }
 
-// ── Admin screen (segmented control: Matches | Users | Settings | Bonus) ──────
+// ── Admin screen (four-tab: Matches | Users | Settings | Bonus) ───────────────
 
 type AdminTab = "matches" | "users" | "settings" | "bonus";
 
 const ADMIN_TABS: AdminTab[] = ["matches", "users", "settings", "bonus"];
 
+const TAB_LABELS: Record<AdminTab, string> = {
+  matches:  "Matches",
+  users:    "Users",
+  settings: "Settings",
+  bonus:    "Bonus",
+};
+
 export function Admin() {
   const { data: me } = useMe();
   const [tab, setTab] = useState<AdminTab>("matches");
 
-  // Refs to tab button elements — used for programmatic focus in roving tabindex
   const tabRefs = useRef<Record<AdminTab, HTMLButtonElement | null>>({
     matches: null,
     users: null,
@@ -1395,10 +1492,10 @@ export function Admin() {
     [],
   );
 
-  // Defense-in-depth: self-guard even though the nav already gates this route
+  // Defense-in-depth: self-guard even though nav already gates this route
   if (me !== undefined && me?.role !== "admin") {
     return (
-      <section className="admin" aria-label="Admin">
+      <section className="admin-wrap" aria-label="Admin">
         <p className="admin-alert" role="alert">
           This area is for administrators only.
         </p>
@@ -1407,66 +1504,32 @@ export function Admin() {
   }
 
   return (
-    <section className="admin" aria-label="Admin">
-      <div className="admin__tabs" role="tablist" aria-label="Admin sections">
-        <button
-          ref={(el) => { tabRefs.current.matches = el; }}
-          type="button"
-          role="tab"
-          aria-selected={tab === "matches"}
-          aria-controls="admin-panel-matches"
-          id="admin-tab-matches"
-          className={`admin__tab${tab === "matches" ? " is-active" : ""}`}
-          tabIndex={tab === "matches" ? 0 : -1}
-          onClick={() => setTab("matches")}
-          onKeyDown={(e) => handleTabKeyDown(e, "matches")}
-        >
-          Matches
-        </button>
-        <button
-          ref={(el) => { tabRefs.current.users = el; }}
-          type="button"
-          role="tab"
-          aria-selected={tab === "users"}
-          aria-controls="admin-panel-users"
-          id="admin-tab-users"
-          className={`admin__tab${tab === "users" ? " is-active" : ""}`}
-          tabIndex={tab === "users" ? 0 : -1}
-          onClick={() => setTab("users")}
-          onKeyDown={(e) => handleTabKeyDown(e, "users")}
-        >
-          Users
-        </button>
-        <button
-          ref={(el) => { tabRefs.current.settings = el; }}
-          type="button"
-          role="tab"
-          aria-selected={tab === "settings"}
-          aria-controls="admin-panel-settings"
-          id="admin-tab-settings"
-          className={`admin__tab${tab === "settings" ? " is-active" : ""}`}
-          tabIndex={tab === "settings" ? 0 : -1}
-          onClick={() => setTab("settings")}
-          onKeyDown={(e) => handleTabKeyDown(e, "settings")}
-        >
-          Settings
-        </button>
-        <button
-          ref={(el) => { tabRefs.current.bonus = el; }}
-          type="button"
-          role="tab"
-          aria-selected={tab === "bonus"}
-          aria-controls="admin-panel-bonus"
-          id="admin-tab-bonus"
-          className={`admin__tab${tab === "bonus" ? " is-active" : ""}`}
-          tabIndex={tab === "bonus" ? 0 : -1}
-          onClick={() => setTab("bonus")}
-          onKeyDown={(e) => handleTabKeyDown(e, "bonus")}
-        >
-          Bonus
-        </button>
+    <section className="admin-wrap" aria-label="Admin">
+      {/* ── Tab bar — tablist semantics, segmented visual style ── */}
+      <div className="admin-head">
+        <div className="admin-head__seg" role="tablist" aria-label="Admin sections">
+          {ADMIN_TABS.map((t) => (
+            <button
+              key={t}
+              ref={(el) => { tabRefs.current[t] = el; }}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              aria-controls={`admin-panel-${t}`}
+              id={`admin-tab-${t}`}
+              className={`admin-head__tab${tab === t ? " is-active" : ""}`}
+              tabIndex={tab === t ? 0 : -1}
+              onClick={() => setTab(t)}
+              onKeyDown={(e) => handleTabKeyDown(e, t)}
+            >
+              {tab === t && <span className="seg-bg" aria-hidden="true" />}
+              <span className="seg-lbl">{TAB_LABELS[t]}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
+      {/* ── Tab panels ── */}
       <div
         id="admin-panel-matches"
         role="tabpanel"
