@@ -119,6 +119,8 @@ const adminUser: import("../lib/admin").AdminUser = {
   name: "Admin User",
   avatar_url: "",
   role: "admin",
+  prediction_count: 42,
+  total_points: 135,
 };
 
 const regularUser: import("../lib/admin").AdminUser = {
@@ -127,6 +129,8 @@ const regularUser: import("../lib/admin").AdminUser = {
   name: "Regular User",
   avatar_url: "",
   role: "user",
+  prediction_count: 17,
+  total_points: 51,
 };
 
 const noopMutation = {
@@ -284,7 +288,7 @@ describe("Admin screen — matches tab", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
-    expect(deleteM).toHaveBeenCalledWith(10);
+    expect(deleteM).toHaveBeenCalledWith(10, expect.any(Object));
   });
 
   it("hides penalty-winner picker for a group match (not knockout)", async () => {
@@ -405,6 +409,28 @@ describe("Admin screen — matches tab", () => {
     expect(homeSelect.value).toBe("3");
   });
 
+  it("shows 'Match deleted' status after confirming delete", () => {
+    const deleteM = vi.fn((_id, opts) => {
+      opts?.onSuccess?.(undefined, undefined, undefined);
+    });
+    vi.mocked(useDeleteMatch).mockReturnValue({
+      ...noopMutation,
+      mutate: deleteM,
+    } as unknown as ReturnType<typeof useDeleteMatch>);
+
+    wrap(<Admin />);
+
+    // Trigger delete confirm
+    fireEvent.click(screen.getByTestId("delete-btn-10"));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    // Confirm deletion
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
+
+    const statusEl = screen.getByTestId("match-status");
+    expect(statusEl.textContent).toContain("Match deleted");
+  });
+
   it("FIX 7: createMatch mutation error renders role=alert", () => {
     vi.mocked(useCreateMatch).mockReturnValue({
       mutate: vi.fn(),
@@ -443,6 +469,21 @@ describe("Admin screen — users tab", () => {
     // Role badges
     const badges = screen.getAllByLabelText(/Role:/i);
     expect(badges.length).toBeGreaterThan(0);
+  });
+
+  it("wires prediction_count and total_points from AdminUser into the table cells", () => {
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
+
+    // adminUser has prediction_count:42, total_points:135
+    // regularUser has prediction_count:17, total_points:51
+    // These values should appear in the table (mono cells)
+    const cells = screen.getAllByText(/42|17/);
+    expect(cells.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("42")).toBeInTheDocument();
+    expect(screen.getByText("17")).toBeInTheDocument();
+    expect(screen.getByText("135")).toBeInTheDocument();
+    expect(screen.getByText("51")).toBeInTheDocument();
   });
 
   it("shows no role-toggle for the current user's own row", async () => {
@@ -499,7 +540,7 @@ describe("Admin screen — users tab", () => {
 
     // Confirm
     fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
-    expect(setRoleM).toHaveBeenCalledWith({ id: 1, role: "user" });
+    expect(setRoleM).toHaveBeenCalledWith({ id: 1, role: "user" }, expect.any(Object));
   });
 
   it("promotes a user to admin without confirmation", async () => {
@@ -522,7 +563,31 @@ describe("Admin screen — users tab", () => {
 
     // Promotion: no confirm dialog, mutation called immediately
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(setRoleM).toHaveBeenCalledWith({ id: 2, role: "admin" });
+    expect(setRoleM).toHaveBeenCalledWith({ id: 2, role: "admin" }, expect.any(Object));
+  });
+
+  it("shows success status after promoting a user to admin", async () => {
+    const setRoleM = vi.fn((_args, opts) => {
+      opts?.onSuccess?.({ id: 2, role: "admin" }, undefined, undefined);
+    });
+    vi.mocked(useSetUserRole).mockReturnValue({
+      ...noopMutation,
+      mutate: setRoleM,
+    } as unknown as ReturnType<typeof useSetUserRole>);
+
+    vi.mocked(useMe).mockReturnValue({
+      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useMe>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Users" }));
+
+    const promoteBtn = screen.getByRole("button", { name: /Make Regular User an admin/i });
+    fireEvent.click(promoteBtn);
+
+    const statusEl = screen.getByTestId("role-status");
+    expect(statusEl.textContent).toMatch(/Regular User is now an admin/i);
   });
 
   it("shows empty state when user list is empty", () => {

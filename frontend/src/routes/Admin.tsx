@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useId } from "react";
 import { useMe } from "../lib/auth";
 import { useTeams, type TeamOption } from "../lib/bonus";
 import { PlayerCombobox } from "../components/PlayerCombobox";
 import { Avatar } from "../components/Avatar";
 import { Flag } from "../components/Flag";
-import { PlusIcon } from "../components/icons";
+import { PlusIcon, ShieldIcon, UserIcon, EditIcon, FlagSmIcon, TrashIcon } from "../components/icons";
 import {
   useAdminMatches,
   useAdminUsers,
@@ -87,59 +87,6 @@ function rfc3339ToIstInput(rfc: string): string {
   return ist.toISOString().slice(0, 16);
 }
 
-// ── Inline shield + user icon for role tags ───────────────────────────────────
-
-function ShieldIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 22s8-4 8-10V6l-8-3-8 3v6c0 6 8 10 8 10Z" />
-    </svg>
-  );
-}
-
-function UserIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M20 21a8 8 0 1 0-16 0" />
-    </svg>
-  );
-}
-
-function EditIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z" />
-    </svg>
-  );
-}
-
-function FlagSmIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-      <line x1="4" y1="22" x2="4" y2="15" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6M14 11v6" />
-      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-    </svg>
-  );
-}
-
 // ── Confirm dialog ────────────────────────────────────────────────────────────
 
 interface ConfirmDialogProps {
@@ -155,21 +102,49 @@ function ConfirmDialog({ message, confirmLabel = "Confirm", onConfirm, onCancel,
     ? "admin-dialog__confirm admin-dialog__confirm--brand"
     : "admin-dialog__confirm";
 
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const msgId = useId();
+
+  // Focus trap: cycle Tab/Shift+Tab between Cancel and Confirm only.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") { onCancel(); return; }
+    if (e.key !== "Tab") return;
+    e.preventDefault();
+    const focused = document.activeElement;
+    if (e.shiftKey) {
+      // Shift+Tab: go backwards
+      if (focused === cancelRef.current) {
+        confirmRef.current?.focus();
+      } else {
+        cancelRef.current?.focus();
+      }
+    } else {
+      // Tab: go forwards
+      if (focused === confirmRef.current) {
+        cancelRef.current?.focus();
+      } else {
+        confirmRef.current?.focus();
+      }
+    }
+  };
+
   return (
     <div
       className="admin-dialog-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Confirm action"
-      aria-describedby="confirm-dialog-msg"
-      onKeyDown={(e) => { if (e.key === "Escape") onCancel(); }}
+      aria-describedby={msgId}
+      onKeyDown={handleKeyDown}
     >
       <div className="admin-dialog">
-        <p id="confirm-dialog-msg" className="admin-dialog__msg">{message}</p>
+        <p id={msgId} className="admin-dialog__msg">{message}</p>
         <div className="admin-dialog__actions">
           {/* autoFocus the Cancel button — safest default for a destructive confirm */}
           <button
             type="button"
+            ref={cancelRef}
             className="btn-ghost admin-dialog__cancel"
             onClick={onCancel}
             autoFocus
@@ -178,6 +153,7 @@ function ConfirmDialog({ message, confirmLabel = "Confirm", onConfirm, onCancel,
           </button>
           <button
             type="button"
+            ref={confirmRef}
             className={confirmClass}
             onClick={onConfirm}
             data-testid="confirm-dialog-confirm"
@@ -498,6 +474,7 @@ function MatchesSection() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [resultId, setResultId] = useState<number | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [matchStatus, setMatchStatus] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -568,6 +545,17 @@ function MatchesSection() {
         </button>
       </div>
 
+      {/* ── Success status (aria-live) ── */}
+      <span
+        className="admin-bonus__save-status"
+        role="status"
+        aria-live="polite"
+        data-testid="match-status"
+        style={matchStatus ? undefined : { display: "none" }}
+      >
+        {matchStatus}
+      </span>
+
       {/* ── New match form panel ── */}
       {showNewForm && (
         <div className="admin-panel">
@@ -576,7 +564,7 @@ function MatchesSection() {
             teams={teams}
             onSubmit={(values) => {
               createMatch.mutate(values, {
-                onSuccess: () => setShowNewForm(false),
+                onSuccess: () => { setShowNewForm(false); setMatchStatus("Match created"); },
               });
             }}
             isPending={createMatch.isPending}
@@ -605,7 +593,7 @@ function MatchesSection() {
             teams={teams}
             onSubmit={(values) => {
               updateMatch.mutate({ id: editingMatch.id, ...values }, {
-                onSuccess: () => setEditingId(null),
+                onSuccess: () => { setEditingId(null); setMatchStatus("Match updated"); },
               });
             }}
             isPending={updateMatch.isPending}
@@ -634,7 +622,7 @@ function MatchesSection() {
             teams={teams}
             onSubmit={(values) => {
               setResult.mutate({ id: resultMatch.id, ...values }, {
-                onSuccess: () => setResultId(null),
+                onSuccess: () => { setResultId(null); setMatchStatus("Result saved"); },
               });
             }}
             isPending={setResult.isPending}
@@ -769,7 +757,9 @@ function MatchesSection() {
           onConfirm={() => {
             const id = deleteMatch_.id;
             setDeleteConfirmId(null);
-            deleteMatch.mutate(id);
+            deleteMatch.mutate(id, {
+              onSuccess: () => setMatchStatus("Match deleted"),
+            });
           }}
           onCancel={() => setDeleteConfirmId(null)}
         />
@@ -794,6 +784,7 @@ function UsersSection() {
   const setRole = useSetUserRole();
 
   const [demoteConfirm, setDemoteConfirm] = useState<AdminUser | null>(null);
+  const [roleStatus, setRoleStatus] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -836,6 +827,17 @@ function UsersSection() {
         </p>
       )}
 
+      {/* ── Success status (aria-live) ── */}
+      <span
+        className="admin-bonus__save-status"
+        role="status"
+        aria-live="polite"
+        data-testid="role-status"
+        style={roleStatus ? undefined : { display: "none" }}
+      >
+        {roleStatus}
+      </span>
+
       {list.length === 0 ? (
         <div className="admin-empty">
           <p className="admin-empty__title">No users yet</p>
@@ -868,11 +870,11 @@ function UsersSection() {
                   </span>
                 </span>
 
-                {/* Predictions — not in AdminUser type; show "—" */}
-                <span className="ta-c mono adm-user-stat">—</span>
+                {/* Predictions */}
+                <span className="ta-c mono adm-user-stat">{u.prediction_count}</span>
 
-                {/* Points — not in AdminUser type; show "—" */}
-                <span className="ta-c mono adm-user-stat">—</span>
+                {/* Points */}
+                <span className="ta-c mono adm-user-stat">{u.total_points}</span>
 
                 {/* Role */}
                 <span className="ta-r">
@@ -893,7 +895,9 @@ function UsersSection() {
                         if (isAdmin) {
                           setDemoteConfirm(u);
                         } else {
-                          setRole.mutate({ id: u.id, role: "admin" });
+                          setRole.mutate({ id: u.id, role: "admin" }, {
+                            onSuccess: () => setRoleStatus(`${u.name || u.email} is now an admin`),
+                          });
                         }
                       }}
                     >
@@ -914,7 +918,9 @@ function UsersSection() {
           onConfirm={() => {
             const u = demoteConfirm;
             setDemoteConfirm(null);
-            setRole.mutate({ id: u.id, role: "user" });
+            setRole.mutate({ id: u.id, role: "user" }, {
+              onSuccess: () => setRoleStatus(`${u.name || u.email} is now a user`),
+            });
           }}
           onCancel={() => setDemoteConfirm(null)}
         />
@@ -1157,7 +1163,7 @@ function SettingsSection() {
           <div className="admin-settings__recompute-row">
             <button
               type="button"
-              className="btn-brand"
+              className="btn-primary"
               onClick={handleRecomputeClick}
               disabled={recompute.isPending}
               aria-label="Recompute all points"
