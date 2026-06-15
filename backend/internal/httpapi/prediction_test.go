@@ -165,7 +165,7 @@ func TestPutPredictionRequiresAuth(t *testing.T) {
 }
 
 func TestPutPredictionCreatesBeforeKickoff(t *testing.T) {
-	withClock(t, time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC))
+	withClock(t, time.Date(2026, 6, 18, 0, 0, 0, 0, time.UTC)) // within the 3-day window before the 6-20 kickoff
 	d, cookie, ps := predDeps(t, futureGroupMatch(), true)
 	rec := doPut(t, d, cookie, "1", `{"home_score":2,"away_score":1}`)
 	if rec.Code != http.StatusOK {
@@ -180,6 +180,22 @@ func TestPutPredictionCreatesBeforeKickoff(t *testing.T) {
 	}
 	if resp.HomeScore != 2 || resp.AwayScore != 1 || resp.PenaltyWinnerTeamID != nil {
 		t.Fatalf("resp = %+v", resp)
+	}
+}
+
+func TestPutPredictionRejectedBeforeWindowOpens(t *testing.T) {
+	// 8 days before the 6-20 kickoff — outside the 3-day prediction window.
+	withClock(t, time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC))
+	d, cookie, ps := predDeps(t, futureGroupMatch(), true)
+	rec := doPut(t, d, cookie, "1", `{"home_score":1,"away_score":0}`)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want 422 (window not open)", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "3 days") {
+		t.Fatalf("expected a 'predictions open 3 days before kickoff' message, got %s", rec.Body.String())
+	}
+	if len(ps.upserts) != 0 {
+		t.Fatalf("too-early write must not upsert, got %+v", ps.upserts)
 	}
 }
 
@@ -205,7 +221,7 @@ func TestPutPredictionUnknownMatch404(t *testing.T) {
 }
 
 func TestPutPredictionTBDTeams422(t *testing.T) {
-	withClock(t, time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC))
+	withClock(t, time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC)) // within window of the 7-4 kickoff
 	m := store.MatchByID{ID: 1, Stage: store.StageKnockout, HomeTeamID: nil, AwayTeamID: nil,
 		KickoffUTC: time.Date(2026, 7, 4, 0, 0, 0, 0, time.UTC), Status: store.StatusScheduled}
 	d, cookie, ps := predDeps(t, m, true)
@@ -219,7 +235,7 @@ func TestPutPredictionTBDTeams422(t *testing.T) {
 }
 
 func TestPutPredictionScoreBounds422(t *testing.T) {
-	withClock(t, time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC))
+	withClock(t, time.Date(2026, 6, 18, 0, 0, 0, 0, time.UTC)) // within window of the 6-20 kickoff
 	for _, body := range []string{
 		`{"home_score":-1,"away_score":0}`,
 		`{"home_score":100,"away_score":0}`,
@@ -237,7 +253,7 @@ func TestPutPredictionScoreBounds422(t *testing.T) {
 }
 
 func TestPutPredictionPenaltyWinnerOnKnockoutDraw(t *testing.T) {
-	withClock(t, time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC))
+	withClock(t, time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC)) // within window of the 7-4 kickoff
 	m := store.MatchByID{ID: 1, Stage: store.StageKnockout, HomeTeamID: i64(1), AwayTeamID: i64(2),
 		KickoffUTC: time.Date(2026, 7, 4, 0, 0, 0, 0, time.UTC), Status: store.StatusScheduled}
 	d, cookie, ps := predDeps(t, m, true)
@@ -251,14 +267,15 @@ func TestPutPredictionPenaltyWinnerOnKnockoutDraw(t *testing.T) {
 }
 
 func TestPutPredictionPenaltyWinnerRejected(t *testing.T) {
-	withClock(t, time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC))
+	withClock(t, time.Date(2026, 6, 18, 0, 0, 0, 0, time.UTC)) // within window of the 6-20 kickoffs below
+	knockoutKickoff := time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC)
 	cases := map[string]struct {
 		match store.MatchByID
 		body  string
 	}{
 		"group match cannot pick winner": {futureGroupMatch(), `{"home_score":1,"away_score":1,"penalty_winner_team_id":1}`},
-		"knockout non-draw cannot pick":  {store.MatchByID{ID: 1, Stage: store.StageKnockout, HomeTeamID: i64(1), AwayTeamID: i64(2), KickoffUTC: time.Date(2026, 7, 4, 0, 0, 0, 0, time.UTC)}, `{"home_score":2,"away_score":1,"penalty_winner_team_id":1}`},
-		"winner must be home or away":    {store.MatchByID{ID: 1, Stage: store.StageKnockout, HomeTeamID: i64(1), AwayTeamID: i64(2), KickoffUTC: time.Date(2026, 7, 4, 0, 0, 0, 0, time.UTC)}, `{"home_score":1,"away_score":1,"penalty_winner_team_id":9}`},
+		"knockout non-draw cannot pick":  {store.MatchByID{ID: 1, Stage: store.StageKnockout, HomeTeamID: i64(1), AwayTeamID: i64(2), KickoffUTC: knockoutKickoff}, `{"home_score":2,"away_score":1,"penalty_winner_team_id":1}`},
+		"winner must be home or away":    {store.MatchByID{ID: 1, Stage: store.StageKnockout, HomeTeamID: i64(1), AwayTeamID: i64(2), KickoffUTC: knockoutKickoff}, `{"home_score":1,"away_score":1,"penalty_winner_team_id":9}`},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

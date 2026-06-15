@@ -5,12 +5,17 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
 )
 
 const maxScore = 99
+
+// predictionWindow is how far ahead of kickoff a match opens for predictions.
+// Matches kicking off further out than this are not yet predictable.
+const predictionWindow = 72 * time.Hour
 
 type predictionRequest struct {
 	HomeScore           *int32 `json:"home_score"`
@@ -60,6 +65,13 @@ func (d *Deps) PutPrediction(w http.ResponseWriter, r *http.Request) {
 	// Server-authoritative kickoff lock: reject at or after kickoff.
 	if !now().Before(m.KickoffUTC) {
 		writeError(w, http.StatusConflict, "match is locked")
+		return
+	}
+
+	// Prediction window: a match only opens for predictions within
+	// predictionWindow (3 days) of kickoff. Reject earlier writes.
+	if m.KickoffUTC.Sub(now()) > predictionWindow {
+		writeError(w, http.StatusUnprocessableEntity, "predictions open 3 days before kickoff")
 		return
 	}
 
