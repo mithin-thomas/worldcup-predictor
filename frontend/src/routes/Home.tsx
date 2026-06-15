@@ -12,7 +12,7 @@ export function Home() {
   return (
     <div className="home">
       {/* Mobile toggle — hidden on desktop via CSS */}
-      <div className="home__toggle" aria-label="View">
+      <div className="home__toggle" role="group" aria-label="View">
         <button
           type="button"
           aria-pressed={mobileView === "fixtures"}

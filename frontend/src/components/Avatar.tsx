@@ -23,7 +23,7 @@ export function Avatar({ name, avatarUrl, size = 30, isMe = false }: AvatarProps
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
 
   const bg = isMe ? "var(--coral)" : `oklch(0.45 0.12 ${h})`;
-  const fg = isMe ? "#1a0a06" : "#fff";
+  const fg = isMe ? "var(--on-brand)" : "#fff";
 
   return (
     <span

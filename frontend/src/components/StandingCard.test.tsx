@@ -125,6 +125,36 @@ describe("StandingCard", () => {
     expect(screen.getByText(/make your first prediction/i)).toBeInTheDocument();
   });
 
+  it("leaderPoints === 0: no NaN bar width, renders 'Leading'", () => {
+    // When there's only one player (the user) and leader has 0 pts,
+    // the bar should not produce NaN or crash. barPct clamps to 100 (isLeading case).
+    const overallZeroPts: Partial<LeaderboardResponse> = {
+      period: "overall",
+      page: 1,
+      page_size: 20,
+      total: 1,
+      rows: [
+        { rank: 1, user_id: 1, name: "Me", avatar_url: "", points: 0, exact: 0, correct: 0, is_winner: false, is_me: true },
+      ],
+      me: { rank: 1, points: 0 },
+    };
+    mockUseLeaderboard.mockImplementation((period: string) => ({
+      ...loaded,
+      data: period === "overall" ? overallZeroPts : makeWeekly(null),
+    }) as unknown as ReturnType<typeof useLeaderboard>);
+
+    wrap(<StandingCard />);
+
+    // "Leading" should render (rank 1 path) without NaN
+    expect(screen.getByText("Leading")).toBeInTheDocument();
+    // The bar-fill width should be a valid CSS value (100%)
+    const fill = document.querySelector(".standing-bar-fill") as HTMLElement;
+    expect(fill).not.toBeNull();
+    const w = fill.style.width;
+    expect(w).not.toBe("NaN%");
+    expect(w).toBe("100%");
+  });
+
   it("renders skeleton while loading", () => {
     mockUseMe.mockReturnValue({ data: undefined, isLoading: true });
     mockUseLeaderboard.mockReturnValue({

@@ -25,7 +25,7 @@ describe("LeaderboardPanel empty states", () => {
       isError: false,
     });
     render(<LeaderboardPanel />);
-    fireEvent.click(screen.getByRole("button", { name: /weekly/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /weekly/i }));
     expect(screen.getByText(/no scores this week yet/i)).toBeInTheDocument();
   });
 });

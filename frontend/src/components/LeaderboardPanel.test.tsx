@@ -84,7 +84,7 @@ describe("LeaderboardPanel", () => {
     const user = userEvent.setup();
     renderPanel();
     await screen.findByText("Aaa");
-    await user.click(screen.getByRole("button", { name: /weekly/i }));
+    await user.click(screen.getByRole("radio", { name: /weekly/i }));
     await waitFor(() => {
       const calledWeek = fetchMock.mock.calls.some(([url]) => String(url).includes("period=week"));
       expect(calledWeek).toBe(true);
@@ -112,7 +112,7 @@ describe("LeaderboardPanel", () => {
     renderPanel();
     // Switch to weekly
     await screen.findByText("Aaa");
-    await user.click(screen.getByRole("button", { name: /weekly/i }));
+    await user.click(screen.getByRole("radio", { name: /weekly/i }));
     // wait for winner badge
     await screen.findByLabelText("weekly winner");
     expect(screen.getByLabelText("weekly winner")).toBeInTheDocument();
@@ -141,5 +141,46 @@ describe("LeaderboardPanel", () => {
     await screen.findByText("Aaa");
     expect(screen.getByLabelText("Previous page")).toBeInTheDocument();
     expect(screen.getByLabelText("Next page")).toBeInTheDocument();
+  });
+
+  it("period swap resets page to 1", async () => {
+    // We use a multi-page dataset so page > 1 can be reached
+    const page2 = {
+      period: "overall", page: 2, page_size: 2, total: 5,
+      rows: [
+        { rank: 3, user_id: 7, name: "Ccc", avatar_url: "", points: 10, exact: 1, correct: 2, is_winner: false, is_me: false },
+      ],
+      me: { rank: 3, points: 10 },
+    };
+
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      const u = String(url);
+      if (u.includes("page=2")) return Promise.resolve({ ok: true, status: 200, json: async () => page2 });
+      return Promise.resolve({ ok: true, status: 200, json: async () => paginatedOverall });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("Aaa");
+
+    // Navigate to page 2
+    await user.click(screen.getByLabelText("Next page"));
+    await screen.findByText("Ccc");
+    // Verify we're on page 2
+    expect(screen.getByText(/2 \/ 3/)).toBeInTheDocument();
+
+    // Switch period → page must reset to 1
+    await user.click(screen.getByRole("radio", { name: /weekly/i }));
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls.map(([u]) => String(u));
+      const weeklyPage1 = calls.some((u) => u.includes("period=week") && u.includes("page=1"));
+      expect(weeklyPage1).toBe(true);
+    });
+    // And we should NOT see a page=2 request for the weekly period
+    const weeklyPage2Calls = fetchMock.mock.calls
+      .map(([u]) => String(u))
+      .filter((u) => u.includes("period=week") && u.includes("page=2"));
+    expect(weeklyPage2Calls.length).toBe(0);
   });
 });
