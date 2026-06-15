@@ -1,7 +1,7 @@
 # SayScore PRODUCTION stack — Caddy (auto-HTTPS) + backend + MySQL.
 # Run from the repo root:
 #   docker compose --env-file .env.prod -p sayscore-prod -f deploy/docker-compose.prod.yml up -d --build
-# (or: make up-prod)
+# (or: make deploy-prod)
 #
 # Requires:
 #   - a .env.prod with real secrets (copy .env.prod.example) — NEVER commit it
@@ -58,11 +58,10 @@ services:
     restart: on-failure
 
   backend:
-    image: sayscore-backend:prod
+    # Built + pushed to ECR by CI; the host pulls it. Full ref (incl.
+    # registry/account) comes from .env.prod, so nothing is hardcoded here.
+    image: ${BACKEND_IMAGE:?set BACKEND_IMAGE in .env.prod}
     restart: unless-stopped
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
     environment:
       APP_ENV: production          # Secure cookies on; debug job route OFF
       HTTP_PORT: "8000"
@@ -90,15 +89,10 @@ services:
     # No host port: Caddy proxies to backend:8000 on the internal network.
 
   caddy:
-    image: sayscore-frontend:prod
+    # Built + pushed to ECR by CI (with the prod VITE_GOOGLE_CLIENT_ID baked in);
+    # the host pulls it via FRONTEND_IMAGE from .env.prod.
+    image: ${FRONTEND_IMAGE:?set FRONTEND_IMAGE in .env.prod}
     restart: unless-stopped
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile.prod
-      args:
-        # Same client id as the backend; baked into the bundle at build time.
-        VITE_GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
-        VITE_API_BASE_URL: "/api"
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env.prod (your public hostname)}
     ports:
