@@ -387,11 +387,13 @@ Ops
 
 ## 12. Security & privacy
 
-- httpOnly + Secure + SameSite=Lax session cookie; short-lived, refreshed on activity.
-- CSRF protection for state-changing requests (SameSite plus a CSRF token).
+- httpOnly + Secure + SameSite=Lax session cookie; short-lived, refreshed on activity. **Implemented (M9):** the "short-lived, refreshed on activity" requirement is satisfied by a **sliding refresh** in `RequireAuth` — the cookie is re-issued once more than 24h has elapsed since it was issued (i.e. remaining TTL < 7d − 24h ≈ 6d), sliding the 7-day window forward so active users stay logged in while idle sessions expire naturally after 7 days.
+- **CSRF — documented decision (M9):** for this **internal, same-origin, SSO-gated** app, **`SameSite=Lax` is the accepted CSRF defense**; no CSRF token is implemented. This is a documented deviation from the earlier "SameSite plus a CSRF token" wording: the SPA is served first-party and proxies `/api` same-origin (the session cookie never crosses origins), so a Lax cookie already blocks cross-site state-changing requests. A CSRF token can be added later if the app is ever exposed cross-origin.
 - Domain-restricted SSO via the `hd` claim (see 3.1).
-- No secrets in the repo: `.env` is git-ignored; CI/production use GitHub Actions secrets / RDS secrets.
-- Basic rate limiting on auth and prediction-write endpoints.
+- No secrets in the repo: `.env` is git-ignored; CI/production use GitHub Actions secrets / RDS secrets. **Secret rotation (M9):** `SESSION_SECRET` and `FOOTBALL_DATA_API_KEY` appeared in local dev and **MUST be rotated before production**; production injects them via GitHub Actions / RDS secrets, never the committed `.env`.
+- **Rate limiting — implemented (M9):** in-memory **token-bucket** limiter (single-instance app). **Per-IP** on the auth endpoints — login (`POST /api/auth/google`) and logout (`POST /api/auth/logout`) — at ~10/min, burst 5. **Per-user** on **all authenticated writes** (mutating methods on predictions, bonus, and admin endpoints incl. recompute) at ~60/min, burst 20; reads pass through. Over-limit requests get **HTTP 429 with a `Retry-After`** header.
+- **Request body size cap — implemented (M9):** all `/api` requests are capped at **1 MiB** via `http.MaxBytesReader`; an over-limit body fails JSON decode → 400.
+- **Trusted-proxy note (M9):** the per-IP rate limiter keys on the client IP via chi `middleware.RealIP`, which reads `X-Forwarded-For` / `X-Real-IP` as set by the frontend nginx proxy (`frontend/nginx.conf`). In production the backend **MUST only be reachable via that proxy** (do **not** expose the backend port publicly) — otherwise `X-Forwarded-For` is client-spoofable. The rate limit is **best-effort throttling, not an authorization boundary**.
 - Others' predictions hidden until match lock (§4).
 - The debug job-trigger endpoint (`POST /api/admin/jobs/run`, §11) is registered only when `APP_ENV != production`, so manual cron invocation is impossible in production even for admins.
 
@@ -466,6 +468,12 @@ Frontend (Vite): `VITE_GOOGLE_CLIENT_ID`, `VITE_API_BASE_URL`.
 
 `.github/workflows/ci.yml` runs on PRs and main: backend (`golangci-lint`, `go test`, `sqlc diff`) and frontend (`eslint`, `tsc --noEmit`, `vitest`) in parallel, then builds both Docker images. Secrets are provided via repository/environment secrets.
 
+**Fully implemented (M9).** The pipeline matches `.github/workflows/ci.yml`:
+
+- **backend** job — `go vet`, `golangci-lint`, `go test ./...`, and `sqlc diff` (fails if generated code is stale).
+- **frontend** job — `eslint`, `tsc --noEmit`, `vitest run`, and `pnpm build`.
+- **docker** job (needs backend + frontend) — **build-only** validation of both production images (no registry push); the frontend image build passes the `VITE_*` build args.
+
 ---
 
 ## 16. Testing strategy
@@ -494,3 +502,12 @@ All previously-open questions were resolved in the brainstorming session (2026-0
 - **Debug-only manual cron trigger** (§3.6, §6, §11) — admins can fire `results-ingest` / `weekly-winner` on demand, but only when `APP_ENV != production`.
 - **Go module path** (§9) — `github.com/sayonetech/worldcup-predictor/backend`, confirmed.
 - **Frontend design skill** (§7) — the frontend is implemented with the `impeccable` design skill, treating §7 as its design contract.
+
+### 17.2 Milestone 9 — ops/security hardening + CI (final milestone)
+
+- **Status: DONE.** M9 closed the remaining §12 security gaps and completed the §15 CI pipeline. With it, the project is **feature-complete and production-hardened across M1–M9** — (1) scaffold + SSO, (2) fixtures sync + IST list, (3) predictions + kickoff lock, (4) scoring engine, (5) results cron + points, (6) leaderboards, (7) tournament bonus + lock, (8) admin tools, (9) hardening + CI.
+- **Security (§12):** in-memory token-bucket rate limiting — per-IP on auth (login + logout), per-user on all authenticated writes (incl. admin recompute), returning 429 + `Retry-After`; a 1 MiB request body cap on `/api`; and sliding session refresh (re-issue on activity once >24h old, 7-day window).
+- **CSRF — documented decision (§12):** `SameSite=Lax` is the accepted defense for this internal, same-origin, SSO-gated app; no CSRF token is implemented.
+- **Trusted proxy (§12):** the per-IP limiter trusts `X-Forwarded-For`/`X-Real-IP` from the frontend nginx; in production the backend must only be reachable via that proxy.
+- **Secrets (§12):** `SESSION_SECRET` and `FOOTBALL_DATA_API_KEY` must be rotated before production.
+- **CI (§15):** fully implemented per `.github/workflows/ci.yml` — backend (`golangci-lint` + `go vet` + `go test` + `sqlc diff`), frontend (`eslint` + `tsc --noEmit` + `vitest` + `build`), and a build-only Docker job for both images.
