@@ -115,6 +115,19 @@ func (d *Deps) setSessionCookie(w http.ResponseWriter, userID int64) {
 	})
 }
 
+// maxBodyBytes caps request body size; an over-limit body makes the handler's
+// json.Decode fail (→ 400). Applied once on the /api group.
+func maxBodyBytes(n int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, n)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+const maxBodyBytesLimit int64 = 1 << 20 // 1 MiB
+
 func (d *Deps) clearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookieName, Value: "", Path: "/",
