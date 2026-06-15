@@ -12,7 +12,10 @@ import (
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
 )
 
-type fakeJobRunner struct{ called int }
+type fakeJobRunner struct {
+	called   int
+	bonusErr error
+}
 
 func (f *fakeJobRunner) RunResultsIngest(context.Context) (any, error) {
 	f.called++
@@ -26,7 +29,10 @@ func (f *fakeJobRunner) RunWeeklyWinner(context.Context) (any, error) {
 
 func (f *fakeJobRunner) RunBonusScore(context.Context) (any, error) {
 	f.called++
-	return map[string]int{"scored": 0}, nil
+	if f.bonusErr != nil {
+		return nil, f.bonusErr
+	}
+	return map[string]int{"scored": 3}, nil
 }
 
 func adminJobsDeps(t *testing.T, role store.Role) (*Deps, *http.Cookie, *fakeJobRunner) {
