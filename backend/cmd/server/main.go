@@ -116,7 +116,6 @@ func main() {
 		Verifier:           auth.GoogleTokenVerifier{ClientID: cfg.GoogleClientID},
 		AllowedEmailDomain: cfg.AllowedEmailDomain,
 		Secure:             cfg.IsProduction(),
-		Debug:              !cfg.IsProduction(),
 	}
 
 	router := httpapi.NewRouter(deps, !cfg.IsProduction())

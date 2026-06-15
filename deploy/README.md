@@ -24,10 +24,11 @@ vs `sayscore-prod`); they can even run side by side. This README covers
   cookie works without CORS), and serves an internal `robots.txt` (`Disallow: /`).
   Config: [`../frontend/Caddyfile`](../frontend/Caddyfile); image built from
   [`../frontend/Dockerfile.prod`](../frontend/Dockerfile.prod).
-- **backend** runs with `APP_ENV=production`, which enables Secure cookies and
-  **disables the debug job-run route** (`POST /api/admin/jobs/run`) — so the
-  Admin "Background jobs (debug)" panel does **not** appear in prod; the
-  results-ingest and weekly-winner jobs run on their cron schedule instead.
+- **backend** runs with `APP_ENV=production`, which enables Secure cookies. The
+  results-ingest and weekly-winner jobs run on their cron schedule; admins can
+  also run any job on demand from the Admin **Background jobs** panel
+  (`POST /api/admin/jobs/run` — an admin-only route available in all
+  environments) if a scheduled run was missed.
 - **MySQL and the backend are NOT published to the host** — only Caddy is, on
   ports 80 and 443. MySQL data and the TLS certs live in named volumes
   (`mysql_data`, `caddy_data`) so they survive restarts.
@@ -126,11 +127,13 @@ make deploy-prod    # pulls the latest image tags and recreates changed containe
 Migrations and the (idempotent) seed run automatically on every boot; the seed
 uses `INSERT IGNORE`, so it never clobbers admin-corrected rows.
 
-**Background jobs** — results-ingest and weekly-winner run on their cron
-schedule (IST). The manual trigger UI is dev-only and absent in prod. To force a
-recompute in prod, use the admin **Settings → Recompute** action (a standard
-admin route, available in all environments). Set `SLACK_WEBHOOK_URL` to get a
-ping each time a job runs, so you can confirm the cron is alive.
+**Background jobs** — results-ingest runs at 03:00 / 08:00 / 13:00 IST and
+weekly-winner on Monday 09:00 IST. Admins can also trigger any job on demand
+from the Admin **Background jobs** panel (e.g. run results-ingest now if a cron
+run was missed) — it's an admin-only route available in production. To re-score
+from already-stored results without re-fetching, use **Settings → Recompute**.
+Set `SLACK_WEBHOOK_URL` to get a ping each time a job runs, so you can confirm
+the cron is alive.
 
 **Back up the database** — the data is in the `mysql_data` volume:
 

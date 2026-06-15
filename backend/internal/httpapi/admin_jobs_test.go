@@ -125,10 +125,16 @@ func TestRunJobNilRunnerUnavailable(t *testing.T) {
 	}
 }
 
-func TestRunJobAbsentInProduction(t *testing.T) {
-	d, cookie, _ := adminJobsDeps(t, store.RoleAdmin)
+// The manual job trigger is now admin-only and registered in ALL environments
+// (the trailing NewRouter bool no longer gates it), so an admin can run a
+// missed cron from production. It must reach the handler (200), not 404.
+func TestRunJobRegisteredInAllEnvironments(t *testing.T) {
+	d, cookie, jr := adminJobsDeps(t, store.RoleAdmin)
 	rec := postJob(t, d, false, cookie, `{"job":"results-ingest"}`)
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("status = %d, want 404 (route absent in prod)", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (route must exist in all envs)", rec.Code)
+	}
+	if jr.called != 1 {
+		t.Fatalf("ingest called %d times, want 1", jr.called)
 	}
 }

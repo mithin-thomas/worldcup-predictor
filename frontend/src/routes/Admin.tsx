@@ -1247,12 +1247,13 @@ function SettingsSection() {
         </div>
       </div>
 
-      {/* ── Background jobs (debug only) ── */}
-      {me?.debug === true && (
+      {/* ── Background jobs (admin-only, all environments) ── */}
+      {me?.role === "admin" && (
         <div className="admin-panel" data-testid="debug-jobs-panel">
-          <h2 className="admin-panel__title">Background jobs (debug)</h2>
+          <h2 className="admin-panel__title">Background jobs</h2>
           <p className="admin-settings__hint">
-            Manually trigger the scheduled jobs. Available in non-production only.
+            Manually trigger a scheduled job — e.g. run results ingest now if a
+            cron run was missed. Scoring is idempotent, so re-running is safe.
           </p>
 
           <div className="admin-settings__recompute-row admin-debug-jobs__row">
