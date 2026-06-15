@@ -164,7 +164,7 @@ function TeamSelect({ teams, selectedId, disabled, ariaLabel, onSelect }: TeamSe
         className={`bonus-sel-btn${open ? " open" : ""}`}
         onClick={toggle}
         aria-label={ariaLabel}
-        aria-haspopup="listbox"
+        aria-haspopup="menu"
         aria-expanded={open}
         disabled={disabled}
       >
@@ -183,7 +183,7 @@ function TeamSelect({ teams, selectedId, disabled, ariaLabel, onSelect }: TeamSe
       </button>
 
       {open && (
-        <div className="bonus-menu-wrap" role="listbox" aria-label={ariaLabel}>
+        <div className="bonus-menu-wrap" role="menu" aria-label={ariaLabel}>
           <div className="bonus-search-bar">
             <SearchIcon />
             <input
@@ -193,6 +193,7 @@ function TeamSelect({ teams, selectedId, disabled, ariaLabel, onSelect }: TeamSe
               value={q}
               onChange={(e) => setQ(e.target.value)}
               aria-label="Search teams"
+              onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
             />
           </div>
           <div className="bonus-menu-list">
@@ -204,9 +205,9 @@ function TeamSelect({ teams, selectedId, disabled, ariaLabel, onSelect }: TeamSe
                   key={t.id}
                   type="button"
                   className={`bonus-opt-btn${selectedId === t.id ? " selected" : ""}`}
-                  role="option"
-                  aria-selected={selectedId === t.id}
+                  role="menuitem"
                   onClick={() => { onSelect(t.id); setOpen(false); }}
+                  onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
                 >
                   <TeamFlag code={t.code} size={20} />
                   {t.name}
@@ -285,6 +286,13 @@ export function BonusPanel() {
     setOptimisticLabels((prev) => ({ ...prev, [categoryKey]: label }));
     saveMutation.mutate([{ category: categoryKey, ref_id: refId }], {
       onSuccess: () => {
+        setOptimisticLabels((prev) => {
+          const next = { ...prev };
+          delete next[categoryKey];
+          return next;
+        });
+      },
+      onError: () => {
         setOptimisticLabels((prev) => {
           const next = { ...prev };
           delete next[categoryKey];

@@ -25,7 +25,7 @@ function PtsChip({ points }: { points: number | null }) {
     // Not yet scored — show a neutral dash
     return <span className="pts-chip miss mono">—</span>;
   }
-  const cls = points >= 5 ? "win" : points >= 2 ? "ok" : "miss";
+  const cls = points >= 5 ? "win" : points > 0 ? "ok" : "miss";
   return (
     <span className={`pts-chip ${cls} mono`} aria-label={`${points} points`}>
       {points > 0 ? "+" : ""}{points} pts

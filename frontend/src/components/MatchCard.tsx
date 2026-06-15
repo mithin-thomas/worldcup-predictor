@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { MatchDTO, TeamDTO } from "../lib/matches";
 import { usePutPrediction, PredictionLockedError } from "../lib/matches";
 import { flagClass } from "../lib/flags";
@@ -177,6 +177,13 @@ function MatchCardEditor({
   const isDraw = h === a;
   const showPenalty = stage === "knockout" && isDraw;
 
+  // Fix: use useEffect to clear the "Saved" flash so the timeout is cleaned up on unmount
+  useEffect(() => {
+    if (!saved) return;
+    const id = setTimeout(() => setSaved(false), 1_600);
+    return () => clearTimeout(id);
+  }, [saved]);
+
   // Dirty logic: new pick always saveable (incl. 0-0); existing only when changed.
   const dirty =
     !prediction ||
@@ -197,7 +204,7 @@ function MatchCardEditor({
       {
         onSuccess: () => {
           setSaved(true);
-          setTimeout(() => setSaved(false), 1_600);
+          // The useEffect on `saved` handles clearing after 1600 ms (with unmount cleanup)
         },
       },
     );
@@ -267,14 +274,22 @@ function MatchCardEditor({
             <PillStepper
               label={home.name}
               value={h}
-              onChange={setH}
+              onChange={(v) => {
+                setH(v);
+                // Clear pen when the new scoreline is no longer a draw
+                if (v !== a) setPen(null);
+              }}
               disabled={mut.isPending}
             />
             <span className="mc-steps-vs">your scoreline</span>
             <PillStepper
               label={away.name}
               value={a}
-              onChange={setA}
+              onChange={(v) => {
+                setA(v);
+                // Clear pen when the new scoreline is no longer a draw
+                if (h !== v) setPen(null);
+              }}
               disabled={mut.isPending}
             />
           </div>

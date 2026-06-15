@@ -488,6 +488,8 @@ input  { font-family: inherit; }
   padding: 3px 9px;
   border-radius: var(--r-pill);
   letter-spacing: -0.02em;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
 }
 .pts-chip.win  { background: var(--win-soft);  color: var(--win); }
 .pts-chip.ok   { background: var(--blue-soft); color: #9bbcff; }
@@ -1010,7 +1012,7 @@ input  { font-family: inherit; }
 
 /* Team select dropdown */
 .bonus-select-wrap { position: relative; width: 168px; flex: none; }
-.bonus-sel-btn    { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border-2); border-radius: var(--r-sm); font-size: 13px; color: var(--text); transition: border-color 0.15s, background 0.15s; min-height: 36px; cursor: pointer; font-family: inherit; }
+.bonus-sel-btn    { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border-2); border-radius: var(--r-sm); font-size: 13px; color: var(--text); transition: border-color 0.15s, background 0.15s; min-height: 44px; cursor: pointer; font-family: inherit; }
 .bonus-sel-btn:hover, .bonus-sel-btn.open { border-color: var(--border-strong); background: var(--surface-3); }
 .bonus-sel-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .bonus-sel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -1026,8 +1028,9 @@ input  { font-family: inherit; }
 .bonus-search-input::placeholder { color: var(--text-3); }
 .bonus-menu-list  { max-height: 232px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
 .bonus-menu-empty { padding: 14px 10px; text-align: center; font-size: 12.5px; color: var(--text-3); }
-.bonus-opt-btn    { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 9px; border-radius: var(--r-xs); font-size: 13px; font-weight: 500; color: var(--text-2); background: none; border: none; cursor: pointer; font-family: inherit; min-height: 36px; }
+.bonus-opt-btn    { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 9px; border-radius: var(--r-xs); font-size: 13px; font-weight: 500; color: var(--text-2); background: none; border: none; cursor: pointer; font-family: inherit; min-height: 44px; }
 .bonus-opt-btn:hover { background: var(--surface-3); color: var(--text); }
+.bonus-opt-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .bonus-opt-btn.selected { color: var(--text); }
 .bonus-opt-btn .bs-code { margin-left: auto; }
 .bonus-opt-tick   { color: var(--gold); width: 15px; height: 15px; margin-left: 6px; flex: none; }
@@ -1069,23 +1072,35 @@ input  { font-family: inherit; }
 .mc-team-name { font-family: var(--font-display); font-weight: 600; font-size: 18px; letter-spacing: -0.02em; white-space: nowrap; }
 .mc-team-code { font-size: 11px; color: var(--text-3); letter-spacing: 0.05em; }
 .mc-vs    { display: flex; align-items: center; gap: 10px; padding: 0 4px; }
-.mc-score { font-size: 30px; font-weight: 700; line-height: 1; min-width: 26px; text-align: center; color: var(--text); font-family: var(--font-mono); }
+.mc-score { font-size: 30px; font-weight: 700; line-height: 1; min-width: 26px; text-align: center; color: var(--text); font-family: var(--font-mono); font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
 .mc-dash  { color: var(--text-faint); font-size: 22px; }
 
 .mc-predict { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
 .mc-steps   { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; flex: 1; }
 .mc-steps-vs { font-size: 11px; color: var(--text-faint); text-align: center; letter-spacing: 0.08em; text-transform: uppercase; }
 .mc-action  { flex: none; }
-.mc-saved   { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: var(--r-sm); background: var(--win-soft); color: var(--win); font-weight: 700; font-size: 13.5px; white-space: nowrap; animation: pop 0.3s; }
+.mc-saved   { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: var(--r-sm); background: var(--win-soft); color: var(--win); font-weight: 700; font-size: 13.5px; white-space: nowrap; animation: pop 0.3s ease both; }
 .mc-pick-ro { font-size: 13px; color: var(--text-3); font-family: var(--font-mono); }
 
 /* Pill stepper (new match card) */
 .stepper-pill { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border: 1px solid var(--border-2); border-radius: var(--r-pill); padding: 4px; }
-.step-btn { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: var(--text-2); font-size: 16px; transition: background 0.14s, color 0.14s; }
-.step-btn:hover:not(:disabled)  { background: var(--coral); color: #fff; }
+/* Touch target ≥44px; the visual circle stays 32px via background/border-radius on the inner */
+.step-btn {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+  font-size: 16px;
+  transition: background 0.14s, color 0.14s;
+  /* Keep the clickable ring invisible — visual circle is background on :hover/:active */
+  background: none;
+}
+.step-btn:hover:not(:disabled)  { background: var(--coral); color: #fff; border-radius: 50%; }
 .step-btn:disabled               { color: var(--text-faint); cursor: not-allowed; }
 .step-btn:focus-visible          { outline: none; box-shadow: 0 0 0 2px var(--coral-ring); }
-.step-val { min-width: 26px; text-align: center; font-size: 18px; font-weight: 700; color: var(--text); font-family: var(--font-mono); }
+.step-val { min-width: 26px; text-align: center; font-size: 18px; font-weight: 700; color: var(--text); font-family: var(--font-mono); font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
 .stepper-pill.off { opacity: 0.55; }
 
 /* Past row */
@@ -1096,7 +1111,7 @@ input  { font-family: inherit; }
 .pr-team.home { justify-content: flex-end; text-align: right; }
 .pr-team.w    { color: var(--text); }
 .pr-name  { font-weight: 600; font-size: 14.5px; white-space: nowrap; }
-.pr-score { display: flex; align-items: center; gap: 7px; font-size: 19px; font-weight: 700; font-family: var(--font-mono); }
+.pr-score { display: flex; align-items: center; gap: 7px; font-size: 19px; font-weight: 700; font-family: var(--font-mono); font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
 .pr-dash  { color: var(--text-faint); }
 .pr-foot  { display: flex; align-items: center; gap: 14px; flex: none; }
 .pr-grp   { display: none; }
@@ -1120,6 +1135,7 @@ input  { font-family: inherit; }
 /* Load more */
 .load-more { margin-top: 22px; width: 100%; padding: 13px; border-radius: var(--r-md); border: 1px dashed var(--border-2); background: var(--surface); color: var(--text-2); font-weight: 600; font-size: 13.5px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: border-color 0.16s, color 0.16s, background 0.16s; }
 .load-more:hover { border-color: var(--coral); color: var(--coral-hi); background: var(--coral-soft); }
+.load-more:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .load-more .lm-count { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
 
 /* Panel + standing */
@@ -1340,4 +1356,37 @@ input  { font-family: inherit; }
   .nav-btn    { padding: 7px 14px; font-size: 13px; }
   .mc-predict { flex-direction: column; align-items: stretch; gap: 14px; }
   .mc-action .btn-save, .mc-action { width: 100%; }
+}
+
+/* ============================================================
+   prefers-reduced-motion — Unit 2 components
+   Content remains visible; only animation/transitions are removed.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  /* .mc-saved pop animation */
+  .mc-saved { animation: none; }
+
+  /* .mcol-hint .dot pulse */
+  .mcol-hint .dot { animation: none; box-shadow: 0 0 0 var(--coral); }
+
+  /* .match-card transform + border transition */
+  .match-card { transition: none; }
+
+  /* .step-btn transition */
+  .step-btn { transition: none; }
+
+  /* .bonus-grid-row border transition */
+  .bonus-grid-row { transition: none; }
+
+  /* .load-more border/color/bg transition */
+  .load-more { transition: none; }
+
+  /* .past-row hover transition */
+  .past-row { transition: none; }
+
+  /* .bonus-sel-btn transition */
+  .bonus-sel-btn { transition: none; }
+
+  /* .bonus-panel border transition */
+  .bonus-panel { transition: none; }
 }

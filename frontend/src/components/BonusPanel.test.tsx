@@ -142,7 +142,7 @@ describe("BonusPanel", () => {
     await user.click(screen.getByRole("button", { name: /set tournament bonus picks/i }));
     const winnerSelect = screen.getByRole("button", { name: /Select team for World Cup Winner/i });
     await user.click(winnerSelect);
-    await user.click(screen.getByRole("option", { name: /Brazil/i }));
+    await user.click(screen.getByRole("menuitem", { name: /Brazil/i }));
 
     expect(mutate).toHaveBeenCalledWith([{ category: "winner", ref_id: 1 }]);
   });
