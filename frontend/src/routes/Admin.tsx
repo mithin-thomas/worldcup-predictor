@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useMe } from "../lib/auth";
 import { useTeams, type TeamOption } from "../lib/bonus";
+import { PlayerCombobox } from "../components/PlayerCombobox";
 import {
   useAdminMatches,
   useAdminUsers,
@@ -12,10 +13,13 @@ import {
   useSettings,
   useSaveSettings,
   useRecompute,
+  useBonusResults,
+  useSaveBonusResults,
   type AdminMatch,
   type AdminUser,
   type AdminSettings,
   type RecomputeSummary,
+  type BonusResultRow,
 } from "../lib/admin";
 
 // ── IST helpers ───────────────────────────────────────────────────────────────
@@ -1096,13 +1100,300 @@ function SettingsSection() {
   );
 }
 
-// ── Admin screen (segmented control: Matches | Users | Settings) ──────────────
+// ── Bonus outcomes section ────────────────────────────────────────────────────
 
-type AdminTab = "matches" | "users" | "settings";
+// Canonical label map — mirrors bonus.Categories from backend
+const BONUS_CATEGORY_LABELS: Record<string, string> = {
+  winner:       "World Cup Winner",
+  runner_up:    "Runner-Up",
+  golden_ball:  "Golden Ball",
+  golden_boot:  "Golden Boot",
+  golden_glove: "Golden Glove",
+  young_player: "Young Player Award",
+  fair_play:    "Fair Play Award",
+};
+
+function BonusSection() {
+  const { data: bonusData, isLoading, isError } = useBonusResults();
+  const { data: teams = [] } = useTeams();
+  const saveMutation = useSaveBonusResults();
+
+  // Local picks: category → ref_id (only categories that have a selection)
+  const [picks, setPicks] = useState<Record<string, number>>({});
+  // Optimistic player labels for player-type categories
+  const [playerLabels, setPlayerLabels] = useState<Record<string, string>>({});
+  // Seed local picks from server data once loaded
+  const seededRef = useRef(false);
+
+  useEffect(() => {
+    if (bonusData && !seededRef.current) {
+      seededRef.current = true;
+      const initial: Record<string, number> = {};
+      for (const row of bonusData.results) {
+        if (row.set && row.ref_id) {
+          initial[row.category] = row.ref_id;
+        }
+      }
+      setPicks(initial);
+    }
+  }, [bonusData]);
+
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleTeamChange = (category: string, refId: number) => {
+    setPicks((prev) => ({ ...prev, [category]: refId }));
+    setSaveStatus(null);
+    setSaveError(null);
+  };
+
+  const handlePlayerSelect = (category: string, refId: number, label: string) => {
+    setPicks((prev) => ({ ...prev, [category]: refId }));
+    setPlayerLabels((prev) => ({ ...prev, [category]: label }));
+    setSaveStatus(null);
+    setSaveError(null);
+  };
+
+  const handleSave = () => {
+    setSaveStatus(null);
+    setSaveError(null);
+    const entries = Object.entries(picks)
+      .filter(([, refId]) => refId > 0)
+      .map(([category, ref_id]) => ({ category, ref_id }));
+
+    saveMutation.mutate(entries, {
+      onSuccess: () => {
+        setSaveStatus("Saved — standings updated");
+        // Invalidation is handled by the hook's onSuccess
+        seededRef.current = false; // allow re-seeding from fresh query data
+        setPlayerLabels({});
+      },
+      onError: (err) => {
+        setSaveError(
+          err instanceof Error ? err.message : "Failed to save bonus outcomes."
+        );
+      },
+    });
+  };
+
+  // ── Skeleton ─────────────────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div
+        className="admin-bonus__skeleton"
+        aria-busy="true"
+        aria-label="Loading bonus outcomes"
+      >
+        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+          <div key={i} className="admin-bonus__skeleton-row" aria-hidden="true">
+            <div className="skeleton skeleton--text admin-bonus__skeleton-label" />
+            <div className="skeleton admin-bonus__skeleton-ctrl" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── Load error ────────────────────────────────────────────────────────────────
+  if (isError) {
+    return (
+      <p className="admin-alert" role="alert">
+        Could not load bonus outcomes. Please refresh and try again.
+      </p>
+    );
+  }
+
+  const rows: BonusResultRow[] = bonusData?.results ?? [];
+
+  return (
+    <div className="admin-bonus">
+      <div className="admin-section-header">
+        <h2 className="admin-section-title">Bonus Outcomes</h2>
+      </div>
+
+      <p className="admin-bonus__intro">
+        Enter the seven award winners after the tournament; saving updates
+        standings immediately.
+      </p>
+
+      <ol className="admin-bonus__list" aria-label="Bonus award categories">
+        {rows.map((row) => {
+          const catLabel =
+            BONUS_CATEGORY_LABELS[row.category] ?? row.category;
+          const currentRefId = picks[row.category];
+          const isSet = row.set || currentRefId > 0;
+
+          // For display in the "current outcome" chip:
+          // player-type: prefer optimistic label, then server label
+          // team-type: resolve from teams list or server label
+          const currentOutcomeLabel: string | null =
+            row.ref_type === "player"
+              ? (playerLabels[row.category] ??
+                  (row.set && row.label ? row.label : null))
+              : (() => {
+                  const teamId = currentRefId ?? (row.set ? row.ref_id : 0);
+                  const found = teams.find((t) => t.id === teamId);
+                  return found?.name ?? (row.set && row.label ? row.label : null);
+                })();
+
+          return (
+            <li
+              key={row.category}
+              className={`admin-bonus-row${isSet ? " admin-bonus-row--set" : " admin-bonus-row--unset"}`}
+              data-testid={`bonus-row-${row.category}`}
+            >
+              {/* Label + points */}
+              <div className="admin-bonus-row__label-wrap">
+                <span className="admin-bonus-row__label">{catLabel}</span>
+                <span
+                  className="admin-bonus-row__pts mono"
+                  aria-label={`${row.points} points`}
+                >
+                  {row.points} pts
+                </span>
+              </div>
+
+              {/* Current outcome chip */}
+              <div className="admin-bonus-row__outcome">
+                {currentOutcomeLabel ? (
+                  <span
+                    className="admin-bonus-row__outcome-set"
+                    data-testid={`outcome-label-${row.category}`}
+                  >
+                    {currentOutcomeLabel}
+                  </span>
+                ) : (
+                  <span
+                    className="admin-bonus-row__outcome-unset"
+                    data-testid={`outcome-unset-${row.category}`}
+                  >
+                    Not set
+                  </span>
+                )}
+              </div>
+
+              {/* Picker: team <select> or player combobox */}
+              <div className="admin-bonus-row__ctrl">
+                {row.ref_type === "team" ? (
+                  <select
+                    className="admin-form__select"
+                    aria-label={`Select team for ${catLabel}`}
+                    value={currentRefId ?? (row.set ? row.ref_id : "")}
+                    disabled={saveMutation.isPending}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (v) handleTeamChange(row.category, v);
+                    }}
+                    data-testid={`team-select-${row.category}`}
+                  >
+                    <option value="">Choose a team…</option>
+                    {teams.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.code})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <PlayerCombobox
+                    comboboxKey={`admin-bonus-${row.category}`}
+                    ariaLabel={`Search players for ${catLabel}`}
+                    disabled={saveMutation.isPending}
+                    currentRefId={
+                      currentRefId ?? (row.set ? row.ref_id : undefined)
+                    }
+                    currentLabel={
+                      playerLabels[row.category] ??
+                      (row.set ? row.label : undefined)
+                    }
+                    onSelect={(opt) =>
+                      handlePlayerSelect(
+                        row.category,
+                        opt.id,
+                        `${opt.name} · ${opt.team_code}`
+                      )
+                    }
+                  />
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+
+      {/* ── Save outcomes button + status ──────────────────────────────────── */}
+      <div className="admin-bonus__actions">
+        <button
+          type="button"
+          className="btn-brand admin-bonus__save-btn"
+          onClick={handleSave}
+          disabled={saveMutation.isPending}
+          aria-label="Save bonus outcomes"
+        >
+          {saveMutation.isPending ? "Saving…" : "Save outcomes"}
+        </button>
+
+        {/* Always mounted so SRs announce updates; hidden until a save succeeds */}
+        <span
+          className="admin-bonus__save-status"
+          role="status"
+          aria-live="polite"
+          style={saveStatus ? undefined : { display: "none" }}
+        >
+          {saveStatus}
+        </span>
+
+        {saveError && (
+          <p className="admin-bonus__save-error" role="alert">
+            {saveError}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Admin screen (segmented control: Matches | Users | Settings | Bonus) ──────
+
+type AdminTab = "matches" | "users" | "settings" | "bonus";
+
+const ADMIN_TABS: AdminTab[] = ["matches", "users", "settings", "bonus"];
 
 export function Admin() {
   const { data: me } = useMe();
   const [tab, setTab] = useState<AdminTab>("matches");
+
+  // Refs to tab button elements — used for programmatic focus in roving tabindex
+  const tabRefs = useRef<Record<AdminTab, HTMLButtonElement | null>>({
+    matches: null,
+    users: null,
+    settings: null,
+    bonus: null,
+  });
+
+  // WAI-ARIA roving tabindex: ArrowLeft/ArrowRight move focus + activate tab
+  const handleTabKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>, current: AdminTab) => {
+      const idx = ADMIN_TABS.indexOf(current);
+      let next: AdminTab | null = null;
+
+      if (e.key === "ArrowRight") {
+        next = ADMIN_TABS[(idx + 1) % ADMIN_TABS.length];
+      } else if (e.key === "ArrowLeft") {
+        next = ADMIN_TABS[(idx - 1 + ADMIN_TABS.length) % ADMIN_TABS.length];
+      } else if (e.key === "Home") {
+        next = ADMIN_TABS[0];
+      } else if (e.key === "End") {
+        next = ADMIN_TABS[ADMIN_TABS.length - 1];
+      }
+
+      if (next !== null) {
+        e.preventDefault();
+        setTab(next);
+        tabRefs.current[next]?.focus();
+      }
+    },
+    [],
+  );
 
   // Defense-in-depth: self-guard even though the nav already gates this route
   if (me !== undefined && me?.role !== "admin") {
@@ -1119,37 +1410,60 @@ export function Admin() {
     <section className="admin" aria-label="Admin">
       <div className="admin__tabs" role="tablist" aria-label="Admin sections">
         <button
+          ref={(el) => { tabRefs.current.matches = el; }}
           type="button"
           role="tab"
           aria-selected={tab === "matches"}
           aria-controls="admin-panel-matches"
           id="admin-tab-matches"
           className={`admin__tab${tab === "matches" ? " is-active" : ""}`}
+          tabIndex={tab === "matches" ? 0 : -1}
           onClick={() => setTab("matches")}
+          onKeyDown={(e) => handleTabKeyDown(e, "matches")}
         >
           Matches
         </button>
         <button
+          ref={(el) => { tabRefs.current.users = el; }}
           type="button"
           role="tab"
           aria-selected={tab === "users"}
           aria-controls="admin-panel-users"
           id="admin-tab-users"
           className={`admin__tab${tab === "users" ? " is-active" : ""}`}
+          tabIndex={tab === "users" ? 0 : -1}
           onClick={() => setTab("users")}
+          onKeyDown={(e) => handleTabKeyDown(e, "users")}
         >
           Users
         </button>
         <button
+          ref={(el) => { tabRefs.current.settings = el; }}
           type="button"
           role="tab"
           aria-selected={tab === "settings"}
           aria-controls="admin-panel-settings"
           id="admin-tab-settings"
           className={`admin__tab${tab === "settings" ? " is-active" : ""}`}
+          tabIndex={tab === "settings" ? 0 : -1}
           onClick={() => setTab("settings")}
+          onKeyDown={(e) => handleTabKeyDown(e, "settings")}
         >
           Settings
+        </button>
+        <button
+          ref={(el) => { tabRefs.current.bonus = el; }}
+          type="button"
+          role="tab"
+          aria-selected={tab === "bonus"}
+          aria-controls="admin-panel-bonus"
+          id="admin-tab-bonus"
+          className={`admin__tab${tab === "bonus" ? " is-active" : ""}`}
+          tabIndex={tab === "bonus" ? 0 : -1}
+          onClick={() => setTab("bonus")}
+          onKeyDown={(e) => handleTabKeyDown(e, "bonus")}
+        >
+          Bonus
         </button>
       </div>
 
@@ -1181,6 +1495,16 @@ export function Admin() {
         className="admin__panel"
       >
         <SettingsSection />
+      </div>
+
+      <div
+        id="admin-panel-bonus"
+        role="tabpanel"
+        aria-labelledby="admin-tab-bonus"
+        hidden={tab !== "bonus"}
+        className="admin__panel"
+      >
+        {tab === "bonus" && <BonusSection />}
       </div>
     </section>
   );

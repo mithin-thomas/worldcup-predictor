@@ -2600,3 +2600,221 @@ body {
   .admin-dialog__confirm,
   .admin-dialog__confirm--brand { transition: none; }
 }
+
+/* ─── Admin Bonus outcomes tab (M8c / impeccable) ────────────────────────────
+ *
+ * Visual contract:
+ * — Dark-first tokens only; no new palette colours
+ * — JetBrains Mono (.mono) for "10 pts" numerics (admin-bonus-row__pts)
+ * — --brand coral ONLY for the single Save button (reuses .btn-brand)
+ * — Set rows: left-border in --brand tint; unset rows: dashed border in --border
+ * — Current outcome chip: set = ink chip with brand-tint bg; unset = muted text
+ * — role=status success banner: --live tint (not brand) — signals completion
+ * — role=alert error: --danger trifecta pattern (matches .admin-form__error)
+ * — Skeleton rows: same pattern as .admin-skeleton__row
+ * — ≥44px touch targets (all pickers, save button); :focus-visible rings
+ * — prefers-reduced-motion fallback at bottom
+ */
+
+/* ── Container ──────────────────────────────────────────────────────────────── */
+.admin-bonus {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ── Intro teaching line ────────────────────────────────────────────────────── */
+.admin-bonus__intro {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 60ch;
+}
+
+/* ── Category list ──────────────────────────────────────────────────────────── */
+.admin-bonus__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ── Individual category row ────────────────────────────────────────────────── */
+.admin-bonus-row {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  transition: border-color 120ms ease;
+}
+
+/* Set row: left brand-tint accent to distinguish from unset */
+.admin-bonus-row--set {
+  border-left: 3px solid color-mix(in oklch, var(--brand) 50%, transparent);
+  background: color-mix(in oklch, var(--brand) 4%, var(--surface-1));
+}
+
+/* Unset row: dashed border signals "needs filling" */
+.admin-bonus-row--unset {
+  border-style: dashed;
+  border-color: var(--border);
+}
+
+.admin-bonus-row:focus-within {
+  border-color: var(--muted);
+}
+
+@media (min-width: 680px) {
+  .admin-bonus-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(120px, auto) minmax(200px, 260px);
+    align-items: center;
+    gap: var(--space-3) var(--space-4);
+  }
+  /* Set rows keep left accent, override grid style for dashed */
+  .admin-bonus-row--set {
+    border-left: 3px solid color-mix(in oklch, var(--brand) 50%, transparent);
+  }
+}
+
+/* ── Label area ─────────────────────────────────────────────────────────────── */
+.admin-bonus-row__label-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.admin-bonus-row__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+/* Points — JetBrains Mono, muted */
+.admin-bonus-row__pts {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+  font-family: "JetBrains Mono", "Fira Mono", monospace;
+  font-feature-settings: "tnum";
+}
+
+/* ── Current outcome chip ───────────────────────────────────────────────────── */
+.admin-bonus-row__outcome {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Set outcome: semi-prominent chip with brand tint */
+.admin-bonus-row__outcome-set {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  background: color-mix(in oklch, var(--brand) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--brand) 28%, transparent);
+  border-radius: 100px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Unset outcome: subtle muted text — no opacity reduction; --muted alone is ~6.5:1 on surface */
+.admin-bonus-row__outcome-unset {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ── Picker control area ────────────────────────────────────────────────────── */
+.admin-bonus-row__ctrl {
+  min-width: 0;
+  width: 100%;
+}
+
+/* ── Actions row (Save button + status) ─────────────────────────────────────── */
+.admin-bonus__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding-top: var(--space-2);
+}
+
+.admin-bonus__save-btn {
+  min-width: 140px;
+}
+
+/* Save success banner: --live tint; prose text uses body font (not Mono — §7.3 Mono is numerics only) */
+.admin-bonus__save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in oklch, var(--live) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--live) 30%, transparent);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--live);
+}
+
+/* Save error: --danger trifecta */
+.admin-bonus__save-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger-fg);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+/* ── Skeleton ───────────────────────────────────────────────────────────────── */
+.admin-bonus__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-bonus__skeleton-row {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 60px;
+}
+
+.admin-bonus__skeleton-label {
+  height: 14px;
+  width: 160px;
+  border-radius: var(--radius-sm);
+}
+
+.admin-bonus__skeleton-ctrl {
+  height: 44px;
+  width: 200px;
+  border-radius: var(--radius-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-bonus-row { transition: none; }
+}

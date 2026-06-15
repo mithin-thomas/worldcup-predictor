@@ -51,6 +51,7 @@ type fakeBonusStore struct {
 	teamOK       bool
 	playerOK     bool
 	resultsSaved int
+	results      []store.BonusResult
 }
 
 func (f *fakeBonusStore) UpsertBonusPrediction(_ context.Context, _ int64, cat string, ref int64) error {
@@ -77,7 +78,7 @@ func (f *fakeBonusStore) UpsertBonusResult(context.Context, string, int64) error
 	return nil
 }
 func (f *fakeBonusStore) ListBonusResults(context.Context) ([]store.BonusResult, error) {
-	return nil, nil
+	return f.results, nil
 }
 func (f *fakeBonusStore) ListAllBonusPredictions(context.Context) ([]store.BonusPredictionRow, error) {
 	return nil, nil
