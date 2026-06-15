@@ -13,6 +13,11 @@ Internal use only; Google Workspace SSO restricted to `sayonetech.com`.
 - **`docs/REQUIREMENTS.md` is the locked spec.** Scope, scoring rules, data model, API
   surface, design system, security — all live there. Do **not** re-derive requirements or
   re-litigate settled decisions; read the spec and follow it. Section numbers below refer to it.
+- **Keep the spec current.** When you ADD or CHANGE any user-facing behavior, **update
+  `docs/REQUIREMENTS.md` in the same change.** It's the single source of truth, and the
+  automated PR review checks each PR against it — a feature not in the spec is flagged as a
+  spec violation. (User instructions still take precedence; record the resulting decision in
+  the spec so code and spec stay in sync.)
 - **`docs/superpowers/plans/`** holds per-milestone implementation plans (one vertical slice
   each). Execute plans task-by-task with TDD; don't free-form around them.
 - Relative dates in conversation are converted to absolute in the spec/plans. Today's project
