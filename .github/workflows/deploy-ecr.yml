@@ -1,0 +1,78 @@
+# Build the backend + frontend images and push them to ECR on every merge to
+# main. NO tests here — they run in PR CI; this is build-and-push only.
+#
+# One ECR repo (sayscore) holds both images, distinguished by tag:
+#   <account>.dkr.ecr.ap-south-1.amazonaws.com/sayscore:backend-<sha>  + :backend-latest
+#   <account>.dkr.ecr.ap-south-1.amazonaws.com/sayscore:frontend-<sha> + :frontend-latest
+#
+# Required repo configuration (Settings → Secrets and variables → Actions):
+#   - secret  AWS_DEPLOY_ROLE_ARN     IAM role ARN assumed via OIDC (from devops)
+#   - variable VITE_GOOGLE_CLIENT_ID  prod Google OAuth client id (baked into the
+#                                     frontend bundle at build time; not secret)
+name: Deploy — push images to ECR
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-ecr-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # required for AWS OIDC
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: sayscore
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: backend
+            context: backend
+            dockerfile: backend/Dockerfile
+            build_args: ""
+          - component: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile.prod
+            build_args: |
+              VITE_GOOGLE_CLIENT_ID=${{ vars.VITE_GOOGLE_CLIENT_ID }}
+              VITE_API_BASE_URL=/api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push ${{ matrix.component }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          build-args: ${{ matrix.build_args }}
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ matrix.component }}-${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ matrix.component }}-latest
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
