@@ -2,29 +2,25 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
-    # Skip the review when a PR touches ONLY non-code files (docs, markdown,
-    # config metadata, assets). A PR that mixes code + docs still runs, since
-    # at least one changed file falls outside this ignore list.
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - "**.txt"
-      - "**.svg"
-      - "**.png"
-      - "**.jpg"
-      - "**.jpeg"
-      - "**.ico"
-      - "**.webp"
-      - "LICENSE"
-      - ".gitignore"
-      - "**/.gitignore"
-      - ".editorconfig"
-      - "**/.dockerignore"
-      - ".npmrc"
+    # Trimmed from the default [opened, synchronize, ready_for_review,
+    # reopened]. `synchronize` fires on every push to the PR branch —
+    # which means a noisy WIP PR triggers a full review every commit,
+    # eating Claude Code plan quota for very little incremental signal.
+    # Keep the three "deliberate" events: PR creation, draft -> ready,
+    # and closed -> reopened.
+    types: [opened, ready_for_review, reopened]
+    # Optional: Only run on specific file changes
+    # paths:
+    #   - "src/**/*.ts"
+    #   - "src/**/*.tsx"
+    #   - "src/**/*.js"
+    #   - "src/**/*.jsx"
 
 jobs:
   claude-review:
+    # Skip drafts — `draft -> ready_for_review` will fire a review when
+    # the author signals it's ready. Saves quota on iterative WIP work.
+    if: github.event.pull_request.draft == false
     # Optional: Filter by PR author
     # if: |
     #   github.event.pull_request.user.login == 'external-contributor' ||
@@ -34,8 +30,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      # `write` (not `read`) is required to POST review comments on the PR.
+      # With `read`, the action runs to completion ("success") but cannot
+      # attach comments — appears as a silent successful run.
+      pull-requests: write
+      issues: write
       id-token: write
 
     steps:
@@ -46,12 +45,26 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
-        uses: anthropics/claude-code-action@v1
+        # Pinned for reproducibility only — NOT the fix. The real reason PR
+        # reviews posted nothing was the missing --comment flag below, which is
+        # independent of action version, permissions, and tool allowlists.
+        uses: anthropics/claude-code-action@v1.0.141
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          # --comment is REQUIRED. Without it the code-review plugin runs the
+          # full review but prints to the action log only and posts NOTHING to
+          # the PR (the "completes green, PR stays silent" symptom we chased for
+          # ages). With --comment it posts inline findings, or a gh pr comment
+          # summary when the diff is clean.
+          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment'
+          # NOTE: use_sticky_comment is effectively a no-op in agent mode (a
+          # custom prompt with track_progress at its default of false), so it is
+          # NOT the safety net. If a clean review still looks silent, or posts
+          # but lands empty ("No buffered inline comments", upstream issue
+          # #1087), escalate to the documented pattern: set `track_progress: true`
+          # and add `claude_args` with an explicit allowlist that includes
+          # mcp__github_inline_comment__create_inline_comment.
+          use_sticky_comment: true
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-
