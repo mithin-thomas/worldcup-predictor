@@ -231,6 +231,46 @@ export function useSaveBonusResults() {
   });
 }
 
+// ── Background jobs (debug only) ──────────────────────────────────────────────
+
+export type JobName = "results-ingest" | "weekly-winner" | "bonus-score";
+
+export function useRunJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (job: JobName): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${BASE}/admin/jobs/run`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job }),
+      });
+      if (!res.ok) {
+        let msg = `${res.status}`;
+        try {
+          const json = (await res.json()) as { error?: string };
+          if (json.error) msg = json.error;
+        } catch {
+          // ignore parse failure
+        }
+        throw new Error(msg);
+      }
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    onSuccess: (_data, job) => {
+      if (job === "results-ingest") {
+        qc.invalidateQueries({ queryKey: ["matches"] });
+        qc.invalidateQueries({ queryKey: ["leaderboard"] });
+      } else if (job === "weekly-winner") {
+        qc.invalidateQueries({ queryKey: ["winners"] });
+        qc.invalidateQueries({ queryKey: ["leaderboard"] });
+      } else if (job === "bonus-score") {
+        qc.invalidateQueries({ queryKey: ["leaderboard"] });
+      }
+    },
+  });
+}
+
 // ── Recompute ─────────────────────────────────────────────────────────────────
 
 export function useRecompute() {
