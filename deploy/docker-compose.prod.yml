@@ -1,0 +1,117 @@
+# SayScore PRODUCTION stack — Caddy (auto-HTTPS) + backend + MySQL.
+# Run from the repo root:
+#   docker compose --env-file .env.prod -p sayscore-prod -f deploy/docker-compose.prod.yml up -d --build
+# (or: make up-prod)
+#
+# Requires:
+#   - a .env.prod with real secrets (copy .env.prod.example) — NEVER commit it
+#   - DNS for SITE_ADDRESS pointing at this host, with ports 80 + 443 open
+#     (Caddy provisions a Let's Encrypt cert automatically)
+#   - the prod origin added as an Authorized JavaScript origin on the OAuth client
+name: sayscore-prod
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD in .env.prod}
+      MYSQL_DATABASE: ${DB_NAME:-wcp}
+      MYSQL_USER: ${DB_USER:-wcp}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env.prod}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USER:-wcp}", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - mysql_data:/var/lib/mysql
+    # No host port: only the backend reaches MySQL on the internal network.
+
+  # One-shot: apply migrations, then exit. Backend waits for success.
+  migrate:
+    image: migrate/migrate:v4.17.1
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ../backend/migrations:/migrations:ro
+    command:
+      - "-path=/migrations"
+      - "-database=mysql://${DB_USER:-wcp}:${DB_PASSWORD}@tcp(mysql:3306)/${DB_NAME:-wcp}"
+      - "up"
+    restart: on-failure
+
+  # One-shot: load the committed fixture seed (INSERT IGNORE → idempotent).
+  seed:
+    image: mysql:8.0
+    environment:
+      MYSQL_PWD: ${DB_PASSWORD}
+    entrypoint: ["sh", "-c", "mysql --host=mysql --user=${DB_USER:-wcp} ${DB_NAME:-wcp} < /seed.sql"]
+    volumes:
+      - ./seed/seed.sql:/seed.sql:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: on-failure
+
+  backend:
+    image: sayscore-backend:prod
+    restart: unless-stopped
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    environment:
+      APP_ENV: production          # Secure cookies on; debug job route OFF
+      HTTP_PORT: "8000"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: ${DB_USER:-wcp}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-wcp}
+      TZ: Asia/Kolkata
+      SEED_DATA_DIR: /app/data
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env.prod}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?set GOOGLE_CLIENT_ID in .env.prod}
+      ALLOWED_EMAIL_DOMAIN: ${ALLOWED_EMAIL_DOMAIN:-sayonetech.com}
+      SEED_ADMIN_EMAILS: ${SEED_ADMIN_EMAILS:-}
+      FOOTBALL_DATA_API_KEY: ${FOOTBALL_DATA_API_KEY:-}
+      RESULTS_CRON_ENABLED: ${RESULTS_CRON_ENABLED:-true}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+    volumes:
+      - ../data:/app/data:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    # No host port: Caddy proxies to backend:8000 on the internal network.
+
+  caddy:
+    image: sayscore-frontend:prod
+    restart: unless-stopped
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.prod
+      args:
+        # Same client id as the backend; baked into the bundle at build time.
+        VITE_GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+        VITE_API_BASE_URL: "/api"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env.prod (your public hostname)}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3 (QUIC)
+    volumes:
+      - caddy_data:/data       # persisted TLS certs + ACME account
+      - caddy_config:/config
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  caddy_data:
+  caddy_config:

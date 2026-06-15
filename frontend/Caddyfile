@@ -1,0 +1,27 @@
+# SayScore production frontend (Caddy): automatic HTTPS, SPA serving, a
+# first-party /api reverse-proxy, and an internal-app robots.txt.
+#
+# SITE_ADDRESS is the public hostname (e.g. sayscore.example.com) — Caddy
+# provisions and renews a Let's Encrypt certificate for it automatically.
+# Use ":80" (or "localhost") for a local, no-TLS smoke test.
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+	root * /srv
+
+	# First-party API proxy — keeps the session cookie same-origin with the SPA
+	# (no CORS). `backend` resolves to the backend service on the compose network.
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	# Long-cache content-hashed build assets (filenames change per build).
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	# Static SPA with client-side routing fallback. robots.txt is a real file in
+	# /srv, so file_server serves it directly before the index.html fallback.
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -3,6 +3,9 @@
 # Named compose project so all containers/volumes are grouped under "sayscore".
 COMPOSE := docker compose -p sayscore -f deploy/docker-compose.yml
 
+# Production stack (Caddy + auto-HTTPS). Reads secrets from .env.prod (gitignored).
+PROD_COMPOSE := docker compose -p sayscore-prod --env-file .env.prod -f deploy/docker-compose.prod.yml
+
 # Load backend/.env (if present) so DB_* / secrets are available to recipes.
 # Each recipe sources it; values already in the environment win.
 ENVFILE := backend/.env
@@ -18,7 +21,8 @@ DB_PASSWORD ?= wcp
 DB_NAME ?= wcp
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-d down logs ps migrate-up migrate-down migrate-new \
+.PHONY: help up up-d down logs ps up-prod down-prod logs-prod ps-prod \
+        migrate-up migrate-down migrate-new \
         sqlc run dev seed-fixtures load-seed dump-seed test test-frontend lint fmt tidy \
         build hooks hooks-tools
 
@@ -44,6 +48,20 @@ logs: ## Tail stack logs
 
 ps: ## Show stack containers
 	$(COMPOSE) ps
+
+## ---- Production stack (Caddy + HTTPS) — needs .env.prod ----
+up-prod: ## Build + run the PRODUCTION stack detached (Caddy auto-HTTPS) → :80/:443
+	@test -f .env.prod || { echo "missing .env.prod (copy .env.prod.example)"; exit 1; }
+	$(PROD_COMPOSE) up -d --build
+
+down-prod: ## Stop the production stack (volumes/certs preserved)
+	$(PROD_COMPOSE) down
+
+logs-prod: ## Tail production stack logs
+	$(PROD_COMPOSE) logs -f
+
+ps-prod: ## Show production stack containers
+	$(PROD_COMPOSE) ps
 
 ## ---- Database migrations (golang-migrate) ----
 migrate-up: ## Apply all migrations
