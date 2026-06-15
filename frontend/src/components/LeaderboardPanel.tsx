@@ -75,7 +75,7 @@ export function LeaderboardPanel() {
                   <Avatar name={r.name} avatarUrl={r.avatar_url || undefined} size={28} isMe={r.is_me} />
                   <span className="lb-name">
                     {r.name}
-                    {r.is_me && <span className="you-tag">You</span>}
+                    {r.is_me && <span className="you-tag">(You)</span>}
                     {period === "week" && r.is_winner && (
                       <span className="lb__badge" aria-label="weekly winner">★</span>
                     )}

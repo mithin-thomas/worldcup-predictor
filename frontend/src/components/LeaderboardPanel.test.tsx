@@ -71,11 +71,11 @@ describe("LeaderboardPanel", () => {
     expect(meEl!.classList.contains("you")).toBe(true);
   });
 
-  it("renders 'You' tag inside the me row", async () => {
+  it("marks the me row with a (You) label after the name", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => overall }));
     renderPanel();
     await screen.findByText("Me");
-    expect(screen.getByText("You")).toBeInTheDocument();
+    expect(screen.getByText("(You)")).toBeInTheDocument();
   });
 
   it("switches to Weekly when the toggle is clicked", async () => {
