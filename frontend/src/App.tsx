@@ -2,15 +2,12 @@ import { useState } from "react";
 import { useMe, GoogleSignInButton, useLogout } from "./lib/auth";
 import { Home } from "./routes/Home";
 import { Admin } from "./routes/Admin";
-// Note: Bonus route (routes/Bonus.tsx) preserved for Unit 2 when it merges into Home.
 // Auth screen: full dark wordmark logo
 import sayscoreLogo from "./assets/sayscore-logo-dark.png";
 // Topbar: transparent mark (works on the dark blurred glass topbar)
 import sayscoreMark from "./assets/sayscore-logo-transparent.png";
 
-// Unit 1: SayOne redesign shell
-// - Predictions + Admin tabs (Bonus merged into Home in Unit 2)
-// - Bonus route kept alive for backward-compat; not shown in nav
+// SayOne redesign shell — Predictions + Admin tabs (Bonus is embedded in Home)
 type View = "predictions" | "admin";
 
 export default function App() {
