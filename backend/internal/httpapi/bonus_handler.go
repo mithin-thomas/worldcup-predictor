@@ -53,25 +53,11 @@ func (d *Deps) GetBonus(w http.ResponseWriter, r *http.Request) {
 	for _, p := range picks {
 		cat := bonus.Category(p.Category)
 		refType := bonus.RefTypeOf(cat)
-		var label string
-		if refType == bonus.RefTeam {
-			if name, err := d.Players.TeamNameByID(r.Context(), p.RefID); err != nil {
-				slog.Error("bonus: resolve team name", "ref_id", p.RefID, "err", err)
-			} else {
-				label = name
-			}
-		} else {
-			if name, err := d.Players.PlayerNameByID(r.Context(), p.RefID); err != nil {
-				slog.Error("bonus: resolve player name", "ref_id", p.RefID, "err", err)
-			} else {
-				label = name
-			}
-		}
 		out = append(out, bonusPickDTO{
 			Category: p.Category,
 			RefType:  string(refType),
 			RefID:    p.RefID,
-			Label:    label,
+			Label:    d.resolveRefLabel(r, cat, p.RefID),
 			Points:   p.Points,
 		})
 	}

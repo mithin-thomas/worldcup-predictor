@@ -199,3 +199,89 @@ func TestPutBonusResults_NilJobRunnerSkipsScoring(t *testing.T) {
 		t.Errorf("resultsSaved=%d want 1", bs.resultsSaved)
 	}
 }
+
+// TestGetBonusResults_StaleRefIDDegradesToEmptyLabel asserts that a stored outcome
+// whose ref_id is not present in the name store resolves to label:"" (graceful
+// degradation) while still returning set:true and the stored ref_id.
+func TestGetBonusResults_StaleRefIDDegradesToEmptyLabel(t *testing.T) {
+	bs := &fakeBonusStore{}
+	bs.results = []store.BonusResult{{Category: "winner", RefID: 999}}
+	// fakePlayerStore with an empty teamNames map — id 999 is not present → ""
+	ps := &fakePlayerStore{teamNames: map[int64]string{}}
+	d := &Deps{Bonus: bs, Players: ps}
+	req := ctxUser(httptest.NewRequest(http.MethodGet, "/api/admin/bonus/results", nil), 1)
+	rec := httptest.NewRecorder()
+	d.GetBonusResults(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d want 200 even with unknown ref_id", rec.Code)
+	}
+	var got struct {
+		Results []struct {
+			Category string `json:"category"`
+			RefID    int64  `json:"ref_id"`
+			Label    string `json:"label"`
+			Set      bool   `json:"set"`
+		} `json:"results"`
+	}
+	_ = json.NewDecoder(rec.Body).Decode(&got)
+	if len(got.Results) == 0 {
+		t.Fatal("expected results")
+	}
+	var winnerRow *struct {
+		Category string `json:"category"`
+		RefID    int64  `json:"ref_id"`
+		Label    string `json:"label"`
+		Set      bool   `json:"set"`
+	}
+	for i := range got.Results {
+		if got.Results[i].Category == "winner" {
+			winnerRow = &got.Results[i]
+			break
+		}
+	}
+	if winnerRow == nil {
+		t.Fatal("winner row missing from results")
+	}
+	if !winnerRow.Set {
+		t.Error("set should be true for a stored outcome")
+	}
+	if winnerRow.RefID != 999 {
+		t.Errorf("ref_id=%d want 999", winnerRow.RefID)
+	}
+	if winnerRow.Label != "" {
+		t.Errorf("label=%q want empty string for unknown ref_id", winnerRow.Label)
+	}
+}
+
+// TestPutBonusResults_Idempotent documents that calling PutBonusResults twice with
+// the same body is safe: the handler upserts on every call (idempotency is delegated
+// to the SET-based scorer), so resultsSaved==2 and JobRunner is invoked each time.
+func TestPutBonusResults_Idempotent(t *testing.T) {
+	bs := &fakeBonusStore{teamOK: true, playerOK: true}
+	jr := &fakeJobRunner{}
+	d := &Deps{Bonus: bs, Players: &fakePlayerStore{}, JobRunner: jr}
+	body := `{"results":[{"category":"winner","ref_id":9}]}`
+
+	// First call
+	req1 := ctxUser(httptest.NewRequest(http.MethodPut, "/api/admin/bonus/results", strings.NewReader(body)), 1)
+	rec1 := httptest.NewRecorder()
+	d.PutBonusResults(rec1, req1)
+	if rec1.Code != http.StatusOK {
+		t.Fatalf("first call: status=%d want 200", rec1.Code)
+	}
+
+	// Second call — same body
+	req2 := ctxUser(httptest.NewRequest(http.MethodPut, "/api/admin/bonus/results", strings.NewReader(body)), 1)
+	rec2 := httptest.NewRecorder()
+	d.PutBonusResults(rec2, req2)
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("second call: status=%d want 200", rec2.Code)
+	}
+
+	if bs.resultsSaved != 2 {
+		t.Errorf("resultsSaved=%d want 2 (upsert ran each time)", bs.resultsSaved)
+	}
+	if jr.called != 2 {
+		t.Errorf("JobRunner.called=%d want 2 (scorer invoked each time)", jr.called)
+	}
+}
