@@ -163,6 +163,10 @@ func main() {
 // (IST). Falls back to cfg.ResultsCron if cronExpr is empty. Returns nil (and
 // logs) when no API key is configured or the cron expression is invalid.
 func startResultsCron(cronExpr string, cfg config.Config, st *store.SQLStore, notifier notify.Slack, logger *slog.Logger) *cron.Cron {
+	if !cfg.ResultsCronEnabled {
+		logger.Info("results-ingest schedule disabled (RESULTS_CRON_ENABLED=false); manual trigger still available")
+		return nil
+	}
 	if cfg.FootballDataAPIKey == "" {
 		logger.Info("results-ingest disabled (no FOOTBALL_DATA_API_KEY)")
 		return nil
