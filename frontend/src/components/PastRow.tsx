@@ -236,21 +236,14 @@ function OthersPicksModal({ match, onClose }: OthersPicksModalProps) {
 // ── OthersPicksTrigger — trigger button + lazy modal ─────────────────────
 function OthersPicksTrigger({ match }: { match: MatchDTO }) {
   const [open, setOpen] = useState(false);
-  // Cache the count once we have it so the button label updates after close.
-  const [cachedCount, setCachedCount] = useState<number | null>(null);
 
-  // Fetch only when the modal is open; on success cache the count.
+  // Fetch only when the modal is open. TanStack keeps `data` cached after the
+  // modal closes (enabled=false), so the count stays in the label without any
+  // extra state — avoids both setState-during-render and setState-in-effect.
   const { data } = useMatchPredictions(match.id, open);
 
-  // Update cached count whenever fresh data arrives.
-  if (open && data != null && cachedCount !== data.length) {
-    setCachedCount(data.length);
-  }
-
   const label =
-    cachedCount != null
-      ? `Others' picks (${cachedCount})`
-      : "Others' picks";
+    data != null ? `Others' picks (${data.length})` : "Others' picks";
 
   return (
     <>
@@ -258,6 +251,7 @@ function OthersPicksTrigger({ match }: { match: MatchDTO }) {
         type="button"
         className="op-toggle"
         aria-expanded={open}
+        aria-haspopup="dialog"
         onClick={() => setOpen(true)}
       >
         <svg
