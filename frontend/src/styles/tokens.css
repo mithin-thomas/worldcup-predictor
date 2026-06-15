@@ -850,7 +850,11 @@ input  { font-family: inherit; }
 .home__toggle-btn.is-active { background: var(--coral); color: #1c0a05; border-color: var(--coral); }
 .home__toggle-btn:focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; box-shadow: none; }
 .home__grid  { display: block; }
-.home__aside { padding: var(--space-4); }
+/* No own padding: spacing comes from the .page wrapper (horizontal) and
+   .main-right's flex gap (between cards). This keeps the sidebar's top edge
+   aligned with the left column's first card (Tournament Bonus) instead of
+   being pushed down/in by an extra inset. */
+.home__aside { min-width: 0; }
 
 /* ============================================================
    Leaderboard (legacy lb classes)
