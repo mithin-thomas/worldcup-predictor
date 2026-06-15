@@ -53,7 +53,7 @@ this folder). You do **not** need `backend/.env` or `frontend/.env` in prod —
 compose injects everything from `.env.prod`.
 
 **Where it's used:** only by the prod compose, via `--env-file .env.prod` (baked
-into the `make deploy-prod` / `up-prod` / `down-prod` / `logs-prod` targets). It
+into the `make deploy-prod` / `down-prod` / `logs-prod` targets). It
 populates the `${…}` placeholders in `deploy/docker-compose.prod.yml`, which then
 reach the containers (backend env, MySQL, Caddy's `SITE_ADDRESS`) and the image
 refs. Nothing identifying is hardcoded in the committed files — registry/account
@@ -66,8 +66,8 @@ cp .env.prod.example .env.prod
 
 | Var | Required | Notes |
 |---|---|---|
-| `BACKEND_IMAGE` | ✅ (host deploy) | Full backend image ref incl. registry+tag, e.g. `123…dkr.ecr.ap-south-1.amazonaws.com/sayscore:backend-latest`. Kept here (not in the public compose) so the account ID isn't committed. `make deploy-prod` pulls it. Optional if you build locally with `make up-prod` (falls back to `sayscore-backend:local`). |
-| `FRONTEND_IMAGE` | ✅ (host deploy) | Same for the Caddy frontend image, e.g. `…/sayscore:frontend-latest`. |
+| `BACKEND_IMAGE` | ✅ | Full backend image ref incl. registry+tag, e.g. `123…dkr.ecr.ap-south-1.amazonaws.com/sayscore:backend-latest`. Lives here (not in the public compose) so the account ID is not committed. The prod compose pulls it (no build); `make deploy-prod` fetches it. |
+| `FRONTEND_IMAGE` | ✅ | Same for the Caddy frontend image, e.g. `…/sayscore:frontend-latest`. |
 | `SITE_ADDRESS` | ✅ | Public hostname, e.g. `sayscore.example.com`. Caddy gets the cert for it. Use `:80` for a local no-TLS smoke. |
 | `DB_PASSWORD` | ✅ | App DB user password. |
 | `DB_ROOT_PASSWORD` | ✅ | MySQL root password. |
@@ -99,9 +99,9 @@ This pulls `BACKEND_IMAGE` / `FRONTEND_IMAGE` (the ECR tags from `.env.prod`) an
 starts the stack. To roll out a new version, re-run `make deploy-prod` (it pulls
 the latest tags and recreates the changed containers).
 
-> **Local build instead of pull:** `make up-prod` builds the images on the spot
-> (uses the `sayscore-*:local` fallback tags when `BACKEND_IMAGE`/`FRONTEND_IMAGE`
-> are unset). Handy for testing the prod stack without ECR.
+> The prod compose **pulls** the CI-built images — it does not build. To test the
+> prod stack locally, build + tag images yourself (or run the dev stack via
+> `make up`) and point `BACKEND_IMAGE`/`FRONTEND_IMAGE` at those local tags.
 
 First boot, Caddy obtains the certificate (a few seconds once DNS + ports are
 right). Then open `https://<your-domain>` and sign in with a
@@ -150,7 +150,7 @@ docker compose -p sayscore-prod -f deploy/docker-compose.prod.yml \
 - **No certificate / TLS errors** — confirm DNS points at the host and ports 80
   **and** 443 are open; check `make logs-prod` for the ACME challenge. For a
   quick HTTP-only check set `SITE_ADDRESS=:80`.
-- **`make deploy-prod` (or `up-prod`) says "missing .env.prod"** — you haven't created it yet
+- **`make deploy-prod` says "missing .env.prod"** — you haven't created it yet
   (`cp .env.prod.example .env.prod`).
 - **Port 80/443 already in use** — another web server (or the local stack on a
   shared host) is bound; stop it first.

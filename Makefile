@@ -21,7 +21,7 @@ DB_PASSWORD ?= wcp
 DB_NAME ?= wcp
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-d down logs ps deploy-prod up-prod down-prod logs-prod ps-prod \
+.PHONY: help up up-d down logs ps deploy-prod down-prod logs-prod ps-prod \
         migrate-up migrate-down migrate-new \
         sqlc run dev seed-fixtures load-seed dump-seed test test-frontend lint fmt tidy \
         build hooks hooks-tools
@@ -54,10 +54,6 @@ deploy-prod: ## Host deploy: PULL prebuilt images (BACKEND_IMAGE/FRONTEND_IMAGE 
 	@test -f .env.prod || { echo "missing .env.prod (copy .env.prod.example)"; exit 1; }
 	$(PROD_COMPOSE) pull
 	$(PROD_COMPOSE) up -d
-
-up-prod: ## Local: BUILD images + run the PRODUCTION stack detached (Caddy auto-HTTPS) → :80/:443
-	@test -f .env.prod || { echo "missing .env.prod (copy .env.prod.example)"; exit 1; }
-	$(PROD_COMPOSE) up -d --build
 
 down-prod: ## Stop the production stack (volumes/certs preserved)
 	$(PROD_COMPOSE) down
