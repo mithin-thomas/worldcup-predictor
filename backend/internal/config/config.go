@@ -27,6 +27,8 @@ type Config struct {
 	ResultsCron         string
 	WeeklyCron          string
 
+	SlackWebhookURL string
+
 	BonusLockAt time.Time
 }
 
@@ -58,6 +60,9 @@ func Load() (Config, error) {
 		FootballDataBaseURL: getenv("FOOTBALL_DATA_BASE_URL", "https://api.football-data.org/v4"),
 		ResultsCron:         getenv("RESULTS_CRON", "0 3,8,13 * * *"),
 		WeeklyCron:          getenv("WEEKLY_CRON", "30 13 * * 1"),
+		// Optional Slack Incoming Webhook for cron-completion notifications.
+		// Empty disables Slack (jobs still run; nothing is posted).
+		SlackWebhookURL: os.Getenv("SLACK_WEBHOOK_URL"),
 	}
 	lockStr := getenv("BONUS_LOCK_AT", "2026-06-28T23:59:00+05:30")
 	lockAt, err := time.Parse(time.RFC3339, lockStr)
