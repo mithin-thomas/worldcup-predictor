@@ -320,14 +320,47 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
 
   /api/admin/bonus/results:
+    get:
+      tags: [Admin]
+      summary: List all seven tournament-award outcomes
+      description: >
+        Returns all seven award categories in canonical order (winner, runner_up,
+        golden_ball, golden_boot, golden_glove, young_player, fair_play) so the
+        admin Bonus Outcomes screen renders every row, set or not. Each row carries
+        the category's points, its ref_type (team or player), and — for a set
+        category — the stored `ref_id` plus its resolved `label`. Unset categories
+        return `ref_id: 0`, `label: ""`, `set: false`; a stale ref resolves to an
+        empty label. A standard admin route (`RequireAdmin`) registered in all
+        environments.
+      responses:
+        "200":
+          description: All seven categories with their current outcomes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BonusResults" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Not an admin
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
     put:
       tags: [Admin]
-      summary: Set tournament-award outcomes
+      summary: Set tournament-award outcomes (auto-scores)
       description: >
         Upserts one or more bonus-award outcomes (the actual winner, golden ball,
         etc.), each validated like a pick (known category, `ref_id` exists in the
         correct table). A standard admin route (`RequireAdmin`) registered in all
-        environments. Scoring is then materialized via the `bonus-score` debug job.
+        environments. After the validate-all-then-upsert, the handler immediately
+        materializes `bonus_predictions.points` from the new outcomes (idempotent
+        recompute, never increment), so the overall leaderboard reflects the
+        winners at once. Outcomes are persisted before scoring: a scoring failure
+        returns 500 but never loses the saved outcomes (re-run via
+        `POST /api/admin/recompute`). The response is `{ saved }` only.
       requestBody:
         required: true
         content:
@@ -346,13 +379,13 @@ paths:
                       ref_id: { type: integer, format: int64 }
       responses:
         "200":
-          description: Outcomes saved
+          description: Outcomes saved and auto-scored
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  saved: { type: integer, description: "Number of outcomes upserted" }
+                  saved: { type: integer, description: "Number of outcomes upserted (no separate scored count)" }
         "400":
           description: Bad request (invalid category, wrong-type ref, or invalid JSON body)
           content:
@@ -365,6 +398,11 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
         "403":
           description: Not an admin
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Outcomes saved but auto-scoring failed (re-run recompute)
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -936,6 +974,23 @@ components:
         picks:
           type: array
           items: { $ref: "#/components/schemas/BonusPick" }
+    BonusResult:
+      type: object
+      description: One tournament-award category and its current outcome.
+      properties:
+        category: { $ref: "#/components/schemas/BonusCategory" }
+        points: { type: integer, description: "The category's tournament-bonus value (§3.4)" }
+        ref_type: { type: string, enum: [team, player], description: "team for winner/runner_up/fair_play, player otherwise" }
+        ref_id: { type: integer, format: int64, description: "The stored outcome's team/player id; 0 when unset" }
+        label: { type: string, description: "Resolved team/player name; empty when unset or on a stale ref" }
+        set: { type: boolean, description: "true once an outcome has been recorded for this category" }
+    BonusResults:
+      type: object
+      description: All seven award categories in canonical order, set or not.
+      properties:
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/BonusResult" }
     Venue:
       type: object
       properties:
