@@ -2130,10 +2130,13 @@ input  { font-family: inherit; }
    ============================================================ */
 @media (min-width: 1024px) {
   .home__toggle { display: none; }
-  .home__grid   { display: grid; grid-template-columns: 1fr 360px; align-items: start; max-width: 1120px; margin: 0 auto; }
+  .home__grid   { display: grid; grid-template-columns: 1fr 360px; gap: 26px; align-items: start; max-width: 1120px; margin: 0 auto; }
   .home__main .fixtures { max-width: none; margin: 0; }
   .home__aside  { position: sticky; top: var(--space-4); }
-  .is-hidden-mobile { display: block; }
+  /* Note: do NOT force `display: block` on .is-hidden-mobile here — the columns
+     (.main-left / .main-right) are flex and rely on their flex `gap` to space
+     the cards. The mobile-hide rule below only applies under 1024px, so at this
+     width the columns keep their natural flex display. */
 }
 @media (max-width: 1023px) { .is-hidden-mobile { display: none; } }
 
