@@ -87,9 +87,9 @@ Fixtures sync (initial seed + re-sync), manual match create/edit/delete, result 
 
 **Implemented (M8c):** the admin **Bonus Outcomes** screen now exists — admins enter/edit the seven tournament-award winners (team awards via a team picker, individual awards via a player search) backed by `GET/PUT /api/admin/bonus/results` (see §11). `GET` returns all seven categories in canonical order with their current outcome + resolved label and a `set` flag. **Saving auto-scores:** the `PUT` materializes `bonus_predictions.points` immediately, so the overall leaderboard reflects the winners at once (idempotent; manual recompute remains the bulk safety-net). With this, **Milestone 8 (admin tools) is COMPLETE** — match/result/user management (M8a), settings + recompute (M8b), and bonus outcomes (M8c) are all delivered. The only deferred admin item is fixtures sync.
 
-**Mark weekly prize paid** — admins mark a weekly winner's ₹500 gift card paid or unpaid via `PUT /api/admin/winners/paid`; the status surfaces in the Hall of Fame (§3.5) for everyone. This is a **standard admin route** (`RequireAdmin`) registered in **all** environments — distinct from the debug-only job triggers below, which exist only outside production.
+**Mark weekly prize paid** — admins mark a weekly winner's ₹500 gift card paid or unpaid via `PUT /api/admin/winners/paid`; the status surfaces in the Hall of Fame (§3.5) for everyone. This is a **standard admin route** (`RequireAdmin`) registered in **all** environments — like the manual job triggers below.
 
-**Debug-only job triggers** — for testing, admins can manually fire the scheduled jobs (`results-ingest`, `weekly-winner`, `bonus-score`) on demand. This is gated to non-production builds: the endpoint and its UI control exist **only when `APP_ENV != production`** and are not registered at all in production. It lets a developer run the daily ingest / weekly calc without waiting for the cron. `/api/me` exposes a `debug` flag so the SPA reveals these controls only in non-production.
+**Manual job triggers** — admins can manually fire the scheduled jobs (`results-ingest`, `weekly-winner`, `bonus-score`) on demand. This is a **standard `RequireAdmin` route registered in all environments** (no longer debug/dev-gated), so an admin can run the daily ingest / weekly calc from production if a scheduled cron run was missed. The admin UI shows the controls to any admin (`me.role === "admin"`). Scoring is idempotent, so re-running a job is safe.
 
 ### 3.7 Help / how to play
 
@@ -152,13 +152,13 @@ This cascade is computed from stored per-prediction points, so it is determinist
 Run in-process via a cron scheduler on a single backend instance (use a leader-lock if you later scale to multiple instances). The process timezone is `Asia/Kolkata`.
 
 - **results-ingest** — default `0 3,8,13 * * *` (03:00 / 08:00 / 13:00 IST), stored as a configurable setting. WC 2026 matches finish across a wide IST window (~23:30 → ~12:30, since kickoffs run 21:30 IST through 09:30 IST next morning), so three intraday runs keep results fresh: 03:00 catches the evening matches plus the large 00:30-IST batch (≈19 games), 08:00 the overnight batch, 13:00 the morning finishers (including any knockout shootout). Each run pulls **FINISHED** matches from the results API over a recent **~2-day UTC window** (deliberately overlapping prior runs so a missed cron tick is still caught; the idempotent recompute makes re-fetching already-scored matches free), updates `home_score`/`away_score` + `went_to_penalties` + `penalty_winner_team_id` for matches *not* flagged `manual_override`, then recomputes points idempotently for affected predictions (re-runs are safe).
-- **weekly-winner** — Mondays shortly after ingest (e.g. `30 13 * * 1`). Computes the previous Mon–Sun IST window, writes `weekly_results`, and marks winner(s), allowing ties.
+- **weekly-winner** — default `0 9 * * 1` (Monday 09:00 IST). Runs after the Monday 03:00 + 08:00 result-ingest passes so the just-ended week's late Sunday-night matches are scored before the winner is finalized (running earlier, e.g. just after midnight, risks finalizing on incomplete data). Computes the previous Mon–Sun IST window, writes `weekly_results`, and marks winner(s), allowing ties.
 
 Kickoff **locking is real-time** (enforced on every prediction write) and is *not* part of these jobs.
 
-Both jobs are also invokable on demand via the **debug-only** admin trigger (§3.6), available only when `APP_ENV != production`, for local testing.
+Both jobs are also invokable on demand via the **admin** job trigger (§3.6), available to admins in all environments.
 
-- **`RESULTS_CRON_ENABLED`** (default `true`) gates the *scheduled* results-ingest only: when `false` the cron does not start, but the manual/debug trigger still works. The local Docker stack sets it `false` so seeded demo data isn't overwritten by live results; production leaves it `true`.
+- **`RESULTS_CRON_ENABLED`** (default `true`) gates the *scheduled* results-ingest only: when `false` the cron does not start, but the manual admin trigger still works. The local Docker stack sets it `false` so seeded demo data isn't overwritten by live results; production leaves it `true`.
 - **Slack notifications (optional)** — if `SLACK_WEBHOOK_URL` is set, every job run (scheduled *and* manual) posts a human-readable completion message to Slack (job name, IST timestamp, a result summary, or the error). This makes the cron's liveness observable.
 
 ---
@@ -389,7 +389,7 @@ Other:
 - `PUT    /api/admin/winners/paid` — body `{ "week_start": "YYYY-MM-DD", "user_id", "paid": bool }` → 200 `{ "week_start", "user_id", "prize_paid" }`. Marks a weekly winner's ₹500 gift card paid/unpaid. 400 on a bad date / non-positive `user_id` / bad JSON; 404 when no matching winner row. A **standard `RequireAdmin` route, registered in all environments** (not debug-gated).
 - `GET    /api/admin/bonus/results` *(implemented, M8c)* → 200 `{ "results": [ { "category", "points", "ref_type": "team"|"player", "ref_id", "label", "set" } ] }`. Returns **all seven** award categories in canonical order (`winner`, `runner_up`, `golden_ball`, `golden_boot`, `golden_glove`, `young_player`, `fair_play`) so the admin Bonus Outcomes screen renders every row, set or not. `points` is the category's tournament-bonus value (§3.4); `ref_type` is `team` (winner/runner_up/fair_play) or `player` (the four individual awards); for a set category `ref_id` is the stored outcome and `label` its resolved team/player name; **unset categories return `ref_id: 0`, `label: ""`, `set: false`**. A stale/missing ref resolves to an empty label (degrades gracefully). A **standard `RequireAdmin` route, registered in all environments** (not debug-gated).
 - `PUT    /api/admin/bonus/results` *(auto-scores, M8c)* — body `{ "results": [ { "category", "ref_id" } ] }` → 200 `{ "saved": N }`. Upserts one or more tournament-award outcomes (validated like bonus picks: known category, `ref_id` exists in the correct table). **Saving auto-scores:** after the validate-all-then-upsert, the handler immediately materializes `bonus_predictions.points` from the new outcomes (idempotent recompute, never increment) so the overall leaderboard reflects the winners at once — no separate step. Outcomes are persisted **before** scoring, so a scoring failure returns 500 but never loses the saved outcomes (re-run via `POST /api/admin/recompute`). The response is intentionally **`{ "saved": N }` only** (N = outcomes upserted); recompute remains the bulk path. 400 on a bad category / wrong-type ref / invalid JSON. A **standard `RequireAdmin` route, registered in all environments** (not debug-gated).
-- `POST   /api/admin/jobs/run` — body `{ "job": "results-ingest" | "weekly-winner" | "bonus-score" }`. **Debug-only**: registered only when `APP_ENV != production`; returns 404 in production. `bonus-score` idempotently materializes `bonus_predictions.points` from `bonus_results` (recompute, never increment).
+- `POST   /api/admin/jobs/run` — body `{ "job": "results-ingest" | "weekly-winner" | "bonus-score" }`. A **standard `RequireAdmin` route, registered in all environments** (not debug-gated), so an admin can run a missed cron from production. `bonus-score` idempotently materializes `bonus_predictions.points` from `bonus_results` (recompute, never increment).
 
 Ops
 - `GET /healthz`
@@ -406,7 +406,7 @@ Ops
 - **Request body size cap — implemented (M9):** all `/api` requests are capped at **1 MiB** via `http.MaxBytesReader`; an over-limit body fails JSON decode → 400.
 - **Trusted-proxy note (M9):** the per-IP rate limiter keys on the client IP via chi `middleware.RealIP`, which reads `X-Forwarded-For` / `X-Real-IP` as set by the frontend nginx proxy (`frontend/nginx.conf`). In production the backend **MUST only be reachable via that proxy** (do **not** expose the backend port publicly) — otherwise `X-Forwarded-For` is client-spoofable. The rate limit is **best-effort throttling, not an authorization boundary**.
 - Others' predictions hidden until match lock (§4).
-- The debug job-trigger endpoint (`POST /api/admin/jobs/run`, §11) is registered only when `APP_ENV != production`, so manual cron invocation is impossible in production even for admins.
+- The manual job-trigger endpoint (`POST /api/admin/jobs/run`, §11) is an admin-only (`RequireAdmin`) route registered in all environments, so an authenticated admin can invoke a job in production; it is never reachable by non-admins.
 
 ---
 
@@ -466,11 +466,11 @@ Install once per clone with `lefthook install` (wired into the Makefile / postin
 - **backend/Dockerfile** — multi-stage: build a static binary on `golang:1.22`, run on a minimal base (distroless/alpine). Migrations run via a one-shot command or an init step.
 - **frontend/Dockerfile** — multi-stage: `node` build → static assets served by `nginx`, which also proxies `/api` to the backend.
 - **Production** — the same images deploy to AWS (ECS Fargate or a single Docker host), pointing `DB_*` at **RDS MySQL** instead of the compose MySQL container. The scheduler runs in the single backend instance; if you scale out, add a leader lock. Set `TZ=Asia/Kolkata`.
-- **Production compose (`deploy/docker-compose.prod.yml`)** — swaps the nginx frontend for **Caddy**: automatic Let's Encrypt HTTPS for `$SITE_ADDRESS`, SPA serving, the `/api` reverse-proxy, and an internal `robots.txt` (`Disallow: /` — the app is SSO-gated). MySQL and the backend are **not** published to the host; only Caddy (80/443). The whole stack is driven by a single `.env.prod` (no separate `backend/.env`/`frontend/.env`). `APP_ENV=production` turns on Secure cookies and disables the debug job route. Full guide: `deploy/README.md`.
+- **Production compose (`deploy/docker-compose.prod.yml`)** — swaps the nginx frontend for **Caddy**: automatic Let's Encrypt HTTPS for `$SITE_ADDRESS`, SPA serving, the `/api` reverse-proxy, and an internal `robots.txt` (`Disallow: /` — the app is SSO-gated). MySQL and the backend are **not** published to the host; only Caddy (80/443). The whole stack is driven by a single `.env.prod` (no separate `backend/.env`/`frontend/.env`). `APP_ENV=production` turns on Secure cookies. Full guide: `deploy/README.md`.
 
 ### Environment variables
 
-Backend: `APP_ENV`, `HTTP_PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `ALLOWED_EMAIL_DOMAIN=sayonetech.com`, `SEED_ADMIN_EMAILS`, `FOOTBALL_DATA_API_KEY`, `FOOTBALL_DATA_BASE_URL=https://api.football-data.org/v4`, `RESULTS_CRON=0 3,8,13 * * *`, `WEEKLY_CRON=30 13 * * 1`, `RESULTS_CRON_ENABLED=true`, `SLACK_WEBHOOK_URL` (optional), `BONUS_LOCK_AT=2026-06-28T23:59:00+05:30`, `TZ=Asia/Kolkata`.
+Backend: `APP_ENV`, `HTTP_PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `ALLOWED_EMAIL_DOMAIN=sayonetech.com`, `SEED_ADMIN_EMAILS`, `FOOTBALL_DATA_API_KEY`, `FOOTBALL_DATA_BASE_URL=https://api.football-data.org/v4`, `RESULTS_CRON=0 3,8,13 * * *`, `WEEKLY_CRON=0 9 * * 1`, `RESULTS_CRON_ENABLED=true`, `SLACK_WEBHOOK_URL` (optional), `BONUS_LOCK_AT=2026-06-28T23:59:00+05:30`, `TZ=Asia/Kolkata`.
 
 Frontend (Vite): `VITE_GOOGLE_CLIENT_ID`, `VITE_API_BASE_URL`.
 
@@ -513,7 +513,7 @@ All previously-open questions were resolved in the brainstorming session (2026-0
 ### 17.1 Additional decisions from the 2026-06-13 session
 
 - **Weekly attribution by kickoff** (§3.5) — a match's points count toward the IST week containing its kickoff, so a late result-correction never shifts points across weeks.
-- **Debug-only manual cron trigger** (§3.6, §6, §11) — admins can fire `results-ingest` / `weekly-winner` on demand, but only when `APP_ENV != production`.
+- **Manual cron trigger** (§3.6, §6, §11) — admins can fire `results-ingest` / `weekly-winner` / `bonus-score` on demand; it is an admin-only route available in all environments (including production).
 - **Go module path** (§9) — `github.com/sayonetech/worldcup-predictor/backend`, confirmed.
 - **Frontend design skill** (§7) — the frontend is implemented with the `impeccable` design skill, treating §7 as its design contract.
 

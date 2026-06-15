@@ -35,7 +35,7 @@ Internal use only; Google Workspace SSO restricted to `sayonetech.com`.
   produce co-winners; overall breaks ties via the §5.1 cascade (total → exact hits → correct-result
   hits → bonus hits → shared).
 - **Roles (§2):** exactly `user` and `admin`. Admins fully participate AND get admin tools
-  (match CRUD, result/penalty correction, settings, promote/demote, recompute, debug cron).
+  (match CRUD, result/penalty correction, settings, promote/demote, recompute, manual cron run).
   Seeded via `SEED_ADMIN_EMAILS`; promotion thereafter via `POST /api/admin/users/:id/role`.
 - **Privacy (§4):** others' predictions hidden until a match locks at kickoff, then revealed.
 - **Theme (§7):** dark-first is canonical for v1; light deferred.
@@ -69,8 +69,10 @@ Store **UTC**, display **IST (Asia/Kolkata)**. Scheduler/process `TZ=Asia/Kolkat
 - **sqlc:** edit SQL in `backend/internal/store/queries/`, then `make sqlc`. The generated code in
   `internal/store/sqlc/` is authoritative for field/type names — adapt callers to it, don't hand-edit it.
 - **Migrations:** add a numbered up/down pair in `backend/migrations/`; never edit an applied migration.
-- **Debug-only cron trigger** (`POST /api/admin/jobs/run`) must be registered **only when
-  `APP_ENV != production`** — never reachable in prod.
+- **Manual cron trigger** (`POST /api/admin/jobs/run`) is an **admin-only (`RequireAdmin`)
+  route registered in all environments** (including production), so an admin can run a missed
+  cron from prod. It must never be reachable by non-admins. (Jobs are idempotent, so re-running
+  is safe.)
 - **Commits:** Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, scope where useful).
 - **Secrets:** never commit `.env`; config is 12-factor via environment.
 

@@ -5,9 +5,10 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-// NewRouter wires the API routes. debug=true enables non-production-only routes
-// (currently the admin debug job trigger POST /api/admin/jobs/run).
-func NewRouter(d *Deps, debug bool) chi.Router {
+// NewRouter wires the API routes. The trailing bool is ignored (it formerly
+// gated the dev-only job-run route, now registered in all environments); it is
+// kept so existing call sites/tests need no change.
+func NewRouter(d *Deps, _ bool) chi.Router {
 	r := chi.NewRouter()
 	// RealIP normalizes r.RemoteAddr from proxy headers so the per-IP auth limiter
 	// keys on the real client. SA1019 flags X-Forwarded-For spoofing risk; that's
@@ -64,9 +65,9 @@ func NewRouter(d *Deps, debug bool) chi.Router {
 			priv.With(d.RequireAdmin).Put("/admin/settings", d.PutAdminSettings)
 			priv.With(d.RequireAdmin).Post("/admin/recompute", d.PostRecompute)
 
-			if debug {
-				priv.With(d.RequireAdmin).Post("/admin/jobs/run", d.PostRunJob)
-			}
+			// Manual job trigger — admin-only, registered in all environments so an
+			// admin can run a missed cron (e.g. results-ingest) from production.
+			priv.With(d.RequireAdmin).Post("/admin/jobs/run", d.PostRunJob)
 		})
 	})
 

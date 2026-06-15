@@ -968,13 +968,13 @@ describe("Admin screen — bonus tab", () => {
   });
 });
 
-describe("Admin screen — debug jobs panel", () => {
+describe("Admin screen — background jobs panel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setupDefaultMocks();
   });
 
-  it("renders the three job buttons when me.debug is true", () => {
+  it("renders the three job buttons for an admin", () => {
     wrap(<Admin />);
     fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
 
@@ -983,14 +983,13 @@ describe("Admin screen — debug jobs panel", () => {
     expect(screen.getByTestId("run-job-bonus-score")).toBeInTheDocument();
   });
 
-  it("does not render the debug panel when me.debug is false", () => {
+  it("does not render the jobs panel for a non-admin", () => {
     vi.mocked(useMe).mockReturnValue({
-      data: { id: 99, email: "other@sayonetech.com", name: "Other Admin", role: "admin" as const, debug: false },
+      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "user" as const, debug: false },
       isLoading: false,
     } as unknown as ReturnType<typeof useMe>);
 
     wrap(<Admin />);
-    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
 
     expect(screen.queryByTestId("debug-jobs-panel")).not.toBeInTheDocument();
     expect(screen.queryByTestId("run-job-results-ingest")).not.toBeInTheDocument();

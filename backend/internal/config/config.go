@@ -63,7 +63,7 @@ func Load() (Config, error) {
 		FootballDataAPIKey:  os.Getenv("FOOTBALL_DATA_API_KEY"),
 		FootballDataBaseURL: getenv("FOOTBALL_DATA_BASE_URL", "https://api.football-data.org/v4"),
 		ResultsCron:         getenv("RESULTS_CRON", "0 3,8,13 * * *"),
-		WeeklyCron:          getenv("WEEKLY_CRON", "30 13 * * 1"),
+		WeeklyCron:          getenv("WEEKLY_CRON", "0 9 * * 1"),
 		ResultsCronEnabled:  getbool("RESULTS_CRON_ENABLED", true),
 		// Optional Slack Incoming Webhook for cron-completion notifications.
 		// Empty disables Slack (jobs still run; nothing is posted).
