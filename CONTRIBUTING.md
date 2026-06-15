@@ -42,8 +42,10 @@ For native/hot-reload dev (`make run` + `make dev`) and the full command list, s
    - **Never commit secrets** — `.env*` stay local (gitignored).
 4. **Conventional Commits** (`feat:`, `fix:`, `docs:`, `chore:`, scope where useful). The
    commit-msg hook enforces this. Fix hook failures — don't `--no-verify`.
-5. **Green locally before pushing**: `make test` and `make build` (backend + frontend), or
-   `cd frontend && pnpm tsc --noEmit && pnpm vitest run && pnpm build`.
+5. **Green locally before pushing**:
+   - Backend: `make test` (runs `go test ./...`).
+   - Frontend: `make test-frontend` (Vitest), or `cd frontend && pnpm tsc --noEmit && pnpm vitest run`.
+   - Both build: `make build` (backend binary + frontend bundle).
 
 ---
 
@@ -56,12 +58,19 @@ If your change adds or changes any user-facing behavior, **add/edit it in
 
 - It keeps the spec the single source of truth.
 - **The automated Claude review checks each PR against `docs/REQUIREMENTS.md`.** A feature
-  that isn't in the spec gets flagged as a "spec violation" (this is exactly what happens
-  otherwise). Documenting it in the spec is how the review passes.
+  that isn't in the spec gets flagged as a "spec violation," so a *new* feature must be
+  documented there as part of the PR.
 
 > An AI assistant (e.g. Claude Code) will usually make this spec edit for you as part of the
 > change — but **verify the spec update is actually in your PR's diff** before requesting
 > review. If it's missing, add it.
+
+⚠️ **Locked decisions are not self-amendable.** The spec records *settled* decisions —
+notably the SSO `sayonetech.com` gate (§2/§12), server-authoritative kickoff/window locks
+(§3.2), admin roles (§2), and prediction privacy/reveal (§4). Adding a *new* feature to the
+spec is expected; **changing or weakening a locked decision requires explicit maintainer
+sign-off** and cannot be settled by editing the spec in the same PR (don't use a same-PR
+spec edit just to make the automated reviewer pass). When in doubt, ask a maintainer first.
 
 Docs/chore-only PRs (no behavior change) can skip this.
 
