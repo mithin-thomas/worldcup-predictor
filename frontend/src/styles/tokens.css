@@ -19,6 +19,8 @@
   --win-soft: rgba(52, 211, 153, 0.13);
   --gold: #f5b13c;
   --gold-soft: rgba(245, 177, 60, 0.14);
+  --silver: #cdd5e3;
+  --bronze: #d8a06a;
   --loss: #f4615b;
 
   /* ---- Surfaces — deep ink navy, layered ---- */
@@ -1144,7 +1146,7 @@ input  { font-family: inherit; }
 .standing-top { display: flex; align-items: center; justify-content: space-between; }
 .standing-spark { font-size: 11px; color: var(--gold); display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
 .standing-main  { display: flex; align-items: center; gap: 16px; margin: 14px 0 16px; }
-.standing-rank  { display: flex; align-items: baseline; font-family: var(--font-display); font-weight: 700; font-size: 44px; line-height: 1; color: var(--text); }
+.standing-rank  { display: flex; align-items: baseline; font-family: var(--font-mono); font-weight: 700; font-size: 44px; line-height: 1; color: var(--text); font-feature-settings: "tnum" 1; font-variant-numeric: tabular-nums; }
 .sr-hash        { font-size: 22px; color: var(--coral); margin-right: 1px; }
 .standing-name  { font-family: var(--font-display); font-weight: 700; font-size: 19px; letter-spacing: -0.02em; }
 .standing-stats { font-size: 13px; color: var(--text-3); margin-top: 2px; }
@@ -1152,7 +1154,7 @@ input  { font-family: inherit; }
 .dotsep { display: inline-block; width: 3px; height: 3px; border-radius: 50%; background: var(--text-faint); margin: 0 8px; vertical-align: middle; }
 .standing-bar      { position: relative; height: 26px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; display: flex; align-items: center; }
 .standing-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--r-pill); background: linear-gradient(90deg, var(--coral), var(--coral-hi)); }
-.standing-gap      { position: relative; z-index: 1; padding-left: 12px; font-size: 11px; font-weight: 600; color: #1c0a05; font-family: var(--font-mono); }
+.standing-gap      { position: relative; z-index: 1; padding-left: 12px; font-size: 11px; font-weight: 600; color: var(--text); font-family: var(--font-mono); }
 
 /* ============================================================
    Admin screen (legacy classes — until Unit 4)
@@ -1415,8 +1417,8 @@ input  { font-family: inherit; }
 .lb-row.you:hover     { background: color-mix(in srgb, var(--coral) 18%, transparent); }
 .lb-rank  { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--text-3); text-align: center; }
 .lb-rank.r1 { color: var(--gold); }
-.lb-rank.r2 { color: #cdd5e3; }
-.lb-rank.r3 { color: #d8a06a; }
+.lb-rank.r2 { color: var(--silver); }
+.lb-rank.r3 { color: var(--bronze); }
 .lb-name  { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
 .you-tag  { font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--coral-hi); background: var(--coral-soft); padding: 2px 6px; border-radius: var(--r-pill); flex: none; }
 .lb-pts   { font-size: 15px; font-weight: 700; color: var(--text); min-width: 30px; text-align: right; font-family: var(--font-mono); font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
@@ -1435,7 +1437,10 @@ input  { font-family: inherit; }
 .hof-sub { color: var(--text-3); }
 .hof-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; padding: 6px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); }
 .hof-arrow {
-  width: 34px; height: 34px; min-width: 44px; min-height: 44px;
+  /* Visual: 34×34px circle. Tap area: padded to ≥44×44px (a11y). */
+  width: 34px; height: 34px;
+  padding: 5px;               /* adds 10px on each axis → effective 44×44 hit target */
+  box-sizing: content-box;    /* width/height are the visual core, padding is extra tap area */
   flex: none; border-radius: var(--r-sm);
   display: grid; place-items: center;
   color: var(--text-2); font-size: 18px;
