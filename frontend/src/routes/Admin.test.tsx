@@ -16,6 +16,7 @@ vi.mock("../lib/admin", () => ({
   useSettings: vi.fn(),
   useSaveSettings: vi.fn(),
   useRecompute: vi.fn(),
+  useRunJob: vi.fn(),
   useBonusResults: vi.fn(),
   useSaveBonusResults: vi.fn(),
 }));
@@ -40,6 +41,7 @@ import {
   useSettings,
   useSaveSettings,
   useRecompute,
+  useRunJob,
   useBonusResults,
   useSaveBonusResults,
 } from "../lib/admin";
@@ -183,7 +185,7 @@ function setupDefaultMocks() {
   } as unknown as ReturnType<typeof useTeams>);
 
   vi.mocked(useMe).mockReturnValue({
-    data: { id: 99, email: "other@sayonetech.com", name: "Other Admin", role: "admin" as const },
+    data: { id: 99, email: "other@sayonetech.com", name: "Other Admin", role: "admin" as const, debug: true },
     isLoading: false,
   } as unknown as ReturnType<typeof useMe>);
 
@@ -201,6 +203,7 @@ function setupDefaultMocks() {
 
   vi.mocked(useSaveSettings).mockReturnValue(noopMutation as unknown as ReturnType<typeof useSaveSettings>);
   vi.mocked(useRecompute).mockReturnValue(noopMutation as unknown as ReturnType<typeof useRecompute>);
+  vi.mocked(useRunJob).mockReturnValue(noopMutation as unknown as ReturnType<typeof useRunJob>);
 
   vi.mocked(useBonusResults).mockReturnValue({
     data: { results: defaultBonusResults },
@@ -517,7 +520,7 @@ describe("Admin screen — users tab", () => {
   it("shows no role-toggle for the current user's own row", async () => {
     // Set me.id = adminUser.id (id=1)
     vi.mocked(useMe).mockReturnValue({
-      data: { id: 1, email: "admin@sayonetech.com", name: "Admin User", role: "admin" as const },
+      data: { id: 1, email: "admin@sayonetech.com", name: "Admin User", role: "admin" as const, debug: true },
       isLoading: false,
     } as unknown as ReturnType<typeof useMe>);
 
@@ -548,7 +551,7 @@ describe("Admin screen — users tab", () => {
 
     // Both users, me is someone else (id=99)
     vi.mocked(useMe).mockReturnValue({
-      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const },
+      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const, debug: true },
       isLoading: false,
     } as unknown as ReturnType<typeof useMe>);
 
@@ -579,7 +582,7 @@ describe("Admin screen — users tab", () => {
     } as unknown as ReturnType<typeof useSetUserRole>);
 
     vi.mocked(useMe).mockReturnValue({
-      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const },
+      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const, debug: true },
       isLoading: false,
     } as unknown as ReturnType<typeof useMe>);
 
@@ -604,7 +607,7 @@ describe("Admin screen — users tab", () => {
     } as unknown as ReturnType<typeof useSetUserRole>);
 
     vi.mocked(useMe).mockReturnValue({
-      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const },
+      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const, debug: true },
       isLoading: false,
     } as unknown as ReturnType<typeof useMe>);
 
@@ -962,5 +965,126 @@ describe("Admin screen — bonus tab", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Bonus" }));
 
     expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+});
+
+describe("Admin screen — debug jobs panel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  it("renders the three job buttons when me.debug is true", () => {
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    expect(screen.getByTestId("run-job-results-ingest")).toBeInTheDocument();
+    expect(screen.getByTestId("run-job-weekly-winner")).toBeInTheDocument();
+    expect(screen.getByTestId("run-job-bonus-score")).toBeInTheDocument();
+  });
+
+  it("does not render the debug panel when me.debug is false", () => {
+    vi.mocked(useMe).mockReturnValue({
+      data: { id: 99, email: "other@sayonetech.com", name: "Other Admin", role: "admin" as const, debug: false },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useMe>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    expect(screen.queryByTestId("debug-jobs-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("run-job-results-ingest")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("run-job-weekly-winner")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("run-job-bonus-score")).not.toBeInTheDocument();
+  });
+
+  it("clicking 'Run results ingest' calls useRunJob with 'results-ingest'", () => {
+    const runJobMutate = vi.fn();
+    vi.mocked(useRunJob).mockReturnValue({
+      ...noopMutation,
+      mutate: runJobMutate,
+    } as unknown as ReturnType<typeof useRunJob>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    fireEvent.click(screen.getByTestId("run-job-results-ingest"));
+
+    expect(runJobMutate).toHaveBeenCalledTimes(1);
+    expect(runJobMutate).toHaveBeenCalledWith("results-ingest", expect.any(Object));
+  });
+
+  it("clicking 'Run weekly winner' calls useRunJob with 'weekly-winner'", () => {
+    const runJobMutate = vi.fn();
+    vi.mocked(useRunJob).mockReturnValue({
+      ...noopMutation,
+      mutate: runJobMutate,
+    } as unknown as ReturnType<typeof useRunJob>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    fireEvent.click(screen.getByTestId("run-job-weekly-winner"));
+
+    expect(runJobMutate).toHaveBeenCalledTimes(1);
+    expect(runJobMutate).toHaveBeenCalledWith("weekly-winner", expect.any(Object));
+  });
+
+  it("clicking 'Run bonus score' calls useRunJob with 'bonus-score'", () => {
+    const runJobMutate = vi.fn();
+    vi.mocked(useRunJob).mockReturnValue({
+      ...noopMutation,
+      mutate: runJobMutate,
+    } as unknown as ReturnType<typeof useRunJob>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    fireEvent.click(screen.getByTestId("run-job-bonus-score"));
+
+    expect(runJobMutate).toHaveBeenCalledTimes(1);
+    expect(runJobMutate).toHaveBeenCalledWith("bonus-score", expect.any(Object));
+  });
+
+  it("shows the returned summary in a role=status region after a successful run", () => {
+    const summary = { matches_scored: 3, predictions_updated: 12 };
+    const runJobMutate = vi.fn((_job: string, opts: { onSuccess?: (data: Record<string, unknown>) => void }) => {
+      opts?.onSuccess?.(summary);
+    });
+    vi.mocked(useRunJob).mockReturnValue({
+      ...noopMutation,
+      mutate: runJobMutate,
+    } as unknown as ReturnType<typeof useRunJob>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    fireEvent.click(screen.getByTestId("run-job-results-ingest"));
+
+    const summaryEl = screen.getByTestId("job-summary");
+    expect(summaryEl).toBeInTheDocument();
+    expect(summaryEl).toHaveAttribute("role", "status");
+    expect(summaryEl.textContent).toContain("matches_scored");
+    expect(summaryEl.textContent).toContain("3");
+  });
+
+  it("shows an error in a role=alert region when the job fails", () => {
+    const runJobMutate = vi.fn((_job: string, opts: { onError?: (err: Error) => void }) => {
+      opts?.onError?.(new Error("job failed: 500"));
+    });
+    vi.mocked(useRunJob).mockReturnValue({
+      ...noopMutation,
+      mutate: runJobMutate,
+    } as unknown as ReturnType<typeof useRunJob>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+
+    fireEvent.click(screen.getByTestId("run-job-results-ingest"));
+
+    const errorEl = screen.getByTestId("job-error");
+    expect(errorEl).toBeInTheDocument();
+    expect(errorEl).toHaveAttribute("role", "alert");
+    expect(errorEl.textContent).toContain("job failed: 500");
   });
 });
