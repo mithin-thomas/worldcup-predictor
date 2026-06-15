@@ -80,11 +80,12 @@
   --ink:          var(--text);
   --muted:        var(--text-3);
   --surface-1:    var(--surface);
-  --danger:       var(--loss);
-  --danger-hover: #e8564f;
+  /* Destructive actions use a deeper, calmer red than --loss (the result hue) */
+  --danger:       #e0463c;
+  --danger-hover: #c93a31;
   --danger-fg:    #f9a8a5;
-  --danger-bg:    rgba(244, 97, 91, 0.14);
-  --danger-border: rgba(244, 97, 91, 0.35);
+  --danger-bg:    rgba(224, 70, 60, 0.14);
+  --danger-border: rgba(224, 70, 60, 0.35);
   --live:         var(--win);
   --live-bg:      var(--win-soft);
 
@@ -185,7 +186,7 @@ input  { font-family: inherit; }
   letter-spacing: -0.02em;
 }
 
-.tnum { font-variant-numeric: tabular-nums; }
+.tnum { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
 .eyebrow {
   font-family: var(--font-mono);
@@ -340,7 +341,7 @@ input  { font-family: inherit; }
 .nav-btn:hover       { color: var(--text-2); }
 .nav-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--coral-ring);
+  box-shadow: var(--focus-ring);
   border-radius: var(--r-pill);
 }
 .nav-btn.on          { color: #fff; }
