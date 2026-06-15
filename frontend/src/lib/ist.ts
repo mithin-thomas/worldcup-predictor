@@ -26,23 +26,31 @@ export function weekRange(weekStart: string): string {
 /**
  * Returns the current IST calendar Monday as a "YYYY-MM-DD" string.
  * Used to detect whether a week_start is "this week".
+ *
+ * Derives the weekday in IST explicitly — never uses Date#getDay() which
+ * returns the weekday in the host (browser/CI) timezone, causing off-by-one
+ * errors on machines west of UTC+5:30 near a day boundary.
  */
 export function currentISTMonday(): string {
-  const now = new Date();
-  // Get the current IST date string
-  const istDate = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-  const dt = new Date(`${istDate}T00:00:00+05:30`);
-  // getDay() in the IST locale: we need the IST weekday
-  const istDay = parseInt(
-    now.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata", weekday: "short" }).slice(0, 1),
-    10,
-  );
-  // Use a reliable approach: compute days since Monday
-  const dayOfWeek = dt.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  void istDay; // suppress unused warning
-  const monday = new Date(dt.getTime() - daysFromMonday * 86_400_000);
-  return monday.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  // Step 1: get today's date string in IST (YYYY-MM-DD)
+  const todayIST = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+
+  // Step 2: construct an IST-anchored Date so we can ask for the weekday in IST
+  const todayIST_dt = new Date(`${todayIST}T00:00:00+05:30`);
+  const weekdayShort = todayIST_dt.toLocaleDateString("en-US", {
+    timeZone: "Asia/Kolkata",
+    weekday: "short",
+  }); // "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun"
+
+  // Days-from-Monday (Mon=0 … Sun=6) in IST
+  const order: Record<string, number> = {
+    Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6,
+  };
+  const daysFromMonday = order[weekdayShort] ?? 0;
+
+  // Step 3: subtract those days in ms to land on Monday at 00:00 IST
+  const monday = new Date(todayIST_dt.getTime() - daysFromMonday * 86_400_000);
+  return monday.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // YYYY-MM-DD
 }
 
 /** Format an ISO UTC string as IST time, e.g. "05:30 PM". */
