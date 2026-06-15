@@ -16,6 +16,8 @@ vi.mock("../lib/admin", () => ({
   useSettings: vi.fn(),
   useSaveSettings: vi.fn(),
   useRecompute: vi.fn(),
+  useBonusResults: vi.fn(),
+  useSaveBonusResults: vi.fn(),
 }));
 
 vi.mock("../lib/auth", () => ({
@@ -24,6 +26,7 @@ vi.mock("../lib/auth", () => ({
 
 vi.mock("../lib/bonus", () => ({
   useTeams: vi.fn(),
+  usePlayerSearch: vi.fn(),
 }));
 
 import {
@@ -37,9 +40,11 @@ import {
   useSettings,
   useSaveSettings,
   useRecompute,
+  useBonusResults,
+  useSaveBonusResults,
 } from "../lib/admin";
 import { useMe } from "../lib/auth";
-import { useTeams } from "../lib/bonus";
+import { useTeams, usePlayerSearch } from "../lib/bonus";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -131,6 +136,18 @@ const noopMutation = {
   error: null,
 };
 
+// ── Bonus results fixture (canonical order: winner, runner_up, golden_ball,
+//    golden_boot, golden_glove, young_player, fair_play)
+const defaultBonusResults: import("../lib/admin").BonusResultRow[] = [
+  { category: "winner",       points: 30, ref_type: "team",   ref_id: 1, label: "Brazil",      set: true  },
+  { category: "runner_up",    points: 20, ref_type: "team",   ref_id: 0, label: "",             set: false },
+  { category: "golden_ball",  points: 10, ref_type: "player", ref_id: 0, label: "",             set: false },
+  { category: "golden_boot",  points: 10, ref_type: "player", ref_id: 0, label: "",             set: false },
+  { category: "golden_glove", points: 10, ref_type: "player", ref_id: 0, label: "",             set: false },
+  { category: "young_player", points: 10, ref_type: "player", ref_id: 0, label: "",             set: false },
+  { category: "fair_play",    points: 10, ref_type: "team",   ref_id: 2, label: "Argentina",    set: true  },
+];
+
 const defaultSettings: import("../lib/admin").AdminSettings = {
   results_cron: "0 3,8,13 * * *",
   weekly_cron: "30 13 * * 1",
@@ -180,6 +197,21 @@ function setupDefaultMocks() {
 
   vi.mocked(useSaveSettings).mockReturnValue(noopMutation as unknown as ReturnType<typeof useSaveSettings>);
   vi.mocked(useRecompute).mockReturnValue(noopMutation as unknown as ReturnType<typeof useRecompute>);
+
+  vi.mocked(useBonusResults).mockReturnValue({
+    data: { results: defaultBonusResults },
+    isLoading: false,
+    isError: false,
+  } as unknown as ReturnType<typeof useBonusResults>);
+
+  vi.mocked(useSaveBonusResults).mockReturnValue(
+    noopMutation as unknown as ReturnType<typeof useSaveBonusResults>
+  );
+
+  vi.mocked(usePlayerSearch).mockReturnValue({
+    data: [],
+    isFetching: false,
+  } as unknown as ReturnType<typeof usePlayerSearch>);
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -690,5 +722,152 @@ describe("Admin screen — settings tab", () => {
     expect(summaryEl.textContent).toMatch(/12 matches rescored/);
     expect(summaryEl.textContent).toMatch(/48 predictions/);
     expect(summaryEl.textContent).toMatch(/30 bonus/);
+  });
+});
+
+describe("Admin screen — bonus tab", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  it("renders the Bonus tab in the segmented control", () => {
+    wrap(<Admin />);
+    expect(screen.getByRole("tab", { name: "Bonus" })).toBeInTheDocument();
+  });
+
+  it("renders all 7 category rows in canonical order when Bonus tab is selected", () => {
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Bonus" }));
+
+    // All 7 categories present
+    expect(screen.getByTestId("bonus-row-winner")).toBeInTheDocument();
+    expect(screen.getByTestId("bonus-row-runner_up")).toBeInTheDocument();
+    expect(screen.getByTestId("bonus-row-golden_ball")).toBeInTheDocument();
+    expect(screen.getByTestId("bonus-row-golden_boot")).toBeInTheDocument();
+    expect(screen.getByTestId("bonus-row-golden_glove")).toBeInTheDocument();
+    expect(screen.getByTestId("bonus-row-young_player")).toBeInTheDocument();
+    expect(screen.getByTestId("bonus-row-fair_play")).toBeInTheDocument();
+  });
+
+  it("team-award rows render a <select> element", () => {
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Bonus" }));
+
+    // winner, runner_up, fair_play are team awards
+    expect(screen.getByTestId("team-select-winner")).toBeInTheDocument();
+    expect(screen.getByTestId("team-select-runner_up")).toBeInTheDocument();
+    expect(screen.getByTestId("team-select-fair_play")).toBeInTheDocument();
+  });
+
+  it("player-award rows render the player search combobox input", () => {
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Bonus" }));
+
+    // golden_ball, golden_boot, golden_glove, young_player are player awards
+    expect(screen.getByTestId("player-combobox-admin-bonus-golden_ball")).toBeInTheDocument();
+    expect(screen.getByTestId("player-combobox-admin-bonus-golden_boot")).toBeInTheDocument();
+    expect(screen.getByTestId("player-combobox-admin-bonus-golden_glove")).toBeInTheDocument();
+    expect(screen.getByTestId("player-combobox-admin-bonus-young_player")).toBeInTheDocument();
+  });
+
+  it("a set category shows its label; an unset category shows 'Not set'", () => {
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Bonus" }));
+
+    // winner is set → shows "Brazil"
+    expect(screen.getByTestId("outcome-label-winner")).toBeInTheDocument();
+    expect(screen.getByTestId("outcome-label-winner").textContent).toContain("Brazil");
+
+    // runner_up is not set → shows "Not set"
+    expect(screen.getByTestId("outcome-unset-runner_up")).toBeInTheDocument();
+    expect(screen.getByTestId("outcome-unset-runner_up").textContent).toContain("Not set");
+
+    // fair_play is set → shows "Argentina"
+    expect(screen.getByTestId("outcome-label-fair_play")).toBeInTheDocument();
+    expect(screen.getByTestId("outcome-label-fair_play").textContent).toContain("Argentina");
+  });
+
+  it("Save outcomes button calls the mutation with the selected entries", () => {
+    const mutateSpy = vi.fn();
+    vi.mocked(useSaveBonusResults).mockReturnValue({
+      ...noopMutation,
+      mutate: mutateSpy,
+    } as unknown as ReturnType<typeof useSaveBonusResults>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Bonus" }));
+
+    // Click Save outcomes — should call mutate with the currently seeded picks
+    // (winner → ref_id:1, fair_play → ref_id:2 — both set in defaultBonusResults)
+    fireEvent.click(screen.getByRole("button", { name: /save bonus outcomes/i }));
+
+    expect(mutateSpy).toHaveBeenCalledTimes(1);
+    const [entries] = mutateSpy.mock.calls[0] as [{ category: string; ref_id: number }[], unknown];
+    // Must include winner (ref_id:1) and fair_play (ref_id:2)
+    expect(entries.some((e) => e.category === "winner" && e.ref_id === 1)).toBe(true);
+    expect(entries.some((e) => e.category === "fair_play" && e.ref_id === 2)).toBe(true);
+    // Must not include unset entries (ref_id:0)
+    expect(entries.every((e) => e.ref_id > 0)).toBe(true);
+  });
+
+  it("shows 'Saved — standings updated' on success", () => {
+    const mutateSpy = vi.fn((_entries, opts) => {
+      opts?.onSuccess?.({ saved: 2 }, undefined, undefined);
+    });
+    vi.mocked(useSaveBonusResults).mockReturnValue({
+      ...noopMutation,
+      mutate: mutateSpy,
+    } as unknown as ReturnType<typeof useSaveBonusResults>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Bonus" }));
+    fireEvent.click(screen.getByRole("button", { name: /save bonus outcomes/i }));
+
+    const statusEl = screen.getByRole("status");
+    expect(statusEl.textContent).toContain("Saved — standings updated");
+  });
+
+  it("shows role=alert when save fails", () => {
+    const mutateSpy = vi.fn((_entries, opts) => {
+      opts?.onError?.(new Error("server error"), undefined, undefined);
+    });
+    vi.mocked(useSaveBonusResults).mockReturnValue({
+      ...noopMutation,
+      mutate: mutateSpy,
+    } as unknown as ReturnType<typeof useSaveBonusResults>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Bonus" }));
+    fireEvent.click(screen.getByRole("button", { name: /save bonus outcomes/i }));
+
+    const alertEl = screen.getByRole("alert");
+    expect(alertEl.textContent).toMatch(/server error/i);
+  });
+
+  it("shows skeleton while bonus results are loading", () => {
+    vi.mocked(useBonusResults).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    } as unknown as ReturnType<typeof useBonusResults>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Bonus" }));
+
+    expect(screen.getByLabelText("Loading bonus outcomes")).toBeInTheDocument();
+  });
+
+  it("shows role=alert error when bonus results fail to load", () => {
+    vi.mocked(useBonusResults).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof useBonusResults>);
+
+    wrap(<Admin />);
+    fireEvent.click(screen.getByRole("tab", { name: "Bonus" }));
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
   });
 });

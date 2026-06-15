@@ -194,6 +194,40 @@ export function useSaveSettings() {
   });
 }
 
+// ── Bonus outcomes (admin) ────────────────────────────────────────────────────
+
+export type BonusResultRow = {
+  category: string;
+  points: number;
+  ref_type: "team" | "player";
+  ref_id: number;
+  label: string;
+  set: boolean;
+};
+
+export function useBonusResults() {
+  return useQuery<{ results: BonusResultRow[] }>({
+    queryKey: ["admin", "bonus-results"],
+    queryFn: () => apiFetch<{ results: BonusResultRow[] }>("/admin/bonus/results"),
+  });
+}
+
+export function useSaveBonusResults() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (results: { category: string; ref_id: number }[]) =>
+      apiFetch<{ saved: number }>("/admin/bonus/results", {
+        method: "PUT",
+        body: JSON.stringify({ results }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "bonus-results"] });
+      qc.invalidateQueries({ queryKey: ["leaderboard"] });
+      qc.invalidateQueries({ queryKey: ["bonus"] });
+    },
+  });
+}
+
 // ── Recompute ─────────────────────────────────────────────────────────────────
 
 export function useRecompute() {
