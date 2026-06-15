@@ -106,7 +106,8 @@ from the local stack:
 - Add `https://SITE_ADDRESS` as an **Authorized JavaScript origin** on the OAuth
   client (the client id is baked into the bundle at build time).
 
-`make down-prod` / `make logs-prod` / `make ps-prod` manage it.
+`make down-prod` / `make logs-prod` / `make ps-prod` manage it. **Full
+deployment + operations guide:** [`deploy/README.md`](deploy/README.md).
 
 ---
 
