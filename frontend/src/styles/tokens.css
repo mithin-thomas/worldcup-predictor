@@ -1111,6 +1111,129 @@ input  { font-family: inherit; }
 .step-val { min-width: 26px; text-align: center; font-size: 18px; font-weight: 700; color: var(--text); font-family: var(--font-mono); font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
 .stepper-pill.off { opacity: 0.55; }
 
+/* ── Not-yet-open prediction gate (mc-not-open, btn-predict-locked, pw-*) ── */
+/* Inline hint row shown on the card for matches > 3 days out */
+.mc-not-open {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 1;
+}
+.mc-opens-hint {
+  font-size: 12.5px;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+/* "Predict" button for locked-window matches — ghost style, never coral fill */
+.btn-predict-locked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-2);
+  background: var(--surface-2);
+  color: var(--text-3);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  flex: none;
+}
+.btn-predict-locked:hover  { border-color: var(--text-3); color: var(--text-2); background: var(--surface-3); }
+.btn-predict-locked:active { background: var(--hover); }
+.btn-predict-locked:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Prediction window dialog overlay (pw-*) — mirrors htp-overlay pattern */
+.pw-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  background: rgba(7, 9, 18, 0.72);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  animation: pw-fade 0.18s ease both;
+}
+@keyframes pw-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pw-overlay { animation: none; }
+  .pw-dialog  { animation: none; }
+}
+.pw-dialog {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: pw-rise 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes pw-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+.pw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+.pw-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.pw-close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-sm);
+  color: var(--text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  flex: none;
+}
+.pw-close:hover        { color: var(--text); background: var(--surface-2); }
+.pw-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.pw-body {
+  padding: 20px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+  margin: 0;
+}
+.pw-footer {
+  padding: 0 20px 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+.pw-ok {
+  height: 44px;
+  padding: 0 20px;
+  min-width: 72px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 /* Past row */
 .past-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 13px 18px; display: flex; flex-direction: column; gap: 10px; transition: border-color 0.15s; }
 .past-row:hover { border-color: var(--border-2); }

@@ -10,6 +10,20 @@ function wrap(ui: React.ReactNode) {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
+// ── Kickoff helpers (relative to real Date.now so no fake timers needed) ───
+
+/** Returns an ISO UTC string for now + `offsetHours` hours. */
+function inHours(offsetHours: number): string {
+  return new Date(Date.now() + offsetHours * 3600_000).toISOString();
+}
+
+/** Returns an ISO IST string for now + `offsetHours` hours (approximation for display). */
+function inHoursIST(offsetHours: number): string {
+  const ms = Date.now() + offsetHours * 3600_000 + 5.5 * 3600_000;
+  return new Date(ms).toISOString().replace("Z", "+05:30");
+}
+
+// Within-window match: kickoff = now + 24 h (inside 72-h window)
 const baseMatch: MatchDTO = {
   id: 1,
   match_number: 1,
@@ -17,8 +31,28 @@ const baseMatch: MatchDTO = {
   round: "Group Stage",
   group: "A",
   label: "Group A",
-  kickoff_utc: "2030-06-20T00:00:00Z",
-  kickoff_ist: "2030-06-20T05:30:00+05:30",
+  get kickoff_utc() { return inHours(24); },
+  get kickoff_ist() { return inHoursIST(24); },
+  status: "scheduled",
+  locked: false,
+  home: { id: 1, name: "Mexico", code: "MEX" },
+  away: { id: 2, name: "South Africa", code: "RSA" },
+  venue: { name: "Estadio Azteca", city: "Mexico City", country: "Mexico" },
+  home_score: null,
+  away_score: null,
+  prediction: null,
+};
+
+// Outside-window match: kickoff = now + 5 days (> 72 h)
+const farMatch: MatchDTO = {
+  id: 2,
+  match_number: 2,
+  stage: "group",
+  round: "Group Stage",
+  group: "A",
+  label: "Group A",
+  get kickoff_utc() { return inHours(5 * 24); },
+  get kickoff_ist() { return inHoursIST(5 * 24); },
   status: "scheduled",
   locked: false,
   home: { id: 1, name: "Mexico", code: "MEX" },
@@ -113,6 +147,22 @@ describe("MatchCard", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/locked at kickoff/i);
   });
 
+  // ── Server 422 prediction window error ────────────────────────────────────
+  it("shows window-closed alert on server 422 with prediction-window message", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => ({ error: "predictions open 3 days before kickoff" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    wrap(<MatchCard match={baseMatch} />);
+
+    await user.click(screen.getByRole("button", { name: /save prediction/i }));
+    await screen.findByRole("alert");
+    expect(screen.getByRole("alert")).toHaveTextContent(/not open yet/i);
+  });
+
   // ── Saved flash ───────────────────────────────────────────────────────────
   it("shows 'Saved' flash after successful save", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
@@ -202,5 +252,101 @@ describe("MatchCard", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.penalty_winner_team_id).toBe(2);
+  });
+
+  // ── Prediction window gate (>3 days out) ──────────────────────────────────
+  it("shows 'Predict' button (not steppers) for a match >3 days out", () => {
+    wrap(<MatchCard match={farMatch} />);
+    // Should show the Predict button, not steppers
+    expect(screen.getByRole("button", { name: /predict.*not open yet/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /increase mexico/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /save prediction/i })).toBeNull();
+  });
+
+  it("shows 'Opens ... IST' hint text for a match >3 days out", () => {
+    wrap(<MatchCard match={farMatch} />);
+    // The hint text reads "Opens {date} IST"
+    const hintEl = document.querySelector(".mc-opens-hint");
+    expect(hintEl).toBeInTheDocument();
+    expect(hintEl?.textContent).toMatch(/opens/i);
+    expect(hintEl?.textContent).toMatch(/IST/);
+  });
+
+  it("clicking Predict on >3-day match opens the 'Not open yet' dialog", async () => {
+    const user = userEvent.setup();
+    wrap(<MatchCard match={farMatch} />);
+
+    const predictBtn = screen.getByRole("button", { name: /predict.*not open yet/i });
+    await user.click(predictBtn);
+
+    // Dialog should appear
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+  });
+
+  it("dialog shows correct title 'Not open yet'", async () => {
+    const user = userEvent.setup();
+    wrap(<MatchCard match={farMatch} />);
+
+    await user.click(screen.getByRole("button", { name: /predict.*not open yet/i }));
+
+    expect(screen.getByRole("heading", { name: /not open yet/i })).toBeInTheDocument();
+  });
+
+  it("dialog body contains home vs away team names and IST open date", async () => {
+    const user = userEvent.setup();
+    wrap(<MatchCard match={farMatch} />);
+
+    await user.click(screen.getByRole("button", { name: /predict.*not open yet/i }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.textContent).toMatch(/Mexico/i);
+    expect(dialog.textContent).toMatch(/South Africa/i);
+    expect(dialog.textContent).toMatch(/IST/);
+    expect(dialog.textContent).toMatch(/3 days/i);
+  });
+
+  it("dialog closes when OK is clicked", async () => {
+    const user = userEvent.setup();
+    wrap(<MatchCard match={farMatch} />);
+
+    await user.click(screen.getByRole("button", { name: /predict.*not open yet/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^ok$/i }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("dialog closes when Escape is pressed", async () => {
+    const user = userEvent.setup();
+    wrap(<MatchCard match={farMatch} />);
+
+    await user.click(screen.getByRole("button", { name: /predict.*not open yet/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("dialog closes when backdrop is clicked", async () => {
+    const user = userEvent.setup();
+    const { container } = wrap(<MatchCard match={farMatch} />);
+
+    await user.click(screen.getByRole("button", { name: /predict.*not open yet/i }));
+    const overlay = container.querySelector(".pw-overlay") as HTMLElement;
+    expect(overlay).toBeInTheDocument();
+
+    await user.click(overlay);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("shows normal editor (steppers + save) for match within 3-day window", () => {
+    wrap(<MatchCard match={baseMatch} />);
+    // Within-window match shows steppers
+    expect(screen.getByRole("button", { name: /increase mexico/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /save prediction/i })).toBeInTheDocument();
+    // No "Predict" gate button
+    expect(screen.queryByRole("button", { name: /predict.*not open yet/i })).toBeNull();
   });
 });
