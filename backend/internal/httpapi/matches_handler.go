@@ -79,7 +79,7 @@ func (d *Deps) GetMatches(w http.ResponseWriter, r *http.Request) {
 	}
 	byMatch := make(map[int64]predictionDTO, len(preds))
 	for _, p := range preds {
-		byMatch[p.MatchID] = predictionDTO{HomeScore: p.HomeScore, AwayScore: p.AwayScore, PenaltyWinnerTeamID: p.PenaltyWinnerTeamID}
+		byMatch[p.MatchID] = predictionDTO{HomeScore: p.HomeScore, AwayScore: p.AwayScore, PenaltyWinnerTeamID: p.PenaltyWinnerTeamID, Points: p.Points, PenaltyBonus: p.PenaltyBonus}
 	}
 	writeJSON(w, http.StatusOK, matchesResponse{Days: groupByISTDate(rows, now(), byMatch)})
 }

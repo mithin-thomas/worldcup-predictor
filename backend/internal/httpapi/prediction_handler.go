@@ -22,6 +22,9 @@ type predictionDTO struct {
 	HomeScore           int32  `json:"home_score"`
 	AwayScore           int32  `json:"away_score"`
 	PenaltyWinnerTeamID *int64 `json:"penalty_winner_team_id"`
+	// Points/PenaltyBonus are nil until the match is scored FINAL.
+	Points       *int32 `json:"points"`
+	PenaltyBonus *int32 `json:"penalty_bonus"`
 }
 
 // PutPrediction creates or updates the caller's prediction for a match.
