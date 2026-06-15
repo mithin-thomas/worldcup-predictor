@@ -197,7 +197,7 @@ func startResultsCron(cronExpr string, cfg config.Config, st *store.SQLStore, no
 		if err != nil {
 			logger.Error("results-ingest run", "err", err)
 		}
-		notifyJob(ctx, notifier, "results-ingest", sum, err)
+		notifyJob(ctx, notifier, "scheduled", sum, err)
 	}); err != nil {
 		logger.Error("results-ingest disabled: bad RESULTS_CRON", "spec", cronExpr, "err", err)
 		return nil
@@ -224,7 +224,7 @@ func startWeeklyCron(cronExpr string, cfg config.Config, job jobs.WeeklyWinner, 
 		if err != nil {
 			logger.Error("weekly-winner run", "err", err)
 		}
-		notifyJob(ctx, notifier, "weekly-winner", sum, err)
+		notifyJob(ctx, notifier, "scheduled", sum, err)
 	}); err != nil {
 		logger.Error("weekly-winner disabled: bad WEEKLY_CRON", "spec", cronExpr, "err", err)
 		return nil
@@ -266,25 +266,26 @@ func (s serverJobs) RunResultsIngest(ctx context.Context) (any, error) {
 		return nil, errors.New("results ingest not configured (no FOOTBALL_DATA_API_KEY)")
 	}
 	sum, err := s.ingest.Run(ctx)
-	notifyJob(ctx, s.notify, "results-ingest (manual)", sum, err)
+	notifyJob(ctx, s.notify, "manual", sum, err)
 	return sum, err
 }
 
 func (s serverJobs) RunWeeklyWinner(ctx context.Context) (any, error) {
 	sum, err := s.weekly.Run(ctx)
-	notifyJob(ctx, s.notify, "weekly-winner (manual)", sum, err)
+	notifyJob(ctx, s.notify, "manual", sum, err)
 	return sum, err
 }
 
 func (s serverJobs) RunBonusScore(ctx context.Context) (any, error) {
 	sum, err := s.bonus.Run(ctx)
-	notifyJob(ctx, s.notify, "bonus-score (manual)", sum, err)
+	notifyJob(ctx, s.notify, "manual", sum, err)
 	return sum, err
 }
 
-// notifyJob posts a one-line cron/job completion status to Slack (no-op if the
-// notifier has no webhook URL). The timestamp is rendered in IST.
-func notifyJob(ctx context.Context, n notify.Slack, job string, summary any, runErr error) {
+// notifyJob posts a friendly job-completion status to Slack (no-op without a
+// webhook). `trigger` is "scheduled" or "manual"; the human-readable job title
+// and detail are derived from the summary type. Timestamp is rendered in IST.
+func notifyJob(ctx context.Context, n notify.Slack, trigger string, summary any, runErr error) {
 	if !n.Enabled() {
 		return
 	}
@@ -292,12 +293,39 @@ func notifyJob(ctx context.Context, n notify.Slack, job string, summary any, run
 	if err != nil {
 		loc = time.FixedZone("IST", 5*3600+1800)
 	}
-	ts := time.Now().In(loc).Format("2006-01-02 15:04 IST")
+	ts := time.Now().In(loc).Format("Mon 02 Jan 2006, 3:04 PM IST")
+	title, detail := jobMessage(summary)
 	if runErr != nil {
-		n.Send(ctx, fmt.Sprintf(":x: SayScore %s FAILED at %s — %v", job, ts, runErr))
+		n.Send(ctx, fmt.Sprintf(":x: *SayScore — %s* (%s run) failed at %s\n> %v", title, trigger, ts, runErr))
 		return
 	}
-	n.Send(ctx, fmt.Sprintf(":white_check_mark: SayScore %s ran at %s — %+v", job, ts, summary))
+	n.Send(ctx, fmt.Sprintf(":white_check_mark: *SayScore — %s* (%s run) completed at %s\n> %s", title, trigger, ts, detail))
+}
+
+// jobMessage turns a job's result summary into a human title + one-line detail.
+func jobMessage(summary any) (title, detail string) {
+	switch s := summary.(type) {
+	case jobs.Summary: // results-ingest
+		return "Match results sync",
+			fmt.Sprintf("Checked football-data for finished matches — %d found, %d result(s) applied to fixtures, %d prediction(s) scored%s.",
+				s.Fetched, s.Updated, s.PredictionsScored, optSkipped(s.Skipped))
+	case jobs.WeeklySummary: // weekly-winner
+		return "Weekly winner",
+			fmt.Sprintf("Declared the week of %s — %d winner(s) from %d participant(s).",
+				s.WeekStart, s.Winners, s.Participants)
+	case jobs.BonusSummary: // bonus-score
+		return "Tournament bonus scoring",
+			fmt.Sprintf("Re-scored tournament bonus picks against the declared outcomes — %d pick(s) updated.", s.Scored)
+	default:
+		return "Background job", fmt.Sprintf("%+v", summary)
+	}
+}
+
+func optSkipped(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf(", %d skipped (unaligned/already corrected)", n)
 }
 
 // seedAdmins promotes any already-existing user in the seed list to admin and
