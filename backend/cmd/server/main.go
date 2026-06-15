@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/sayonetech/worldcup-predictor/backend/internal/config"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/httpapi"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/jobs"
+	"github.com/sayonetech/worldcup-predictor/backend/internal/notify"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/settings"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/sportsapi"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
@@ -71,8 +73,14 @@ func main() {
 		weeklyCronExpr = cfg.WeeklyCron
 	}
 
+	// Optional Slack notifier for cron-completion + manual job-run status.
+	notifier := notify.NewSlack(cfg.SlackWebhookURL)
+	if notifier.Enabled() {
+		logger.Info("slack notifications enabled")
+	}
+
 	weekly := jobs.WeeklyWinner{Store: st, Now: func() time.Time { return time.Now().UTC() }}
-	sj := serverJobs{weekly: weekly, bonus: jobs.BonusScore{Store: st}}
+	sj := serverJobs{weekly: weekly, bonus: jobs.BonusScore{Store: st}, notify: notifier}
 	if cfg.FootballDataAPIKey != "" {
 		if alias, err := loadAliasFile(cfg.SeedDataDir + "/fd_team_aliases.csv"); err == nil {
 			ingest := jobs.ResultsIngest{
@@ -122,12 +130,12 @@ func main() {
 
 	// Results-ingest scheduler (in-process). Only runs when an API key is set;
 	// local dev without a key still boots.
-	scheduler := startResultsCron(resultsCronExpr, cfg, st, logger)
+	scheduler := startResultsCron(resultsCronExpr, cfg, st, notifier, logger)
 	if scheduler != nil {
 		defer scheduler.Stop()
 	}
 
-	weeklyScheduler := startWeeklyCron(weeklyCronExpr, cfg, weekly, logger)
+	weeklyScheduler := startWeeklyCron(weeklyCronExpr, cfg, weekly, notifier, logger)
 	if weeklyScheduler != nil {
 		defer weeklyScheduler.Stop()
 	}
@@ -154,7 +162,7 @@ func main() {
 // startResultsCron builds the results-ingest job and schedules it on cronExpr
 // (IST). Falls back to cfg.ResultsCron if cronExpr is empty. Returns nil (and
 // logs) when no API key is configured or the cron expression is invalid.
-func startResultsCron(cronExpr string, cfg config.Config, st *store.SQLStore, logger *slog.Logger) *cron.Cron {
+func startResultsCron(cronExpr string, cfg config.Config, st *store.SQLStore, notifier notify.Slack, logger *slog.Logger) *cron.Cron {
 	if cfg.FootballDataAPIKey == "" {
 		logger.Info("results-ingest disabled (no FOOTBALL_DATA_API_KEY)")
 		return nil
@@ -179,9 +187,12 @@ func startResultsCron(cronExpr string, cfg config.Config, st *store.SQLStore, lo
 	}
 	c := cron.New(cron.WithLocation(loc))
 	if _, err := c.AddFunc(cronExpr, func() {
-		if _, err := job.Run(context.Background()); err != nil {
+		ctx := context.Background()
+		sum, err := job.Run(ctx)
+		if err != nil {
 			logger.Error("results-ingest run", "err", err)
 		}
+		notifyJob(ctx, notifier, "results-ingest", sum, err)
 	}); err != nil {
 		logger.Error("results-ingest disabled: bad RESULTS_CRON", "spec", cronExpr, "err", err)
 		return nil
@@ -193,7 +204,7 @@ func startResultsCron(cronExpr string, cfg config.Config, st *store.SQLStore, lo
 
 // startWeeklyCron schedules the weekly-winner job on cronExpr (IST). Falls back
 // to cfg.WeeklyCron if cronExpr is empty. Always runs (no external API needed).
-func startWeeklyCron(cronExpr string, cfg config.Config, job jobs.WeeklyWinner, logger *slog.Logger) *cron.Cron {
+func startWeeklyCron(cronExpr string, cfg config.Config, job jobs.WeeklyWinner, notifier notify.Slack, logger *slog.Logger) *cron.Cron {
 	if cronExpr == "" {
 		cronExpr = cfg.WeeklyCron
 	}
@@ -203,9 +214,12 @@ func startWeeklyCron(cronExpr string, cfg config.Config, job jobs.WeeklyWinner, 
 	}
 	c := cron.New(cron.WithLocation(loc))
 	if _, err := c.AddFunc(cronExpr, func() {
-		if _, err := job.Run(context.Background()); err != nil {
+		ctx := context.Background()
+		sum, err := job.Run(ctx)
+		if err != nil {
 			logger.Error("weekly-winner run", "err", err)
 		}
+		notifyJob(ctx, notifier, "weekly-winner", sum, err)
 	}); err != nil {
 		logger.Error("weekly-winner disabled: bad WEEKLY_CRON", "spec", cronExpr, "err", err)
 		return nil
@@ -239,21 +253,46 @@ type serverJobs struct {
 	ingest *jobs.ResultsIngest
 	weekly jobs.WeeklyWinner
 	bonus  jobs.BonusScore
+	notify notify.Slack
 }
 
 func (s serverJobs) RunResultsIngest(ctx context.Context) (any, error) {
 	if s.ingest == nil {
 		return nil, errors.New("results ingest not configured (no FOOTBALL_DATA_API_KEY)")
 	}
-	return s.ingest.Run(ctx)
+	sum, err := s.ingest.Run(ctx)
+	notifyJob(ctx, s.notify, "results-ingest (manual)", sum, err)
+	return sum, err
 }
 
 func (s serverJobs) RunWeeklyWinner(ctx context.Context) (any, error) {
-	return s.weekly.Run(ctx)
+	sum, err := s.weekly.Run(ctx)
+	notifyJob(ctx, s.notify, "weekly-winner (manual)", sum, err)
+	return sum, err
 }
 
 func (s serverJobs) RunBonusScore(ctx context.Context) (any, error) {
-	return s.bonus.Run(ctx)
+	sum, err := s.bonus.Run(ctx)
+	notifyJob(ctx, s.notify, "bonus-score (manual)", sum, err)
+	return sum, err
+}
+
+// notifyJob posts a one-line cron/job completion status to Slack (no-op if the
+// notifier has no webhook URL). The timestamp is rendered in IST.
+func notifyJob(ctx context.Context, n notify.Slack, job string, summary any, runErr error) {
+	if !n.Enabled() {
+		return
+	}
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		loc = time.FixedZone("IST", 5*3600+1800)
+	}
+	ts := time.Now().In(loc).Format("2006-01-02 15:04 IST")
+	if runErr != nil {
+		n.Send(ctx, fmt.Sprintf(":x: SayScore %s FAILED at %s — %v", job, ts, runErr))
+		return
+	}
+	n.Send(ctx, fmt.Sprintf(":white_check_mark: SayScore %s ran at %s — %+v", job, ts, summary))
 }
 
 // seedAdmins promotes any already-existing user in the seed list to admin and

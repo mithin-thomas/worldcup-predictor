@@ -127,6 +127,45 @@ make hooks              # install git hooks (lefthook); hooks-tools installs the
 
 ---
 
+## Background jobs, manual triggers & Slack
+
+Two jobs run in-process on a cron schedule (timezone IST):
+
+- **results-ingest** (`RESULTS_CRON`, default `0 3,8,13 * * *`) — pulls finished
+  matches from football-data.org and scores predictions. Disabled if
+  `FOOTBALL_DATA_API_KEY` is empty.
+- **weekly-winner** (`WEEKLY_CRON`, default `30 13 * * 1`) — declares the
+  previous IST week's winner(s).
+
+### Run a job manually
+
+In **non-production** only (`APP_ENV != production`), you can trigger a job on demand:
+
+- **From the UI** — sign in as an admin, go to **Admin → Settings → "Background
+  jobs (debug)"** and click **Run results ingest** / **Run weekly winner** /
+  **Run bonus score**. The result summary is shown inline.
+- **From the API** — `POST /api/admin/jobs/run` (admin session required):
+
+  ```bash
+  curl -X POST http://localhost:8000/api/admin/jobs/run \
+    -H 'Content-Type: application/json' \
+    --cookie "sayscore_session=<your admin session cookie>" \
+    -d '{"job":"results-ingest"}'   # or "weekly-winner" | "bonus-score"
+  ```
+
+  The route is registered only when `APP_ENV != production`, so it is never
+  reachable in prod.
+
+### Slack notifications (cron heartbeat)
+
+Set `SLACK_WEBHOOK_URL` (a Slack [Incoming Webhook](https://api.slack.com/apps))
+in `backend/.env` to get a one-line status posted to a channel after **every**
+job run — scheduled or manual, success or failure (with the run summary and IST
+timestamp). This is the simplest way to confirm the cron is alive. Empty =
+no Slack; jobs still run. Never commit a real webhook URL.
+
+---
+
 ## Project structure
 
 ```text
