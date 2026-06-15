@@ -10,8 +10,8 @@ type runJobRequest struct {
 	Job string `json:"job"`
 }
 
-// PostRunJob is the debug-only manual job trigger (registered only when debug).
-// Admin-gated. Supports "results-ingest" and "weekly-winner".
+// PostRunJob is the admin-only manual job trigger, registered in all environments.
+// Admin-gated. Supports "results-ingest", "weekly-winner", and "bonus-score".
 func (d *Deps) PostRunJob(w http.ResponseWriter, r *http.Request) {
 	var req runJobRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

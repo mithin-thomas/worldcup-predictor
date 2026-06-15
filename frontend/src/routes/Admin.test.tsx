@@ -185,7 +185,7 @@ function setupDefaultMocks() {
   } as unknown as ReturnType<typeof useTeams>);
 
   vi.mocked(useMe).mockReturnValue({
-    data: { id: 99, email: "other@sayonetech.com", name: "Other Admin", role: "admin" as const, debug: true },
+    data: { id: 99, email: "other@sayonetech.com", name: "Other Admin", role: "admin" as const },
     isLoading: false,
   } as unknown as ReturnType<typeof useMe>);
 
@@ -520,7 +520,7 @@ describe("Admin screen — users tab", () => {
   it("shows no role-toggle for the current user's own row", async () => {
     // Set me.id = adminUser.id (id=1)
     vi.mocked(useMe).mockReturnValue({
-      data: { id: 1, email: "admin@sayonetech.com", name: "Admin User", role: "admin" as const, debug: true },
+      data: { id: 1, email: "admin@sayonetech.com", name: "Admin User", role: "admin" as const },
       isLoading: false,
     } as unknown as ReturnType<typeof useMe>);
 
@@ -551,7 +551,7 @@ describe("Admin screen — users tab", () => {
 
     // Both users, me is someone else (id=99)
     vi.mocked(useMe).mockReturnValue({
-      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const, debug: true },
+      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const },
       isLoading: false,
     } as unknown as ReturnType<typeof useMe>);
 
@@ -582,7 +582,7 @@ describe("Admin screen — users tab", () => {
     } as unknown as ReturnType<typeof useSetUserRole>);
 
     vi.mocked(useMe).mockReturnValue({
-      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const, debug: true },
+      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const },
       isLoading: false,
     } as unknown as ReturnType<typeof useMe>);
 
@@ -607,7 +607,7 @@ describe("Admin screen — users tab", () => {
     } as unknown as ReturnType<typeof useSetUserRole>);
 
     vi.mocked(useMe).mockReturnValue({
-      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const, debug: true },
+      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "admin" as const },
       isLoading: false,
     } as unknown as ReturnType<typeof useMe>);
 
@@ -985,7 +985,7 @@ describe("Admin screen — background jobs panel", () => {
 
   it("does not render the jobs panel for a non-admin", () => {
     vi.mocked(useMe).mockReturnValue({
-      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "user" as const, debug: false },
+      data: { id: 99, email: "other@sayonetech.com", name: "Other", role: "user" as const },
       isLoading: false,
     } as unknown as ReturnType<typeof useMe>);
 
