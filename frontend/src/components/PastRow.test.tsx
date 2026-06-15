@@ -101,7 +101,7 @@ const samplePredictions: MatchPredictionDTO[] = [
   },
 ];
 
-// Default: loading=false, no data (not yet fetched — closed)
+// Default: loading=false, no data (not yet fetched — modal closed)
 beforeEach(() => {
   mockUseMatchPredictions.mockReturnValue(
     makeQueryResult<MatchPredictionDTO[]>({ data: undefined, isLoading: false, isError: false }),
@@ -186,45 +186,135 @@ describe("PastRow — existing behaviour", () => {
   });
 });
 
-// ── Others' picks reveal — new behaviour ────────────────────────────────────
-describe("PastRow — others' picks reveal", () => {
-  it("renders a toggle button with aria-expanded=false by default", () => {
+// ── Others' picks reveal — modal behaviour ──────────────────────────────────
+describe("PastRow — others' picks modal", () => {
+  it("renders a trigger button labelled 'Others' picks' with no modal initially", () => {
     render(<PastRow match={baseMatch} />);
     const btn = screen.getByRole("button", { name: /others' picks/i });
     expect(btn).toBeInTheDocument();
-    expect(btn).toHaveAttribute("aria-expanded", "false");
-    // Panel is not visible yet
-    expect(screen.queryByRole("list", { name: /others' predictions/i })).toBeNull();
+    // Modal not shown
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("useMatchPredictions is NOT called before the panel is opened", () => {
+  it("trigger button has aria-expanded=false before modal opens", () => {
     render(<PastRow match={baseMatch} />);
-    // Hook is called on every render but enabled=false when closed
+    const btn = screen.getByRole("button", { name: /others' picks/i });
+    expect(btn).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("useMatchPredictions is NOT called with enabled=true before modal opens", () => {
+    render(<PastRow match={baseMatch} />);
+    // Hook is called but with enabled=false when modal is closed
     expect(mockUseMatchPredictions).toHaveBeenCalledWith(1, false);
   });
 
-  it("opens the panel and calls useMatchPredictions with enabled=true on click", async () => {
+  it("opens the modal (role=dialog) when the trigger is clicked", async () => {
     const user = userEvent.setup();
-    mockUseMatchPredictions
-      .mockReturnValueOnce(
-        makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
-      )
-      .mockReturnValue(
-        makeQueryResult<MatchPredictionDTO[]>({
-          data: samplePredictions,
-          isLoading: false,
-          isSuccess: true,
-          status: "success",
-        }),
-      );
+    mockUseMatchPredictions.mockReturnValue(
+      makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
+    );
+
+    render(<PastRow match={baseMatch} />);
+    const btn = screen.getByRole("button", { name: /others' picks/i });
+    await user.click(btn);
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+  });
+
+  it("trigger button has aria-expanded=true after modal opens", async () => {
+    const user = userEvent.setup();
+    mockUseMatchPredictions.mockReturnValue(
+      makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
+    );
 
     render(<PastRow match={baseMatch} />);
     const btn = screen.getByRole("button", { name: /others' picks/i });
     await user.click(btn);
 
     expect(btn).toHaveAttribute("aria-expanded", "true");
-    // enabled=true was passed after click
+  });
+
+  it("calls useMatchPredictions with enabled=true after modal opens", async () => {
+    const user = userEvent.setup();
+    mockUseMatchPredictions.mockReturnValue(
+      makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
+    );
+
+    render(<PastRow match={baseMatch} />);
+    await user.click(screen.getByRole("button", { name: /others' picks/i }));
+
     expect(mockUseMatchPredictions).toHaveBeenCalledWith(1, true);
+  });
+
+  it("modal title includes team names", async () => {
+    const user = userEvent.setup();
+    mockUseMatchPredictions.mockReturnValue(
+      makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
+    );
+
+    render(<PastRow match={baseMatch} />);
+    await user.click(screen.getByRole("button", { name: /others' picks/i }));
+
+    expect(screen.getByRole("heading", { name: /Mexico/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /South Africa/i })).toBeInTheDocument();
+  });
+
+  it("modal has an accessible close button", async () => {
+    const user = userEvent.setup();
+    mockUseMatchPredictions.mockReturnValue(
+      makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
+    );
+
+    render(<PastRow match={baseMatch} />);
+    await user.click(screen.getByRole("button", { name: /others' picks/i }));
+
+    expect(screen.getByRole("button", { name: /close/i })).toBeInTheDocument();
+  });
+
+  it("closes the modal when the close button is clicked", async () => {
+    const user = userEvent.setup();
+    mockUseMatchPredictions.mockReturnValue(
+      makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
+    );
+
+    render(<PastRow match={baseMatch} />);
+    await user.click(screen.getByRole("button", { name: /others' picks/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /close/i }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("closes the modal when Escape is pressed", async () => {
+    const user = userEvent.setup();
+    mockUseMatchPredictions.mockReturnValue(
+      makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
+    );
+
+    render(<PastRow match={baseMatch} />);
+    await user.click(screen.getByRole("button", { name: /others' picks/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("closes the modal when backdrop is clicked", async () => {
+    const user = userEvent.setup();
+    mockUseMatchPredictions.mockReturnValue(
+      makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
+    );
+
+    const { container } = render(<PastRow match={baseMatch} />);
+    await user.click(screen.getByRole("button", { name: /others' picks/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    // Click the overlay element (the dialog itself, not the inner dialog card)
+    const overlay = container.querySelector(".op-overlay") as HTMLElement;
+    await user.click(overlay);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("shows a loading skeleton while fetching", async () => {
@@ -373,7 +463,7 @@ describe("PastRow — others' picks reveal", () => {
     expect(screen.getByText(/pens: MEX/i)).toBeInTheDocument();
   });
 
-  it("shows an inline error message when the fetch fails", async () => {
+  it("shows an error message inside the modal when the fetch fails", async () => {
     const user = userEvent.setup();
     mockUseMatchPredictions.mockReturnValue(
       makeQueryResult<MatchPredictionDTO[]>({
@@ -408,30 +498,6 @@ describe("PastRow — others' picks reveal", () => {
     expect(screen.getByText(/no predictions for this match/i)).toBeInTheDocument();
   });
 
-  it("collapses and shows 'Hide picks' text when open", async () => {
-    const user = userEvent.setup();
-    mockUseMatchPredictions.mockReturnValue(
-      makeQueryResult<MatchPredictionDTO[]>({
-        data: samplePredictions,
-        isLoading: false,
-        isSuccess: true,
-        status: "success",
-      }),
-    );
-
-    render(<PastRow match={baseMatch} />);
-    const btn = screen.getByRole("button", { name: /others' picks/i });
-
-    // Open
-    await user.click(btn);
-    expect(btn).toHaveAttribute("aria-expanded", "true");
-    expect(btn).toHaveTextContent(/hide picks/i);
-
-    // Close
-    await user.click(btn);
-    expect(btn).toHaveAttribute("aria-expanded", "false");
-  });
-
   it("highlights the current user's row with op-row--me class", async () => {
     const user = userEvent.setup();
     mockUseMatchPredictions.mockReturnValue(
@@ -452,7 +518,7 @@ describe("PastRow — others' picks reveal", () => {
     expect(meRow?.textContent).toMatch(/\(You\)/);
   });
 
-  it("shows count in the toggle button label once data is loaded and re-opened", async () => {
+  it("shows count in the trigger button label once data is loaded and modal is closed", async () => {
     const user = userEvent.setup();
     mockUseMatchPredictions.mockReturnValue(
       makeQueryResult<MatchPredictionDTO[]>({
@@ -464,13 +530,30 @@ describe("PastRow — others' picks reveal", () => {
     );
 
     render(<PastRow match={baseMatch} />);
+    // Open the modal
     await user.click(screen.getByRole("button", { name: /others' picks/i }));
-    // Close it
-    const btn = screen.getByRole("button", { name: /hide picks/i });
-    await user.click(btn);
-    // Label now shows count
+    // Close via the close button
+    await user.click(screen.getByRole("button", { name: /close/i }));
+    // Trigger label now shows count
     expect(
       screen.getByRole("button", { name: /others' picks \(3\)/i }),
     ).toBeInTheDocument();
+  });
+
+  it("modal is labelled with aria-labelledby pointing to the title", async () => {
+    const user = userEvent.setup();
+    mockUseMatchPredictions.mockReturnValue(
+      makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
+    );
+
+    render(<PastRow match={baseMatch} />);
+    await user.click(screen.getByRole("button", { name: /others' picks/i }));
+
+    const dialog = screen.getByRole("dialog");
+    const labelledBy = dialog.getAttribute("aria-labelledby");
+    expect(labelledBy).toBeTruthy();
+    const titleEl = document.getElementById(labelledBy!);
+    expect(titleEl).toBeInTheDocument();
+    expect(titleEl?.textContent).toMatch(/others' picks/i);
   });
 });

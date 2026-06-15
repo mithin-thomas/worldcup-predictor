@@ -1128,10 +1128,12 @@ input  { font-family: inherit; }
 .pr-pick b { color: var(--text); font-weight: 700; font-family: var(--font-mono); }
 .pr-pick.muted { color: var(--text-faint); }
 
-/* ── Others' picks disclosure (op-*) ─────────────────────────────────────── */
-/* Sits below the pr-top row inside .past-row; inline collapsible a11y pattern */
-.op-wrap    { width: 100%; }
+/* ── Others' picks (op-*) ──────────────────────────────────────────────────
+   Trigger button sits in the past-row footer.
+   The list/rows/skeleton/error/empty classes are used inside the modal body.
+   ────────────────────────────────────────────────────────────────────────── */
 
+/* Trigger button — ghost pill */
 .op-toggle  {
   display: inline-flex;
   align-items: center;
@@ -1153,17 +1155,90 @@ input  { font-family: inherit; }
 .op-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .op-toggle:active        { background: var(--hover); }
 
-/* Chevron rotates when panel is open */
-.op-chev     { display: inline-flex; color: var(--text-faint); transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-.op-chev.open { transform: rotate(180deg); }
+/* ── Modal overlay + dialog ────────────────────────────────────────────── */
+/* Same stacking / visual treatment as .htp-overlay / .admin-dialog-overlay */
+.op-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(7, 9, 18, 0.72);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  animation: op-fade 0.18s ease both;
+}
+@keyframes op-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .op-chev { transition: none; }
+  .op-overlay { animation: none; }
+  .op-dialog  { animation: none; }
 }
 
-/* Panel — hidden when closed; content is only rendered when open (React conditional),
-   so no height animation needed. Content is visible instantly (no animation dep). */
-.op-panel       { display: none; margin-top: 6px; }
-.op-panel.open  { display: block; }
+.op-dialog {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 460px;
+  /* header is fixed; body scrolls internally */
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: op-rise 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes op-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Fixed modal header (title + close button) */
+.op-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+.op-dialog-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  /* Truncate on very narrow screens */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.op-dialog-close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: var(--r-sm);
+  color: var(--text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.op-dialog-close:hover        { color: var(--text); background: var(--surface-2); }
+.op-dialog-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Scrollable modal body — list scrolls, header stays fixed */
+.op-dialog-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 8px 16px;
+}
 
 /* Player list */
 .op-list {
@@ -1223,7 +1298,7 @@ input  { font-family: inherit; }
 
 /* Error / empty */
 .op-error {
-  margin: 8px 0 0;
+  margin: 8px 10px;
   padding: 8px 12px;
   font-size: 13px;
   color: var(--danger-fg);
@@ -1232,14 +1307,14 @@ input  { font-family: inherit; }
   border-radius: var(--r-sm);
 }
 .op-empty {
-  margin: 8px 0 0;
+  margin: 8px 10px;
   padding: 8px 12px;
   font-size: 13px;
   color: var(--text-3);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .op-toggle { transition: none; }
+  .op-toggle, .op-dialog-close { transition: none; }
   .op-row    { transition: none; }
 }
 
@@ -2009,6 +2084,132 @@ input  { font-family: inherit; }
 .lb-name  { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
 .you-tag  { font-size: 12px; font-weight: 600; color: var(--coral-hi); margin-left: 4px; flex: none; }
 .lb-pts   { font-size: 15px; font-weight: 700; color: var(--text); min-width: 30px; text-align: right; font-family: var(--font-mono); font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+
+/* "View all N players" button below the top-5 list */
+.lb-view-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 8px;
+  padding: 11px 16px;
+  min-height: 44px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-2);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: -0.01em;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.lb-view-all:hover         { color: var(--text); border-color: var(--border-strong); background: var(--surface-3); }
+.lb-view-all:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.lb-view-all:active        { background: var(--hover); }
+
+/* ============================================================
+   Leaderboard modal (lbm-*)
+   Mirrors .op-overlay / .htp-overlay pattern:
+   fixed overlay, scrollable body, focus trap, Esc, backdrop.
+   ============================================================ */
+
+.lbm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(7, 9, 18, 0.72);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  animation: lbm-fade 0.18s ease both;
+}
+@keyframes lbm-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lbm-overlay { animation: none; }
+  .lbm-dialog  { animation: none; }
+}
+
+.lbm-dialog {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 480px;
+  /* header is fixed; body scrolls internally */
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: lbm-rise 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes lbm-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Fixed modal header: title + period toggle + close */
+.lbm-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+.lbm-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lbm-close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: var(--r-sm);
+  color: var(--text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.lbm-close:hover         { color: var(--text); background: var(--surface-2); }
+.lbm-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Scrollable body */
+.lbm-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 10px 16px;
+}
+
+/* Skeleton container in modal */
+.lbm-skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-view-all { transition: none; }
+  .lbm-close   { transition: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .lb-row { transition: none; }
