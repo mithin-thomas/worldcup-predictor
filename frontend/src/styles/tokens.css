@@ -1537,6 +1537,273 @@ input  { font-family: inherit; }
 }
 
 /* ============================================================
+   How-to-Play modal (htp-*)
+   Overlay + scrollable dialog card. Pattern matches .admin-dialog-overlay.
+   ============================================================ */
+.htp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(7, 9, 18, 0.72);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  /* Subtle fade-in; content visible instantly when motion is reduced */
+  animation: htp-fade 0.18s ease both;
+}
+@keyframes htp-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .htp-overlay { animation: none; }
+  .htp-dialog  { animation: none; }
+}
+
+.htp-dialog {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: htp-rise 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes htp-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Fixed header */
+.htp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 18px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+.htp-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+.htp-close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-sm);
+  color: var(--text-3);
+  transition: color 0.15s, background 0.15s;
+  flex: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.htp-close:hover        { color: var(--text); background: var(--surface-2); }
+.htp-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Scrollable body */
+.htp-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  /* Keyboard-reachable scroll region */
+  outline: none;
+}
+.htp-body:focus-visible { box-shadow: inset 0 0 0 2px var(--coral-ring); }
+
+/* Sections */
+.htp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.htp-section--gold {
+  background: linear-gradient(180deg, rgba(245, 177, 60, 0.07) 0%, transparent 100%);
+  border: 1px solid rgba(245, 177, 60, 0.18);
+  border-radius: var(--r-md);
+  padding: 16px;
+}
+.htp-section-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.htp-section-title--gold { color: var(--gold); }
+.htp-bonus-cap {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold);
+  background: var(--gold-soft);
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+.htp-section-note {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-3);
+  line-height: 1.55;
+}
+.htp-section-note--muted { font-size: 12.5px; }
+
+/* Bullet list */
+.htp-list {
+  margin: 0;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.55;
+}
+
+/* Points table */
+.htp-points-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.htp-points-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.htp-points-row--bonus {
+  background: rgba(91, 141, 239, 0.07);
+  border-color: rgba(91, 141, 239, 0.18);
+}
+.htp-pts-label {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.htp-pts-val {
+  flex: none;
+  font-size: 20px;
+  font-weight: 700;
+  min-width: 40px;
+  text-align: right;
+}
+.htp-pts-exact { color: var(--win); }
+.htp-pts-ok    { color: var(--blue-hi); }
+.htp-pts-miss  { color: var(--text-faint); }
+.htp-pts-bonus { color: var(--blue-hi); font-size: 18px; }
+
+/* Bonus table */
+.htp-bonus-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.htp-bonus-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.htp-bonus-row:last-child { border-bottom: none; }
+.htp-bonus-label {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.htp-bonus-pts {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold);
+  flex: none;
+}
+
+/* Leaderboard info blocks */
+.htp-lb-block {
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.htp-lb-label {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.htp-lb-body {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.55;
+}
+.htp-lb-body strong { color: var(--text); font-weight: 600; }
+
+/* Footer sign-off */
+.htp-footer-line {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-3);
+  font-style: italic;
+  text-align: center;
+  padding-top: 4px;
+}
+
+/* Help button in topbar */
+.btn-help {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-2);
+  color: var(--text-3);
+  font-size: 18px;
+  transition: color 0.18s, background 0.18s, border-color 0.18s;
+  cursor: pointer;
+  background: none;
+  flex: none;
+}
+.btn-help:hover         { color: var(--text); background: var(--surface-2); border-color: var(--border-strong); }
+.btn-help:focus-visible  { outline: none; box-shadow: var(--focus-ring); }
+.btn-help:active         { background: var(--surface-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-help, .htp-close { transition: none; }
+}
+
+/* ============================================================
    Desktop grid
    ============================================================ */
 @media (min-width: 1024px) {
