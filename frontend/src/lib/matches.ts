@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
@@ -85,5 +85,38 @@ export function usePutPrediction(matchId: number) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["matches"] });
     },
+  });
+}
+
+// ── Others' predictions (revealed after a match locks at kickoff — spec §4) ──
+
+export type MatchPredictionDTO = {
+  user_id: number;
+  name: string;
+  avatar_url: string;
+  home_score: number;
+  away_score: number;
+  penalty_winner_team_id: number | null;
+  // null until the match is scored FINAL
+  points: number | null;
+  penalty_bonus: number | null;
+  is_me: boolean;
+};
+
+// getMatchPredictions returns every player's pick for a match. The server only
+// serves this once the match has locked (403 before kickoff).
+export async function getMatchPredictions(matchId: number): Promise<MatchPredictionDTO[]> {
+  const res = await fetch(`${BASE}/matches/${matchId}/predictions`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Failed to load predictions: ${res.status}`);
+  return res.json() as Promise<MatchPredictionDTO[]>;
+}
+
+// useMatchPredictions fetches others' picks for a locked match. Pass enabled=false
+// (e.g. when the match isn't locked yet) to avoid a guaranteed-403 request.
+export function useMatchPredictions(matchId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ["match-predictions", matchId],
+    queryFn: () => getMatchPredictions(matchId),
+    enabled,
   });
 }

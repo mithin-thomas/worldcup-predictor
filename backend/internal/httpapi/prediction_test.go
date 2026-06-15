@@ -31,8 +31,9 @@ func (f fakePredMatchStore) GetMatchByID(_ context.Context, id int64) (store.Mat
 
 // fakePredStore records the last upsert and returns canned list rows.
 type fakePredStore struct {
-	upserts []store.UpsertPredictionParams
-	list    []store.Prediction
+	upserts    []store.UpsertPredictionParams
+	list       []store.Prediction
+	matchPreds []store.MatchPredictionRow
 }
 
 func (f *fakePredStore) UpsertPrediction(_ context.Context, p store.UpsertPredictionParams) error {
@@ -41,6 +42,9 @@ func (f *fakePredStore) UpsertPrediction(_ context.Context, p store.UpsertPredic
 }
 func (f *fakePredStore) ListPredictionsByUser(context.Context, int64) ([]store.Prediction, error) {
 	return f.list, nil
+}
+func (f *fakePredStore) ListMatchPredictionsWithUsers(context.Context, int64) ([]store.MatchPredictionRow, error) {
+	return f.matchPreds, nil
 }
 
 func i64(v int64) *int64 { return &v }
@@ -85,6 +89,71 @@ func withClock(t *testing.T, at time.Time) {
 	old := now
 	now = func() time.Time { return at }
 	t.Cleanup(func() { now = old })
+}
+
+func doGetPreds(t *testing.T, d *Deps, cookie *http.Cookie, id string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/api/matches/"+id+"/predictions", nil)
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	rec := httptest.NewRecorder()
+	NewRouter(d, false).ServeHTTP(rec, req)
+	return rec
+}
+
+func TestGetMatchPredictionsRequiresAuth(t *testing.T) {
+	d, _, _ := predDeps(t, futureGroupMatch(), true)
+	rec := doGetPreds(t, d, nil, "1")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("want 401, got %d", rec.Code)
+	}
+}
+
+func TestGetMatchPredictionsHiddenBeforeKickoff(t *testing.T) {
+	withClock(t, time.Date(2026, 6, 19, 0, 0, 0, 0, time.UTC)) // before the 6-20 kickoff
+	d, cookie, ps := predDeps(t, futureGroupMatch(), true)
+	ps.matchPreds = []store.MatchPredictionRow{{UserID: 2, Name: "Other", HomeScore: 1, AwayScore: 0}}
+	rec := doGetPreds(t, d, cookie, "1")
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("want 403 (hidden until kickoff), got %d", rec.Code)
+	}
+}
+
+func TestGetMatchPredictionsUnknownMatch404(t *testing.T) {
+	withClock(t, time.Date(2026, 6, 21, 0, 0, 0, 0, time.UTC))
+	d, cookie, _ := predDeps(t, futureGroupMatch(), false) // not found
+	rec := doGetPreds(t, d, cookie, "1")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("want 404, got %d", rec.Code)
+	}
+}
+
+func TestGetMatchPredictionsRevealedAfterKickoff(t *testing.T) {
+	withClock(t, time.Date(2026, 6, 21, 0, 0, 0, 0, time.UTC)) // after the 6-20 kickoff
+	d, cookie, ps := predDeps(t, futureGroupMatch(), true)
+	pts := int32(5)
+	ps.matchPreds = []store.MatchPredictionRow{
+		{UserID: 1, Name: "Me", HomeScore: 2, AwayScore: 1, Points: &pts},
+		{UserID: 2, Name: "Other", HomeScore: 0, AwayScore: 0},
+	}
+	rec := doGetPreds(t, d, cookie, "1")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d", rec.Code)
+	}
+	var got []matchPredictionDTO
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("want 2 predictions, got %d", len(got))
+	}
+	if !got[0].IsMe || got[0].Name != "Me" || got[0].Points == nil || *got[0].Points != 5 {
+		t.Fatalf("row 0 should be me with 5 pts, got %+v", got[0])
+	}
+	if got[1].IsMe {
+		t.Fatalf("row 1 (Other) should not be is_me")
+	}
 }
 
 func TestPutPredictionRequiresAuth(t *testing.T) {
