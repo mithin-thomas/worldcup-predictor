@@ -1,82 +1,10 @@
 import { useState, useEffect } from "react";
 import type { MatchDTO, TeamDTO } from "../lib/matches";
 import { usePutPrediction, PredictionLockedError } from "../lib/matches";
-import { flagClass } from "../lib/flags";
+import { istTime } from "../lib/ist";
+import { Flag } from "./Flag";
 import { Countdown } from "./Countdown";
-
-// ── IST time formatter ─────────────────────────────────────────────────────
-const istTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Kolkata",
-    hour12: true,
-  });
-
-// ── Flag component ─────────────────────────────────────────────────────────
-function Flag({ code, size = 46 }: { code?: string; size?: number }) {
-  const cls = flagClass(code);
-  const w = Math.round(size);
-  const h = Math.round(size * 0.7);
-  if (cls) {
-    return (
-      <span className={`flag ${cls}`} style={{ width: w, height: h }}
-        aria-hidden="true" />
-    );
-  }
-  return (
-    <span className="flag flag--tbd" style={{ width: w, height: h, fontSize: 12 }}
-      aria-hidden="true">?</span>
-  );
-}
-
-// ── Inline SVG icons ───────────────────────────────────────────────────────
-function ClockIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
-      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
-    </svg>
-  );
-}
-
-function LockIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
-      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="5" y="11" width="14" height="9" rx="2" />
-      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-      strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 12.5 10 17l9-10" />
-    </svg>
-  );
-}
-
-function MinusIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-      strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-      <path d="M5 12h14" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-      strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
+import { ClockIcon, LockIcon, CheckIcon, MinusIcon, PlusIcon } from "./icons";
 
 // ── Pill stepper (design: ±, circle buttons, pill container) ────────────────
 function PillStepper({

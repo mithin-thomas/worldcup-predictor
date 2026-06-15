@@ -1,34 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMatches, type MatchDTO, type DayDTO } from "../lib/matches";
+import { istShortDate, istRelLabel } from "../lib/ist";
 import { MatchCard } from "./MatchCard";
 import { PastRow } from "./PastRow";
+import { ChevronDownIcon } from "./icons";
 
 const PAGE_SIZE = 6;
-
-// ── IST date label helpers ─────────────────────────────────────────────────
-// Relative label: "Today", "Yesterday", "Tomorrow", or null
-function relLabel(istDate: string): string | null {
-  const todayIST = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // YYYY-MM-DD
-  if (istDate === todayIST) return "Today";
-  const dt = new Date(`${istDate}T00:00:00+05:30`).getTime();
-  const today = new Date(`${todayIST}T00:00:00+05:30`).getTime();
-  const diff = Math.round((dt - today) / 86_400_000);
-  if (diff === 1) return "Tomorrow";
-  if (diff === -1) return "Yesterday";
-  return null;
-}
-
-// Short date like "Mon, 15 Jun" (day abbrev + date)
-function shortDate(istDate: string): string {
-  const dt = new Date(`${istDate}T00:00:00+05:30`);
-  return dt.toLocaleDateString("en-IN", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "Asia/Kolkata",
-  });
-}
 
 // ── Segmented control ──────────────────────────────────────────────────────
 type SegView = "upcoming" | "past";
@@ -57,16 +35,6 @@ function Seg({ value, onChange }: { value: SegView; onChange: (v: SegView) => vo
   );
 }
 
-// ── Chevron icon for load-more ──────────────────────────────────────────────
-function ChevronDownIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
 // ── Date group component ────────────────────────────────────────────────────
 function DateGroup({
   date,
@@ -77,8 +45,8 @@ function DateGroup({
   matches: MatchDTO[];
   view: SegView;
 }) {
-  const rel = relLabel(date);
-  const short = shortDate(date);
+  const rel = istRelLabel(date);
+  const short = istShortDate(date);
 
   return (
     <div className="date-group">

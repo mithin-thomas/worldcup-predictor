@@ -1,22 +1,5 @@
 import type { MatchDTO } from "../lib/matches";
-import { flagClass } from "../lib/flags";
-
-// ── Flag ───────────────────────────────────────────────────────────────────
-function Flag({ code, size = 30 }: { code?: string; size?: number }) {
-  const cls = flagClass(code);
-  const w = Math.round(size);
-  const h = Math.round(size * 0.7);
-  if (cls) {
-    return (
-      <span className={`flag ${cls}`} style={{ width: w, height: h }}
-        aria-hidden="true" />
-    );
-  }
-  return (
-    <span className="flag flag--tbd" style={{ width: w, height: h, fontSize: 10 }}
-      aria-hidden="true">?</span>
-  );
-}
+import { Flag } from "./Flag";
 
 // ── Points chip ────────────────────────────────────────────────────────────
 // 5=win/gold, 3=ok/blue, 0=miss/muted, null=not scored yet

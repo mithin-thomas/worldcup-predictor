@@ -9,9 +9,17 @@ import {
   type PlayerOption,
 } from "../lib/bonus";
 import { PlayerCombobox } from "./PlayerCombobox";
-import { flagClass } from "../lib/flags";
+import { Flag } from "./Flag";
+import {
+  TrophyIcon,
+  LockIcon,
+  ChevronIcon,
+  SearchIcon,
+  CheckIcon,
+  SparkIcon,
+} from "./icons";
 
-// ── IST countdown to lock_at (mirrors Bonus.tsx) ───────────────────────────
+// ── IST countdown to lock_at ────────────────────────────────────────────────
 function useCountdown(lockAt: string | undefined): string {
   const [display, setDisplay] = useState("");
   useEffect(() => {
@@ -34,81 +42,6 @@ function useCountdown(lockAt: string | undefined): string {
     return () => window.clearInterval(id);
   }, [lockAt]);
   return display;
-}
-
-// ── Inline SVG icons (matching components.jsx set) ─────────────────────────
-function TrophyIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor"
-      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M6 4h12v3a6 6 0 0 1-12 0V4Z" />
-      <path d="M6 6H4a2 2 0 0 0 0 4h2M18 6h2a2 2 0 0 1 0 4h-2" />
-      <path d="M9 14.5V17h6v-2.5M8 21h8M10 17v2M14 17v2" />
-    </svg>
-  );
-}
-
-function LockIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor"
-      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="5" y="11" width="14" height="9" rx="2" />
-      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-    </svg>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor"
-      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.2-3.2" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor"
-      strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 12.5 10 17l9-10" />
-    </svg>
-  );
-}
-
-function SparkIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-      <path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2Z" />
-    </svg>
-  );
-}
-
-// ── Flag helper ──────────────────────────────────────────────────────────────
-function TeamFlag({ code, size = 24 }: { code: string; size?: number }) {
-  const cls = flagClass(code);
-  const w = Math.round(size);
-  const h = Math.round(size * 0.7);
-  if (cls) {
-    return (
-      <span className={`flag ${cls}`} style={{ width: w, height: h, borderRadius: 4 }}
-        aria-hidden="true" />
-    );
-  }
-  return (
-    <span className="flag flag--tbd" style={{ width: w, height: h, fontSize: 11 }}
-      aria-hidden="true">?</span>
-  );
 }
 
 // ── Team-select dropdown with search ────────────────────────────────────────
@@ -170,7 +103,7 @@ function TeamSelect({ teams, selectedId, disabled, ariaLabel, onSelect }: TeamSe
       >
         {selTeam ? (
           <span className="bs-val">
-            <TeamFlag code={selTeam.code} size={22} />
+            <Flag code={selTeam.code} size={22} />
             <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {selTeam.name}
             </span>
@@ -209,7 +142,7 @@ function TeamSelect({ teams, selectedId, disabled, ariaLabel, onSelect }: TeamSe
                   onClick={() => { onSelect(t.id); setOpen(false); }}
                   onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
                 >
-                  <TeamFlag code={t.code} size={20} />
+                  <Flag code={t.code} size={20} />
                   {t.name}
                   <span className="bs-code">{t.code}</span>
                   {selectedId === t.id && <span className="bonus-opt-tick"><CheckIcon /></span>}
