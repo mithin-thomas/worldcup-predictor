@@ -61,6 +61,11 @@ describe("HowToPlayModal", () => {
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("shows the 3-day prediction window rule", () => {
+    render(<HowToPlayModal onClose={vi.fn()} />);
+    expect(screen.getByText(/3 days before kickoff/i)).toBeInTheDocument();
+  });
+
   it("shows the good luck footer line", () => {
     render(<HowToPlayModal onClose={vi.fn()} />);
     expect(screen.getByText(/good luck/i)).toBeInTheDocument();

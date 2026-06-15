@@ -35,7 +35,8 @@ Any admin edit to a match (fixture detail or result) sets a `manual_override` fl
 ### 3.2 Fixtures & predictions
 
 - The fixtures list is grouped by IST date. Each match shows both teams, kickoff time in IST, and a live countdown.
-- A user enters a predicted score per match. Predictions can be changed any number of times **until kickoff**.
+- A user enters a predicted score per match. Predictions **open 3 days (72h) before kickoff** and can be changed any number of times within that window, **until kickoff**.
+- **Prediction window is enforced server-side**: a write for a match kicking off more than 72h away is rejected (`422`, "predictions open 3 days before kickoff"). The UI shows an "opens on …" hint and a popup for not-yet-open matches, but the server is authoritative. (Decision added post-v1 at product request; see §17.)
 - **Locking is enforced server-side** from the stored kickoff timestamp: any write where `now >= kickoff_utc` is rejected, regardless of client state. The UI also reflects the locked state, but the server is authoritative.
 - For knockout matches where the user's predicted score is a **draw**, the user may additionally pick the penalty-shootout winner (see 3.3).
 

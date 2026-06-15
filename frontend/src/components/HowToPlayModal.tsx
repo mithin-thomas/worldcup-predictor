@@ -116,6 +116,10 @@ export function HowToPlayModal({ onClose }: HowToPlayModalProps) {
                 this, so a late edit is rejected).
               </li>
               <li>
+                Each match opens for predictions 3 days before kickoff — you can set
+                or change your pick any time in that window, until it locks at kickoff.
+              </li>
+              <li>
                 Other players' predictions stay hidden until a match locks at kickoff,
                 then they're revealed. Keeps it fair.
               </li>
