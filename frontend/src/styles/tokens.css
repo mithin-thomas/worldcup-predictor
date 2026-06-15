@@ -507,7 +507,10 @@ input  { font-family: inherit; }
   overflow: hidden;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.10), 0 2px 6px rgba(0, 0, 0, 0.4);
   flex: none;
-  background: var(--surface-3);
+  /* background-color is only a fallback tint; never use the `background`
+     shorthand here — it resets background-image:none and wipes the
+     flag-icons sprite (the `.fi`/`.fi-xx` classes set background-image). */
+  background-color: var(--surface-3);
   background-size: cover;
   background-position: center;
 }
@@ -1406,6 +1409,9 @@ input  { font-family: inherit; }
 
 /* Panel shared class (forms, etc.) */
 .admin__panel { display: flex; flex-direction: column; gap: var(--space-4); }
+/* The `hidden` attribute must win over the flex display above, or inactive
+   tab panels stay visible and all sections stack on scroll. */
+.admin__panel[hidden] { display: none; }
 .admin-panel               { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--space-4) var(--space-5); display: flex; flex-direction: column; gap: var(--space-4); }
 .admin-panel__title        { margin: 0; font-size: 15px; font-weight: 600; color: var(--text); }
 .admin-form                { display: flex; flex-direction: column; gap: var(--space-3); }

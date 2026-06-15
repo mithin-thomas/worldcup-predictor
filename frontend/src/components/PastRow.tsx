@@ -31,10 +31,13 @@ export function PastRow({ match }: Props) {
     );
   }
 
+  // A locked match may not be scored yet (kicked off but result not ingested).
+  // Only show a scoreline + winner emphasis + points once a result exists.
+  const scored = home_score != null && away_score != null;
   const hs = home_score ?? 0;
   const as_ = away_score ?? 0;
-  const homeWin = hs > as_;
-  const awayWin = as_ > hs;
+  const homeWin = scored && hs > as_;
+  const awayWin = scored && as_ > hs;
   const tag = group ? `Group ${group}` : round;
 
   const penBonus = prediction?.penalty_bonus;
@@ -43,7 +46,11 @@ export function PastRow({ match }: Props) {
   return (
     <article
       className="past-row"
-      aria-label={`${home.name} ${hs}–${as_} ${away.name}, result`}
+      aria-label={
+        scored
+          ? `${home.name} ${hs}–${as_} ${away.name}, result`
+          : `${home.name} versus ${away.name}, awaiting result`
+      }
     >
       {/* ── Score layout ────────────────────────────────────────────────── */}
       <div className="pr-main">
@@ -53,11 +60,17 @@ export function PastRow({ match }: Props) {
           <Flag code={home.code} size={30} />
         </div>
 
-        {/* Final score */}
+        {/* Final score, or "vs" while awaiting the result */}
         <div className="pr-score">
-          <span className="mono">{hs}</span>
-          <span className="pr-dash">–</span>
-          <span className="mono">{as_}</span>
+          {scored ? (
+            <>
+              <span className="mono">{hs}</span>
+              <span className="pr-dash">–</span>
+              <span className="mono">{as_}</span>
+            </>
+          ) : (
+            <span className="mono muted">vs</span>
+          )}
         </div>
 
         {/* Away team */}
@@ -87,7 +100,9 @@ export function PastRow({ match }: Props) {
           <span className="pr-pick muted">No prediction</span>
         )}
 
-        {prediction ? (
+        {!scored ? (
+          <span className="pr-pick muted">Awaiting result</span>
+        ) : prediction ? (
           <PtsChip points={prediction.points} />
         ) : (
           <span className="pts-chip miss mono">+0 pts</span>

@@ -163,9 +163,12 @@ export function MatchesColumn() {
   const allDays: DayDTO[] = data?.days ?? [];
   const allMatches = allDays.flatMap((d) => d.matches);
 
-  const upcoming = allMatches.filter((m) => m.status !== "final");
-  // Past: final matches; most-recent first (reverse date order)
-  const past = allMatches.filter((m) => m.status === "final").reverse();
+  // Split on the server lock state (kickoff), not on result status: a match
+  // that has kicked off but isn't scored yet is no longer predictable and
+  // belongs in Past & results, not Upcoming.
+  const upcoming = allMatches.filter((m) => !m.locked);
+  // Past: locked (kicked-off) matches; most-recent first (reverse date order)
+  const past = allMatches.filter((m) => m.locked).reverse();
 
   const list = view === "upcoming" ? upcoming : past;
   const visible = list.slice(0, shown);

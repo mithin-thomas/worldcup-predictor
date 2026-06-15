@@ -49,6 +49,18 @@ const makeFinal = (id: number) => ({
   kickoff_utc: `2026-06-1${id % 9}T00:00:00Z`,
 });
 
+// Locked (kicked off) but not yet scored — the bug case: must land in Past,
+// not Upcoming, and render as a PastRow awaiting its result.
+const makeLockedNoResult = (id: number) => ({
+  ...makeUpcoming(id),
+  status: "scheduled" as const,
+  locked: true,
+  home_score: null,
+  away_score: null,
+  kickoff_ist: `2026-06-1${id % 9}T05:30:00+05:30`,
+  kickoff_utc: `2026-06-1${id % 9}T00:00:00Z`,
+});
+
 beforeEach(() => { vi.clearAllMocks(); });
 
 describe("MatchesColumn", () => {
@@ -172,6 +184,24 @@ describe("MatchesColumn", () => {
     await user.click(screen.getByRole("tab", { name: /upcoming/i }));
     // Upcoming is empty — no articles
     await waitFor(() => expect(screen.queryAllByRole("article")).toHaveLength(0));
+  });
+
+  it("puts locked-but-unscored matches in Past (not Upcoming) and shows them awaiting result", async () => {
+    const data: MatchesResponse = {
+      days: [{ date: "2026-06-12", matches: [makeLockedNoResult(1)] }],
+    };
+    (getMatches as ReturnType<typeof vi.fn>).mockResolvedValue(data);
+    const user = userEvent.setup();
+    wrap(<MatchesColumn />);
+
+    // Default Upcoming view: the locked match must NOT appear there.
+    await waitFor(() => expect(screen.getByText(/No upcoming matches/i)).toBeInTheDocument());
+    expect(screen.queryAllByRole("article")).toHaveLength(0);
+
+    // Past view: it appears as a PastRow awaiting its result (no fake 0–0).
+    await user.click(screen.getByRole("tab", { name: /past & results/i }));
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(1));
+    expect(screen.getByText(/Awaiting result/i)).toBeInTheDocument();
   });
 
   it("shows empty state when no upcoming matches", async () => {
