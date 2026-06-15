@@ -13,6 +13,10 @@ import (
 const sessionCookieName = "sayscore_session"
 const sessionTTL = 7 * 24 * time.Hour
 
+// sessionRefreshThreshold: re-issue the cookie when the remaining TTL is
+// less than sessionTTL - sessionRefreshThreshold (i.e. in the last 24 h window).
+const sessionRefreshThreshold = 24 * time.Hour
+
 type ctxKey int
 
 const userCtxKey ctxKey = iota
@@ -73,6 +77,12 @@ func (d *Deps) RequireAuth(next http.Handler) http.Handler {
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "user not found")
 			return
+		}
+		// Sliding refresh: re-issue the cookie on activity when it's within its
+		// last (sessionTTL - sessionRefreshThreshold) so active users keep their
+		// session alive; idle users expire naturally.
+		if time.Unix(sess.ExpiresAt, 0).Sub(now()) < sessionTTL-sessionRefreshThreshold {
+			d.setSessionCookie(w, u.ID)
 		}
 		ctx := context.WithValue(r.Context(), userCtxKey, u)
 		next.ServeHTTP(w, r.WithContext(ctx))
