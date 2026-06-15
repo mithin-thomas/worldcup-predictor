@@ -416,7 +416,7 @@ describe("Admin screen — matches tab", () => {
     wrap(<Admin />);
 
     // Open the new-match form
-    fireEvent.click(screen.getByRole("button", { name: /\+ New Match/i }));
+    fireEvent.click(screen.getByRole("button", { name: /New Match/i }));
 
     // The error alert (role="alert") from the form should be present
     const alerts = screen.getAllByRole("alert");
