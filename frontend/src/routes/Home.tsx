@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BonusPanel } from "../components/BonusPanel";
 import { MatchesColumn } from "../components/MatchesColumn";
+import { StandingCard } from "../components/StandingCard";
 import { LeaderboardPanel } from "../components/LeaderboardPanel";
 import { HallOfFame } from "../components/HallOfFame";
 
@@ -38,8 +39,9 @@ export function Home() {
           <MatchesColumn />
         </div>
 
-        {/* RIGHT: Sidebar (leaderboard + hall of fame) */}
+        {/* RIGHT: Sidebar (standing + leaderboard + hall of fame) */}
         <aside className={`home__aside main-right${mobileView === "fixtures" ? " is-hidden-mobile" : ""}`}>
+          <StandingCard />
           <LeaderboardPanel />
           <HallOfFame />
         </aside>
