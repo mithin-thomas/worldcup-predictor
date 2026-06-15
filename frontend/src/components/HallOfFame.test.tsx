@@ -230,4 +230,46 @@ describe("HallOfFame", () => {
     expect(screen.queryByText("Dave")).toBeNull();
     expect(screen.queryByText("Eve")).toBeNull();
   });
+
+  it("load-error uses hof__error class (loss color), not hof__empty (muted)", () => {
+    (useWinners as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isLoading: false, isError: true });
+    (useMe as ReturnType<typeof vi.fn>).mockReturnValue({ data: { role: "user" } });
+    wrap(<HallOfFame />);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveClass("hof__error");
+    expect(alert).not.toHaveClass("hof__empty");
+  });
+
+  it("shrinking weeks list: display clamps and a single Prev click moves correctly", async () => {
+    (useWinners as ReturnType<typeof vi.fn>).mockReturnValue({ data: sampleThree, isLoading: false, isError: false });
+    (useMe as ReturnType<typeof vi.fn>).mockReturnValue({ data: { role: "user" } });
+    const qc = new QueryClient();
+    const { rerender: rerender2 } = render(
+      <QueryClientProvider client={qc}><HallOfFame /></QueryClientProvider>
+    );
+
+    // Navigate to the oldest week (index 2)
+    const nextBtn = screen.getByRole("button", { name: /Earlier week/i });
+    await userEvent.click(nextBtn); // wi = 1
+    await userEvent.click(nextBtn); // wi = 2
+
+    expect(screen.getByText(/3 \/ 3 weeks/i)).toBeInTheDocument();
+
+    // Shrink: rerender with only 1 week; wi=2 should clamp to 0
+    const shrunk = {
+      weeks: [
+        { week_start: "2026-06-15", winners: [{ user_id: 3, name: "Frank", avatar_url: "", points: 20, prize_paid: false }] },
+      ],
+    };
+    (useWinners as ReturnType<typeof vi.fn>).mockReturnValue({ data: shrunk, isLoading: false, isError: false });
+    rerender2(<QueryClientProvider client={qc}><HallOfFame /></QueryClientProvider>);
+
+    // After clamp: should show week 1/1 and Frank
+    expect(screen.getByText("Frank")).toBeInTheDocument();
+    expect(screen.getByText(/1 \/ 1 weeks/i)).toBeInTheDocument();
+
+    // Prev is disabled at index 0
+    const prevBtn = screen.getByRole("button", { name: /More recent week/i });
+    expect(prevBtn).toBeDisabled();
+  });
 });

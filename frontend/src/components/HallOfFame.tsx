@@ -87,7 +87,7 @@ export function HallOfFame() {
           </h3>
           <span className="hof-sub eyebrow">₹500 / week</span>
         </div>
-        <p className="hof__empty" role="alert">Couldn&apos;t load past winners.</p>
+        <p className="hof__error" role="alert">Couldn&apos;t load past winners.</p>
       </div>
     );
   }
@@ -145,7 +145,7 @@ export function HallOfFame() {
           type="button"
           className="hof-arrow"
           disabled={isFirst}
-          onClick={() => setWi((i) => Math.max(0, i - 1))}
+          onClick={() => setWi(Math.max(0, safeWi - 1))}
           aria-label="More recent week"
         >
           <ChevronLeft />
@@ -160,7 +160,7 @@ export function HallOfFame() {
           type="button"
           className="hof-arrow"
           disabled={isLast}
-          onClick={() => setWi((i) => Math.min(weeks.length - 1, i + 1))}
+          onClick={() => setWi(Math.min(weeks.length - 1, safeWi + 1))}
           aria-label="Earlier week"
         >
           <ChevronRight />
@@ -204,9 +204,6 @@ export function HallOfFame() {
                       paid: !win.prize_paid,
                     })
                   }
-                  style={win.prize_paid
-                    ? { background: "var(--win-soft)", color: "var(--win)" }
-                    : undefined}
                 >
                   {isThisRowPending ? (
                     "Saving…"
