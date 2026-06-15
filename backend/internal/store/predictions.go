@@ -14,11 +14,14 @@ import (
 var ErrNotFound = errors.New("store: not found")
 
 // Prediction is the caller's stored pick for a match (read model for the list).
+// Points/PenaltyBonus are nil until the match is scored FINAL.
 type Prediction struct {
 	MatchID             int64
 	HomeScore           int32
 	AwayScore           int32
 	PenaltyWinnerTeamID *int64
+	Points              *int32
+	PenaltyBonus        *int32
 }
 
 // UpsertPredictionParams is the write surface for a single prediction.
@@ -75,6 +78,8 @@ func (s *SQLStore) ListPredictionsByUser(ctx context.Context, userID int64) ([]P
 			HomeScore:           r.HomeScore,
 			AwayScore:           r.AwayScore,
 			PenaltyWinnerTeamID: ptrI64(r.PenaltyWinnerTeamID),
+			Points:              ptrI32(r.Points),
+			PenaltyBonus:        ptrI32(r.PenaltyBonus),
 		})
 	}
 	return out, nil
@@ -104,5 +109,14 @@ func ptrI64(n sql.NullInt64) *int64 {
 		return nil
 	}
 	v := n.Int64
+	return &v
+}
+
+// ptrI32 converts a nullable sqlc column to *int32.
+func ptrI32(n sql.NullInt32) *int32 {
+	if !n.Valid {
+		return nil
+	}
+	v := n.Int32
 	return &v
 }

@@ -1,7 +1,24 @@
+/**
+ * LeaderboardPanel — reskinned to the SayOne design system.
+ *
+ * Card layout: .card.lb with .lb-head (title + Seg toggle) and .lb-list of
+ * .lb-row rows (rank chip, avatar, name+You tag, points).
+ *
+ * Preserves all wiring: useLeaderboard(period, page), period swap resets page,
+ * weekly ★ winner badge, off-page "Your rank: N", pagination, skeleton/error/empty.
+ */
+
 import { useState } from "react";
 import { useLeaderboard } from "../lib/leaderboard";
+import { Avatar } from "./Avatar";
+import { Seg } from "./Seg";
 
 type Period = "week" | "overall";
+
+const SEG_OPTIONS = [
+  { value: "overall", label: "Overall" },
+  { value: "week",    label: "Weekly" },
+];
 
 export function LeaderboardPanel() {
   const [period, setPeriod] = useState<Period>("overall");
@@ -13,22 +30,25 @@ export function LeaderboardPanel() {
     setPage(1);
   };
 
+  const totalPages = data ? Math.ceil(data.total / data.page_size) : 1;
+
   return (
-    <section className="lb" aria-label="Leaderboard">
-      <div className="lb__tabs" aria-label="Leaderboard period">
-        <button type="button" aria-pressed={period === "overall"}
-          className={`lb__tab ${period === "overall" ? "is-active" : ""}`} onClick={() => swap("overall")}>
-          Overall
-        </button>
-        <button type="button" aria-pressed={period === "week"}
-          className={`lb__tab ${period === "week" ? "is-active" : ""}`} onClick={() => swap("week")}>
-          Weekly
-        </button>
+    <section className="card lb" aria-label="Leaderboard">
+      <div className="lb-head">
+        <h3 className="panel-title">Leaderboard</h3>
+        <Seg
+          size="sm"
+          options={SEG_OPTIONS}
+          value={period}
+          onChange={(v) => swap(v as Period)}
+        />
       </div>
 
       {isLoading ? (
-        <div className="lb__skeleton" aria-hidden="true">
-          <div className="skeleton skeleton--text" /><div className="skeleton skeleton--text" /><div className="skeleton skeleton--text" />
+        <div aria-hidden="true" style={{ display: "flex", flexDirection: "column", gap: 8, padding: "4px 0" }}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="skeleton" style={{ height: 46, borderRadius: "var(--r-sm)", width: "100%" }} />
+          ))}
         </div>
       ) : isError ? (
         <p className="lb__empty" role="alert">Couldn&apos;t load the leaderboard.</p>
@@ -40,35 +60,61 @@ export function LeaderboardPanel() {
         </p>
       ) : (
         <>
-          {period === "week" && data.week ? (
-            <p className="lb__week">
-              Week of {new Date(`${data.week}T00:00:00+05:30`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}
-            </p>
-          ) : null}
-          <ol className="lb__list">
-            {data.rows.map((r) => (
-              <li
-                key={r.user_id}
-                className={`lb__row${r.rank === 1 ? " lb__row--top" : ""}${r.is_me ? " is-me" : ""}`}
-                {...(r.is_me ? { "data-me": "" } : {})}
-              >
-                <span className="lb__rank mono">{r.rank}</span>
-                <span className="lb__name">
-                  {r.name}
-                  {period === "week" && r.is_winner ? <span className="lb__badge" aria-label="weekly winner">★</span> : null}
-                </span>
-                <span className="lb__pts mono" aria-label={`${r.points} points`}>{r.points}</span>
-              </li>
-            ))}
+          <ol className="lb-list">
+            {data.rows.map((r) => {
+              const isPodium = period === "overall" && r.rank <= 3;
+              return (
+                <li
+                  key={r.user_id}
+                  className={`lb-row${isPodium ? " podium" : ""}${r.is_me ? " you" : ""}`}
+                  {...(r.is_me ? { "data-me": "" } : {})}
+                >
+                  <span className={`lb-rank${r.rank <= 3 ? ` r${r.rank}` : ""} mono`} aria-label={`Rank ${r.rank}`}>
+                    {r.rank}
+                  </span>
+                  <Avatar name={r.name} avatarUrl={r.avatar_url || undefined} size={28} isMe={r.is_me} />
+                  <span className="lb-name">
+                    {r.name}
+                    {r.is_me && <span className="you-tag">You</span>}
+                    {period === "week" && r.is_winner && (
+                      <span className="lb__badge" aria-label="weekly winner">★</span>
+                    )}
+                  </span>
+                  <span className="lb-pts mono" aria-label={`${r.points} points`}>
+                    {r.points}
+                  </span>
+                </li>
+              );
+            })}
           </ol>
+
+          {/* Off-page "Your rank" line */}
           {data.me && !data.rows.some((r) => r.is_me) ? (
             <p className="lb__me mono">Your rank: {data.me.rank} · {data.me.points} pts</p>
           ) : null}
+
+          {/* Pagination */}
           {data.total > data.page_size ? (
             <div className="lb__pager">
-              <button type="button" className="btn-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Previous page">‹</button>
-              <span className="lb__pageinfo mono">{page} / {Math.ceil(data.total / data.page_size)}</span>
-              <button type="button" className="btn-ghost" disabled={page >= Math.ceil(data.total / data.page_size)} onClick={() => setPage((p) => p + 1)} aria-label="Next page">›</button>
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+                aria-label="Previous page"
+              >
+                ‹
+              </button>
+              <span className="lb__pageinfo mono">{page} / {totalPages}</span>
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                aria-label="Next page"
+              >
+                ›
+              </button>
             </div>
           ) : null}
         </>

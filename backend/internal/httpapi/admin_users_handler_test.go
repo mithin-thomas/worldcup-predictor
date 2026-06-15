@@ -13,7 +13,7 @@ import (
 
 // fakeAdminUserStore implements store.AdminUserStore for handler tests.
 type fakeAdminUserStore struct {
-	users        []store.User
+	users        []store.AdminUserRow
 	adminCount   int64
 	roleByID     map[int64]store.Role
 	setRoleCalls []struct {
@@ -22,7 +22,7 @@ type fakeAdminUserStore struct {
 	}
 }
 
-func (f *fakeAdminUserStore) ListUsers(context.Context) ([]store.User, error) {
+func (f *fakeAdminUserStore) ListUsers(context.Context) ([]store.AdminUserRow, error) {
 	return f.users, nil
 }
 
@@ -53,9 +53,9 @@ func (f *fakeAdminUserStore) SetUserRole(_ context.Context, id int64, role store
 
 func TestGetAdminUsers_Returns200(t *testing.T) {
 	st := &fakeAdminUserStore{
-		users: []store.User{
-			{ID: 1, Email: "a@sayonetech.com", Name: "Alice", Role: store.RoleAdmin},
-			{ID: 2, Email: "b@sayonetech.com", Name: "Bob", Role: store.RoleUser},
+		users: []store.AdminUserRow{
+			{ID: 1, Email: "a@sayonetech.com", Name: "Alice", Role: store.RoleAdmin, PredictionCount: 12, TotalPoints: 47},
+			{ID: 2, Email: "b@sayonetech.com", Name: "Bob", Role: store.RoleUser, PredictionCount: 3, TotalPoints: 9},
 		},
 	}
 	d := &Deps{AdminUsers: st}

@@ -10,11 +10,13 @@ import (
 )
 
 type adminUserDTO struct {
-	ID        int64  `json:"id"`
-	Email     string `json:"email"`
-	Name      string `json:"name"`
-	AvatarURL string `json:"avatar_url"`
-	Role      string `json:"role"`
+	ID              int64  `json:"id"`
+	Email           string `json:"email"`
+	Name            string `json:"name"`
+	AvatarURL       string `json:"avatar_url"`
+	Role            string `json:"role"`
+	PredictionCount int64  `json:"prediction_count"`
+	TotalPoints     int64  `json:"total_points"`
 }
 
 // GetAdminUsers returns the full user list for admin management.
@@ -28,11 +30,13 @@ func (d *Deps) GetAdminUsers(w http.ResponseWriter, r *http.Request) {
 	dtos := make([]adminUserDTO, 0, len(users))
 	for _, u := range users {
 		dtos = append(dtos, adminUserDTO{
-			ID:        u.ID,
-			Email:     u.Email,
-			Name:      u.Name,
-			AvatarURL: u.AvatarURL,
-			Role:      string(u.Role),
+			ID:              u.ID,
+			Email:           u.Email,
+			Name:            u.Name,
+			AvatarURL:       u.AvatarURL,
+			Role:            string(u.Role),
+			PredictionCount: u.PredictionCount,
+			TotalPoints:     u.TotalPoints,
 		})
 	}
 	writeJSON(w, http.StatusOK, dtos)

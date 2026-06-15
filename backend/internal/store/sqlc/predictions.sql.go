@@ -11,7 +11,7 @@ import (
 )
 
 const listPredictionsByUser = `-- name: ListPredictionsByUser :many
-SELECT match_id, home_score, away_score, penalty_winner_team_id
+SELECT match_id, home_score, away_score, penalty_winner_team_id, points, penalty_bonus
 FROM predictions
 WHERE user_id = ?
 `
@@ -21,6 +21,8 @@ type ListPredictionsByUserRow struct {
 	HomeScore           int32         `json:"home_score"`
 	AwayScore           int32         `json:"away_score"`
 	PenaltyWinnerTeamID sql.NullInt64 `json:"penalty_winner_team_id"`
+	Points              sql.NullInt32 `json:"points"`
+	PenaltyBonus        sql.NullInt32 `json:"penalty_bonus"`
 }
 
 func (q *Queries) ListPredictionsByUser(ctx context.Context, userID int64) ([]ListPredictionsByUserRow, error) {
@@ -37,6 +39,8 @@ func (q *Queries) ListPredictionsByUser(ctx context.Context, userID int64) ([]Li
 			&i.HomeScore,
 			&i.AwayScore,
 			&i.PenaltyWinnerTeamID,
+			&i.Points,
+			&i.PenaltyBonus,
 		); err != nil {
 			return nil, err
 		}

@@ -9,6 +9,9 @@ export type PredictionDTO = {
   home_score: number;
   away_score: number;
   penalty_winner_team_id: number | null;
+  // points/penalty_bonus are null until the match is scored FINAL
+  points: number | null;
+  penalty_bonus: number | null;
 };
 
 export type PredictionInput = {

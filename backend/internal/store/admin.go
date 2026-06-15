@@ -61,9 +61,22 @@ type AdminMatchStore interface {
 	TeamExists(ctx context.Context, id int64) (bool, error) // implemented in players.go
 }
 
+// AdminUserRow is a user plus activity stats for the admin users table.
+// PredictionCount is how many predictions the user has made; TotalPoints is
+// their overall score (match points + penalty bonus + tournament bonus).
+type AdminUserRow struct {
+	ID              int64
+	Email           string
+	Name            string
+	AvatarURL       string
+	Role            Role
+	PredictionCount int64
+	TotalPoints     int64
+}
+
 // AdminUserStore is the user-management surface for admin handlers.
 type AdminUserStore interface {
-	ListUsers(ctx context.Context) ([]User, error)
+	ListUsers(ctx context.Context) ([]AdminUserRow, error)
 	CountAdmins(ctx context.Context) (int64, error)
 	GetUserRole(ctx context.Context, id int64) (Role, error)
 	SetUserRole(ctx context.Context, id int64, role Role) error // implemented in db.go
@@ -148,19 +161,21 @@ func (s *SQLStore) MatchExists(ctx context.Context, id int64) (bool, error) {
 	return n > 0, nil
 }
 
-func (s *SQLStore) ListUsers(ctx context.Context) ([]User, error) {
+func (s *SQLStore) ListUsers(ctx context.Context) ([]AdminUserRow, error) {
 	rows, err := s.q.ListUsersAdmin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("store: list users: %w", err)
 	}
-	out := make([]User, 0, len(rows))
+	out := make([]AdminUserRow, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, User{
-			ID:        r.ID,
-			Email:     r.Email,
-			Name:      r.Name,
-			AvatarURL: r.AvatarUrl,
-			Role:      Role(r.Role),
+		out = append(out, AdminUserRow{
+			ID:              r.ID,
+			Email:           r.Email,
+			Name:            r.Name,
+			AvatarURL:       r.AvatarUrl,
+			Role:            Role(r.Role),
+			PredictionCount: r.PredictionCount,
+			TotalPoints:     r.TotalPoints,
 		})
 	}
 	return out, nil

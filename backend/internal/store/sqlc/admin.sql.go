@@ -152,15 +152,27 @@ func (q *Queries) ListMatchesForAdmin(ctx context.Context) ([]ListMatchesForAdmi
 }
 
 const listUsersAdmin = `-- name: ListUsersAdmin :many
-SELECT id, email, name, avatar_url, role FROM users ORDER BY name ASC, email ASC
+SELECT
+    u.id, u.email, u.name, u.avatar_url, u.role,
+    CAST((SELECT COUNT(*) FROM predictions p WHERE p.user_id = u.id) AS SIGNED) AS prediction_count,
+    CAST(
+        COALESCE((SELECT SUM(COALESCE(p.points, 0) + COALESCE(p.penalty_bonus, 0))
+                  FROM predictions p WHERE p.user_id = u.id), 0)
+        + COALESCE((SELECT SUM(COALESCE(b.points, 0))
+                    FROM bonus_predictions b WHERE b.user_id = u.id), 0)
+    AS SIGNED) AS total_points
+FROM users u
+ORDER BY u.name ASC, u.email ASC
 `
 
 type ListUsersAdminRow struct {
-	ID        int64     `json:"id"`
-	Email     string    `json:"email"`
-	Name      string    `json:"name"`
-	AvatarUrl string    `json:"avatar_url"`
-	Role      UsersRole `json:"role"`
+	ID              int64     `json:"id"`
+	Email           string    `json:"email"`
+	Name            string    `json:"name"`
+	AvatarUrl       string    `json:"avatar_url"`
+	Role            UsersRole `json:"role"`
+	PredictionCount int64     `json:"prediction_count"`
+	TotalPoints     int64     `json:"total_points"`
 }
 
 func (q *Queries) ListUsersAdmin(ctx context.Context) ([]ListUsersAdminRow, error) {
@@ -178,6 +190,8 @@ func (q *Queries) ListUsersAdmin(ctx context.Context) ([]ListUsersAdminRow, erro
 			&i.Name,
 			&i.AvatarUrl,
 			&i.Role,
+			&i.PredictionCount,
+			&i.TotalPoints,
 		); err != nil {
 			return nil, err
 		}

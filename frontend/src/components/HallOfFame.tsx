@@ -1,20 +1,42 @@
+/**
+ * HallOfFame — rebuilt with single-week PREV/NEXT navigation.
+ *
+ * Weeks are ordered newest-first (index 0 = most recent).
+ * Prev arrow = more recent week (disabled at 0).
+ * Next arrow = earlier week (disabled at last index).
+ *
+ * Admin: mark-paid per-row toggle with per-row pending state.
+ * Non-admin: paid/pending badge.
+ * Preserves existing inline error from useMarkWinnerPaid.
+ */
+
+import { useState } from "react";
 import { useWinners, useMarkWinnerPaid } from "../lib/winners";
 import { useMe } from "../lib/auth";
+import { weekRange, currentISTMonday } from "../lib/ist";
+import { Avatar } from "./Avatar";
+import { TrophyIcon, CheckIcon } from "./icons";
 
-// weekRange renders the IST Mon–Sun span for a week_start (YYYY-MM-DD, the IST
-// calendar Monday). E.g. "25–31 May 2026", or "29 Jun – 5 Jul 2026" across a
-// month boundary. Times are converted at the edge to IST, never shown as raw UTC.
-function weekRange(weekStart: string): string {
-  const start = new Date(`${weekStart}T00:00:00+05:30`);
-  const end = new Date(start.getTime() + 6 * 86_400_000); // Sunday = Monday + 6d
-  const part = (d: Date, opts: Intl.DateTimeFormatOptions) =>
-    d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", ...opts });
-  const startMonth = part(start, { month: "short" });
-  const endMonth = part(end, { month: "short" });
-  const year = part(end, { year: "numeric" });
-  return startMonth === endMonth
-    ? `${part(start, { day: "numeric" })}–${part(end, { day: "numeric" })} ${endMonth} ${year}`
-    : `${part(start, { day: "numeric", month: "short" })} – ${part(end, { day: "numeric", month: "short" })} ${year}`;
+// Chevron left (rotate 0 = down; left is rotate(90deg))
+function ChevronLeft() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+      style={{ transform: "rotate(90deg)" }}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+// Chevron right (rotate -90deg)
+function ChevronRight() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+      style={{ transform: "rotate(-90deg)" }}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
 }
 
 export function HallOfFame() {
@@ -23,86 +45,188 @@ export function HallOfFame() {
   const isAdmin = me.data?.role === "admin";
   const markPaid = useMarkWinnerPaid();
 
-  // Identify the in-flight row by both week_start AND user_id to handle recurrence
+  // wi = current week index (0 = newest)
+  const [wi, setWi] = useState(0);
+
+  // Identify in-flight row by week_start + user_id for per-row pending
   const pendingWeek = markPaid.variables?.week_start;
   const pendingUser = markPaid.variables?.user_id;
 
-  return (
-    <section className="hof" aria-label="Hall of Fame">
-      <h2 className="hof__title">Hall of Fame</h2>
+  // Compute the current IST Monday to show "This week" pill
+  const thisMonday = currentISTMonday();
 
-      {/* FIX 1: surface mark-paid mutation errors inline */}
+  // --- Skeleton ---
+  if (isLoading) {
+    return (
+      <div className="card hof" aria-label="Hall of Fame" aria-busy="true">
+        <div className="hof-head">
+          <h3 className="panel-title">
+            <span className="hof-trophy"><TrophyIcon /></span>
+            Hall of Fame
+          </h3>
+          <span className="hof-sub eyebrow">₹500 / week</span>
+        </div>
+        <div aria-hidden="true" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="skeleton" style={{ height: 48, borderRadius: "var(--r-md)", width: "100%" }} />
+          {[1, 2].map((i) => (
+            <div key={i} className="skeleton" style={{ height: 60, borderRadius: "var(--r-md)", width: "100%" }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // --- Error ---
+  if (isError) {
+    return (
+      <div className="card hof" aria-label="Hall of Fame">
+        <div className="hof-head">
+          <h3 className="panel-title">
+            <span className="hof-trophy"><TrophyIcon /></span>
+            Hall of Fame
+          </h3>
+          <span className="hof-sub eyebrow">₹500 / week</span>
+        </div>
+        <p className="hof__error" role="alert">Couldn&apos;t load past winners.</p>
+      </div>
+    );
+  }
+
+  // --- Empty state ---
+  if (!data || data.weeks.length === 0) {
+    return (
+      <div className="card hof" aria-label="Hall of Fame">
+        <div className="hof-head">
+          <h3 className="panel-title">
+            <span className="hof-trophy"><TrophyIcon /></span>
+            Hall of Fame
+          </h3>
+          <span className="hof-sub eyebrow">₹500 / week</span>
+        </div>
+        <p className="hof__empty">
+          No champions yet — the first weekly winner is crowned Monday.
+        </p>
+      </div>
+    );
+  }
+
+  // Sort weeks newest-first
+  const weeks = [...data.weeks].sort(
+    (a, b) => new Date(b.week_start).getTime() - new Date(a.week_start).getTime(),
+  );
+
+  // Clamp wi in case data changes
+  const safeWi = Math.min(wi, weeks.length - 1);
+  const week = weeks[safeWi];
+  const isCurrentWeek = week.week_start === thisMonday;
+  const isFirst = safeWi === 0;
+  const isLast = safeWi === weeks.length - 1;
+
+  return (
+    <div className="card hof" aria-label="Hall of Fame">
+      <div className="hof-head">
+        <h3 className="panel-title">
+          <span className="hof-trophy"><TrophyIcon /></span>
+          Hall of Fame
+        </h3>
+        <span className="hof-sub eyebrow">₹500 / week</span>
+      </div>
+
+      {/* Mutation error — show inline above the nav */}
       {markPaid.isError && (
         <p className="hof__error" role="alert">
           Couldn&apos;t update payout — try again.
         </p>
       )}
 
-      {isLoading ? (
-        <div className="hof__skeleton" aria-hidden="true">
-          <div className="skeleton skeleton--text hof__skeleton-line" />
-          <div className="skeleton skeleton--text hof__skeleton-line" />
-          <div className="skeleton skeleton--text hof__skeleton-line hof__skeleton-line--short" />
-        </div>
-      ) : isError ? (
-        <p className="hof__empty" role="alert">Couldn&apos;t load past winners.</p>
-      ) : !data || data.weeks.length === 0 ? (
-        <p className="hof__empty">No champions yet — the first weekly winner is crowned Monday.</p>
-      ) : (
-        <ul className="hof__weeks">
-          {data.weeks.map((wk) => (
-            <li key={wk.week_start} className="hof__week">
-              <p className="hof__weeklabel">{weekRange(wk.week_start)}</p>
-              <ul className="hof__winners">
-                {wk.winners.map((win) => {
-                  // FIX 2: per-row loading — only the in-flight row shows Saving…
-                  const isThisRowPending =
-                    markPaid.isPending &&
-                    pendingWeek === wk.week_start &&
-                    pendingUser === win.user_id;
+      {/* PREV / NEXT navigation */}
+      <div className="hof-nav">
+        <button
+          type="button"
+          className="hof-arrow"
+          disabled={isFirst}
+          onClick={() => setWi(Math.max(0, safeWi - 1))}
+          aria-label="More recent week"
+        >
+          <ChevronLeft />
+        </button>
 
-                  return (
-                    <li key={win.user_id} className="hof__winner">
-                      <span className="hof__trophy" aria-hidden="true">🏆</span>
-                      <span className="hof__name">{win.name}</span>
-                      <span className="hof__pts mono" aria-label={`${win.points} points`}>
-                        {win.points}
-                      </span>
-                      <span className="hof__prize mono">₹500</span>
-                      {isAdmin ? (
-                        <button
-                          type="button"
-                          className={`hof__paidbtn${win.prize_paid ? " is-paid" : ""}${isThisRowPending ? " is-loading" : ""}`}
-                          disabled={isThisRowPending}
-                          aria-busy={isThisRowPending ? "true" : undefined}
-                          aria-label={
-                            win.prize_paid
-                              ? `Mark ${win.name}'s prize unpaid`
-                              : `Mark ${win.name}'s prize paid`
-                          }
-                          onClick={() =>
-                            markPaid.mutate({
-                              week_start: wk.week_start,
-                              user_id: win.user_id,
-                              paid: !win.prize_paid,
-                            })
-                          }
-                        >
-                          {isThisRowPending ? "Saving…" : win.prize_paid ? "Paid ✓" : "Mark paid"}
-                        </button>
-                      ) : (
-                        <span className={`hof__paidbadge${win.prize_paid ? " is-paid" : ""}`}>
-                          {win.prize_paid ? "Paid ✓" : "Unpaid"}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+        <div className="hof-nav-label">
+          <span className="eyebrow">{weekRange(week.week_start)}</span>
+          {isCurrentWeek && <span className="pill live">This week</span>}
+        </div>
+
+        <button
+          type="button"
+          className="hof-arrow"
+          disabled={isLast}
+          onClick={() => setWi(Math.min(weeks.length - 1, safeWi + 1))}
+          aria-label="Earlier week"
+        >
+          <ChevronRight />
+        </button>
+      </div>
+
+      {/* Week winners */}
+      <div className="hof-week" key={week.week_start}>
+        {week.winners.map((win) => {
+          const isThisRowPending =
+            markPaid.isPending &&
+            pendingWeek === week.week_start &&
+            pendingUser === win.user_id;
+
+          return (
+            <div key={win.user_id} className="hof-winner">
+              <span className="hof-medal" aria-hidden="true">
+                <TrophyIcon />
+              </span>
+              <Avatar name={win.name} avatarUrl={win.avatar_url || undefined} size={30} />
+              <div className="hof-winner-txt">
+                <span className="hof-winner-name">{win.name}</span>
+                <span className="hof-winner-pts mono">{win.points} pts · ₹500</span>
+              </div>
+
+              {isAdmin ? (
+                <button
+                  type="button"
+                  className={`pay-badge mark${win.prize_paid ? " paid" : ""}${isThisRowPending ? " loading" : ""}`}
+                  disabled={isThisRowPending}
+                  aria-busy={isThisRowPending ? "true" : undefined}
+                  aria-label={
+                    win.prize_paid
+                      ? `Mark ${win.name}'s prize unpaid`
+                      : `Mark ${win.name}'s prize paid`
+                  }
+                  onClick={() =>
+                    markPaid.mutate({
+                      week_start: week.week_start,
+                      user_id: win.user_id,
+                      paid: !win.prize_paid,
+                    })
+                  }
+                >
+                  {isThisRowPending ? (
+                    "Saving…"
+                  ) : win.prize_paid ? (
+                    <><CheckIcon size={13} /> Paid</>
+                  ) : (
+                    "Mark paid"
+                  )}
+                </button>
+              ) : (
+                <span className={`pay-badge ${win.prize_paid ? "paid" : "pending"}`}>
+                  {win.prize_paid ? <><CheckIcon size={13} /> Paid</> : "Pending"}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Pager count */}
+      <div className="hof-pager mono">
+        {safeWi + 1} / {weeks.length} weeks
+      </div>
+    </div>
   );
 }

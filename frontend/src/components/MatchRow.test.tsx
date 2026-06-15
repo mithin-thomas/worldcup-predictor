@@ -93,7 +93,7 @@ describe("MatchRow editor", () => {
   });
 
   it("renders a locked match read-only with no Save button", () => {
-    renderRow({ ...baseGroup, locked: true, prediction: { home_score: 2, away_score: 1, penalty_winner_team_id: null } });
+    renderRow({ ...baseGroup, locked: true, prediction: { home_score: 2, away_score: 1, penalty_winner_team_id: null, points: null, penalty_bonus: null } });
     expect(screen.queryByRole("button", { name: /save prediction/i })).toBeNull();
     expect(screen.getByText(/2\s*[–-]\s*1/)).toBeInTheDocument();
   });

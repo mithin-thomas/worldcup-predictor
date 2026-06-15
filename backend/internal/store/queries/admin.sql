@@ -29,7 +29,17 @@ DELETE FROM matches WHERE id = ?;
 SELECT COUNT(*) FROM matches WHERE id = ?;
 
 -- name: ListUsersAdmin :many
-SELECT id, email, name, avatar_url, role FROM users ORDER BY name ASC, email ASC;
+SELECT
+    u.id, u.email, u.name, u.avatar_url, u.role,
+    CAST((SELECT COUNT(*) FROM predictions p WHERE p.user_id = u.id) AS SIGNED) AS prediction_count,
+    CAST(
+        COALESCE((SELECT SUM(COALESCE(p.points, 0) + COALESCE(p.penalty_bonus, 0))
+                  FROM predictions p WHERE p.user_id = u.id), 0)
+        + COALESCE((SELECT SUM(COALESCE(b.points, 0))
+                    FROM bonus_predictions b WHERE b.user_id = u.id), 0)
+    AS SIGNED) AS total_points
+FROM users u
+ORDER BY u.name ASC, u.email ASC;
 
 -- name: CountAdmins :one
 SELECT COUNT(*) FROM users WHERE role = 'admin';

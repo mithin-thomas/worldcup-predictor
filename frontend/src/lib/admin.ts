@@ -42,6 +42,9 @@ export type AdminUser = {
   name: string;
   avatar_url: string;
   role: "admin" | "user";
+  // Activity stats for the admin users table.
+  prediction_count: number;
+  total_points: number;
 };
 
 export type CreateMatchInput = {
