@@ -1,5 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { usePlayerSearch, type PlayerOption } from "../lib/bonus";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePlayerSearch, useTeams, type PlayerOption } from "../lib/bonus";
+
+// Placeholder hint: shows the expected input as "player – country" so users
+// know to search by name and can disambiguate same-named players by country.
+const SEARCH_HINT = "e.g. Cristiano Ronaldo – Portugal";
 
 // ── Shared searchable player combobox ────────────────────────────────────────
 //
@@ -37,6 +41,14 @@ export function PlayerCombobox({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: results = [], isFetching } = usePlayerSearch(debouncedQ);
+
+  // Map a player's team_code (e.g. "POR") to the full country name ("Portugal")
+  // so results show the country, not just the 3-letter code.
+  const { data: teams = [] } = useTeams();
+  const countryByCode = useMemo(
+    () => new Map(teams.map((t) => [t.code, t.name])),
+    [teams],
+  );
 
   // Debounce input → query
   useEffect(() => {
@@ -84,7 +96,7 @@ export function PlayerCombobox({
   };
 
   const placeholder =
-    currentRefId != null ? (currentLabel ?? "Selected") : "Search players…";
+    currentRefId != null ? (currentLabel ?? "Selected") : SEARCH_HINT;
 
   return (
     <div className="bonus-combobox" data-testid={`player-combobox-${comboboxKey}`}>
@@ -154,7 +166,7 @@ export function PlayerCombobox({
             >
               <span className="bonus-combobox__name">{opt.name}</span>
               <span className="bonus-combobox__meta">
-                {opt.team_code}
+                {countryByCode.get(opt.team_code) ?? opt.team_code}
                 {opt.position ? ` · ${opt.position}` : ""}
               </span>
             </li>

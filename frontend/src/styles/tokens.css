@@ -963,7 +963,7 @@ input  { font-family: inherit; }
 .bonus-combobox         { position: relative; width: 100%; }
 .bonus-combobox__field  { display: flex; align-items: center; position: relative; }
 .bonus-combobox__input  { width: 100%; min-height: 44px; padding: 0 var(--space-3); background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-md); font-size: 14px; font-family: inherit; transition: border-color 120ms ease, background 120ms ease; }
-.bonus-combobox__input::placeholder { color: var(--text-3); opacity: 0.8; }
+.bonus-combobox__input::placeholder { color: var(--text-2); opacity: 1; }
 .bonus-combobox__input:hover:not(:disabled)  { border-color: var(--text-3); }
 .bonus-combobox__input:focus-visible         { outline: 2px solid var(--coral); outline-offset: 2px; box-shadow: none; }
 .bonus-combobox__input:disabled              { opacity: 0.5; cursor: not-allowed; }
@@ -1639,7 +1639,7 @@ input  { font-family: inherit; }
 .hof-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .hof-trophy { color: var(--gold); font-size: 16px; display: inline-grid; place-items: center; }
 .hof-sub { color: var(--text-3); }
-.hof-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; padding: 6px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); }
+.hof-nav { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 12px; padding: 6px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); }
 .hof-arrow {
   /* Visual: 34×34px circle. Tap area: padded to ≥44×44px (a11y). */
   width: 34px; height: 34px;
@@ -1653,7 +1653,9 @@ input  { font-family: inherit; }
 .hof-arrow:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
 .hof-arrow:disabled              { color: var(--text-faint); cursor: not-allowed; }
 .hof-arrow:focus-visible         { outline: none; box-shadow: var(--focus-ring); }
-.hof-nav-label { display: flex; align-items: center; gap: 9px; flex: 1; justify-content: center; }
+/* The week label + its two arrows read as one centered control. A stable
+   min-width keeps the arrows from shifting as the week text changes width. */
+.hof-nav-label { display: flex; align-items: center; gap: 9px; flex: 0 1 auto; min-width: 168px; justify-content: center; }
 .hof-week { display: flex; flex-direction: column; gap: 9px; }
 .hof-winner { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); min-height: 44px; }
 .hof-medal { color: var(--gold); font-size: 16px; flex: none; opacity: 0.85; display: inline-grid; place-items: center; }
