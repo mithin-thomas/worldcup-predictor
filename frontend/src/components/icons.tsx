@@ -149,6 +149,44 @@ export function SparkIcon() {
   );
 }
 
+export function StandingsIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5 21V11" />
+      <path d="M12 21V4" />
+      <path d="M19 21v-7" />
+    </svg>
+  );
+}
+
+export function ShieldTabIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6l-7-3Z" />
+    </svg>
+  );
+}
+
 export function HelpIcon() {
   return (
     <svg
