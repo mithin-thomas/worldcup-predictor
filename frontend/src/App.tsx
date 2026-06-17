@@ -45,12 +45,6 @@ export default function App() {
   const isAdmin = me?.role === "admin";
 
   useEffect(() => {
-    if (isAdmin || mobileTab !== "admin") return;
-    setMobileTab("predict");
-    setView("predictions");
-  }, [isAdmin, mobileTab]);
-
-  useEffect(() => {
     if (!profileOpen) return;
 
     function onPointerDown(event: PointerEvent) {
@@ -106,15 +100,18 @@ export default function App() {
   }
 
   // ---- Authenticated shell ----
+  const effectiveMobileTab: MobileTab = isAdmin || mobileTab !== "admin" ? mobileTab : "predict";
+  const effectiveView: View = isAdmin || view !== "admin" ? view : "predictions";
   const activeView: View = isPhone
-    ? mobileTab === "admin" && isAdmin ? "admin" : "predictions"
-    : view;
+    ? effectiveMobileTab === "admin" ? "admin" : "predictions"
+    : effectiveView;
   const homeMobileView = isPhone
-    ? mobileTab === "standings" ? "ranks" : "fixtures"
+    ? effectiveMobileTab === "standings" ? "ranks" : "fixtures"
     : undefined;
   const userName = me.name || me.email;
 
   function selectMobileTab(tab: MobileTab) {
+    if (tab === "admin" && !isAdmin) return;
     setMobileTab(tab);
     setView(tab === "admin" ? "admin" : "predictions");
   }
@@ -143,23 +140,23 @@ export default function App() {
           <nav className="topbar-nav" aria-label="Main navigation">
             <button
               type="button"
-              className={`nav-btn${view === "predictions" ? " on" : ""}`}
-              aria-current={view === "predictions" ? "page" : undefined}
+              className={`nav-btn${activeView === "predictions" ? " on" : ""}`}
+              aria-current={activeView === "predictions" ? "page" : undefined}
               onClick={() => setView("predictions")}
             >
               {/* Active indicator rendered as an absolutely-positioned bg layer */}
-              {view === "predictions" && <span className="nav-bg" aria-hidden="true" />}
+              {activeView === "predictions" && <span className="nav-bg" aria-hidden="true" />}
               <span className="nav-lbl">Predictions</span>
             </button>
 
             {isAdmin && (
               <button
                 type="button"
-                className={`nav-btn${view === "admin" ? " on" : ""}`}
-                aria-current={view === "admin" ? "page" : undefined}
+                className={`nav-btn${activeView === "admin" ? " on" : ""}`}
+                aria-current={activeView === "admin" ? "page" : undefined}
                 onClick={() => setView("admin")}
               >
-                {view === "admin" && <span className="nav-bg" aria-hidden="true" />}
+                {activeView === "admin" && <span className="nav-bg" aria-hidden="true" />}
                 <span className="nav-lbl">Admin</span>
               </button>
             )}
@@ -233,8 +230,8 @@ export default function App() {
         <nav className="mobile-tabbar" aria-label="Primary mobile navigation">
           <button
             type="button"
-            className={`mobile-tab${mobileTab === "predict" ? " on" : ""}`}
-            aria-current={mobileTab === "predict" ? "page" : undefined}
+            className={`mobile-tab${effectiveMobileTab === "predict" ? " on" : ""}`}
+            aria-current={effectiveMobileTab === "predict" ? "page" : undefined}
             onClick={() => selectMobileTab("predict")}
           >
             <span className="mobile-tab__icon"><SparkIcon /></span>
@@ -243,8 +240,8 @@ export default function App() {
 
           <button
             type="button"
-            className={`mobile-tab${mobileTab === "standings" ? " on" : ""}`}
-            aria-current={mobileTab === "standings" ? "page" : undefined}
+            className={`mobile-tab${effectiveMobileTab === "standings" ? " on" : ""}`}
+            aria-current={effectiveMobileTab === "standings" ? "page" : undefined}
             onClick={() => selectMobileTab("standings")}
           >
             <span className="mobile-tab__icon"><StandingsIcon /></span>
@@ -254,8 +251,8 @@ export default function App() {
           {isAdmin && (
             <button
               type="button"
-              className={`mobile-tab${mobileTab === "admin" ? " on" : ""}`}
-              aria-current={mobileTab === "admin" ? "page" : undefined}
+              className={`mobile-tab${effectiveMobileTab === "admin" ? " on" : ""}`}
+              aria-current={effectiveMobileTab === "admin" ? "page" : undefined}
               onClick={() => selectMobileTab("admin")}
             >
               <span className="mobile-tab__icon"><ShieldTabIcon /></span>
