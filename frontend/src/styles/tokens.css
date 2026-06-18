@@ -553,22 +553,6 @@ input  { font-family: inherit; }
 .profile-menu__confirm-danger:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .profile-menu__confirm-row button:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.btn-logout {
-  padding: 8px 16px;
-  min-height: 44px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--border-2);
-  color: var(--text-2);
-  font-size: 13px;
-  font-weight: 600;
-  transition: background 0.18s, color 0.18s, border-color 0.18s;
-  cursor: pointer;
-  background: none;
-}
-.btn-logout:hover        { background: var(--surface-2); color: var(--text); border-color: var(--border-strong); }
-.btn-logout:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.btn-logout:disabled     { opacity: 0.5; cursor: not-allowed; }
-
 /* Legacy topbar classes — keep until each screen is rebuilt */
 .topbar__logo  { display: block; height: 32px; width: auto; }
 .topbar__brand { font-size: 17px; font-weight: 700; color: var(--coral); font-family: var(--font-display); letter-spacing: -0.03em; }
@@ -2619,11 +2603,6 @@ input  { font-family: inherit; }
     width: 40px;
     height: 40px;
   }
-  .btn-logout {
-    min-width: 44px;
-    min-height: 40px;
-    padding: 0 12px;
-  }
   .topbar-nav {
     order: 3;
     width: 100%;
@@ -3038,11 +3017,6 @@ input  { font-family: inherit; }
     padding-left: 12px;
     padding-right: 12px;
   }
-  .btn-logout {
-    padding-left: 10px;
-    padding-right: 10px;
-    font-size: 12px;
-  }
   .mc-steps {
     grid-template-columns: 1fr;
     justify-items: stretch;
@@ -3226,6 +3200,10 @@ input  { font-family: inherit; }
 
   .mobile-tab:hover {
     color: var(--text-2);
+  }
+
+  .mobile-tab:active {
+    background: var(--hover);
   }
 
   .mobile-tab:focus-visible {

@@ -235,6 +235,7 @@ export default function App() {
                           className="profile-menu__cancel"
                           onClick={() => setLogoutConfirm(false)}
                           disabled={logout.isPending}
+                          autoFocus
                         >
                           Cancel
                         </button>
@@ -243,7 +244,6 @@ export default function App() {
                           className="profile-menu__confirm-danger"
                           onClick={() => logout.mutate()}
                           disabled={logout.isPending}
-                          autoFocus
                         >
                           {logout.isPending ? "Logging out…" : "Log out"}
                         </button>
