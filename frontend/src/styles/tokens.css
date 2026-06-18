@@ -401,6 +401,10 @@ input  { font-family: inherit; }
   outline: none;
   box-shadow: var(--focus-ring);
 }
+.profile-trigger:active {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+}
 .profile-trigger__text {
   display: flex;
   flex-direction: column;
@@ -486,6 +490,10 @@ input  { font-family: inherit; }
   outline: none;
   box-shadow: var(--focus-ring);
 }
+.profile-menu__item:active {
+  background: var(--surface-3);
+  color: var(--text);
+}
 .profile-menu__item:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -493,6 +501,57 @@ input  { font-family: inherit; }
 .profile-menu__item--danger {
   color: var(--danger-fg);
 }
+.profile-menu__item--danger:hover,
+.profile-menu__item--danger:active {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+
+/* Inline confirm for the destructive Log out action (icon + confirm + danger). */
+.profile-menu__confirm {
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.profile-menu__confirm-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.profile-menu__confirm-row {
+  display: flex;
+  gap: 8px;
+}
+.profile-menu__confirm-row button {
+  flex: 1;
+  min-height: 38px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+.profile-menu__cancel {
+  background: var(--surface);
+  color: var(--text);
+}
+.profile-menu__cancel:hover:not(:disabled) { border-color: var(--text-3); }
+.profile-menu__cancel:active:not(:disabled) { background: var(--surface-3); }
+.profile-menu__cancel:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.profile-menu__confirm-danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+.profile-menu__confirm-danger:hover:not(:disabled) {
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
+}
+.profile-menu__confirm-danger:active:not(:disabled) { background: var(--danger-hover); }
+.profile-menu__confirm-danger:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.profile-menu__confirm-row button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-logout {
   padding: 8px 16px;
@@ -3195,7 +3254,10 @@ input  { font-family: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   .mobile-tab,
-  .mobile-tab__icon {
+  .mobile-tab__icon,
+  .profile-trigger,
+  .profile-menu__item,
+  .profile-menu__confirm-row button {
     transition: none;
   }
 }

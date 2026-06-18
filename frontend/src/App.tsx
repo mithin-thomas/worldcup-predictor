@@ -3,7 +3,7 @@ import { useMe, GoogleSignInButton, useLogout } from "./lib/auth";
 import { Home } from "./routes/Home";
 import { Admin } from "./routes/Admin";
 import { HowToPlayModal } from "./components/HowToPlayModal";
-import { ChevronDownIcon, HelpIcon, ShieldTabIcon, SparkIcon, StandingsIcon } from "./components/icons";
+import { ChevronDownIcon, HelpIcon, LogOutIcon, ShieldTabIcon, SparkIcon, StandingsIcon } from "./components/icons";
 import { Avatar } from "./components/Avatar";
 // Auth screen: full dark wordmark logo
 import sayscoreLogo from "./assets/sayscore-logo-dark.png";
@@ -41,20 +41,26 @@ export default function App() {
   // Hooks must be declared unconditionally before any early return.
   const [helpOpen, setHelpOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [logoutConfirm, setLogoutConfirm] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const isAdmin = me?.role === "admin";
 
   useEffect(() => {
     if (!profileOpen) return;
 
+    function closeMenu() {
+      setProfileOpen(false);
+      setLogoutConfirm(false);
+    }
+
     function onPointerDown(event: PointerEvent) {
       if (!profileRef.current?.contains(event.target as Node)) {
-        setProfileOpen(false);
+        closeMenu();
       }
     }
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setProfileOpen(false);
+      if (event.key === "Escape") closeMenu();
     }
 
     document.addEventListener("pointerdown", onPointerDown);
@@ -172,7 +178,10 @@ export default function App() {
                 aria-haspopup="menu"
                 aria-expanded={profileOpen}
                 aria-controls="profile-menu"
-                onClick={() => setProfileOpen((open) => !open)}
+                onClick={() => {
+                  setProfileOpen((open) => !open);
+                  setLogoutConfirm(false);
+                }}
               >
                 <Avatar name={userName} avatarUrl={me.avatar_url || undefined} size={32} isMe />
                 <span className="profile-trigger__text">
@@ -196,24 +205,51 @@ export default function App() {
                     role="menuitem"
                     onClick={() => {
                       setProfileOpen(false);
+                      setLogoutConfirm(false);
                       setHelpOpen(true);
                     }}
                   >
                     <HelpIcon />
                     <span>How to play</span>
                   </button>
-                  <button
-                    type="button"
-                    className="profile-menu__item profile-menu__item--danger"
-                    role="menuitem"
-                    onClick={() => {
-                      setProfileOpen(false);
-                      logout.mutate();
-                    }}
-                    disabled={logout.isPending}
-                  >
-                    <span>{logout.isPending ? "Logging out..." : "Log out"}</span>
-                  </button>
+                  {!logoutConfirm ? (
+                    <button
+                      type="button"
+                      className="profile-menu__item profile-menu__item--danger"
+                      role="menuitem"
+                      onClick={() => setLogoutConfirm(true)}
+                    >
+                      <LogOutIcon />
+                      <span>Log out</span>
+                    </button>
+                  ) : (
+                    <div
+                      className="profile-menu__confirm"
+                      role="group"
+                      aria-label="Confirm log out"
+                    >
+                      <p className="profile-menu__confirm-text">Log out of SayScore?</p>
+                      <div className="profile-menu__confirm-row">
+                        <button
+                          type="button"
+                          className="profile-menu__cancel"
+                          onClick={() => setLogoutConfirm(false)}
+                          disabled={logout.isPending}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="profile-menu__confirm-danger"
+                          onClick={() => logout.mutate()}
+                          disabled={logout.isPending}
+                          autoFocus
+                        >
+                          {logout.isPending ? "Logging out…" : "Log out"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

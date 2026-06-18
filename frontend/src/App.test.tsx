@@ -119,6 +119,9 @@ describe("App shell", () => {
 
     await user.click(screen.getByRole("button", { name: "Profile menu for Priya" }));
     await user.click(screen.getByRole("menuitem", { name: "Log out" }));
+    // Destructive action: must confirm before it fires.
+    expect(logoutMutate).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Log out" }));
     expect(logoutMutate).toHaveBeenCalledTimes(1);
   });
 });
