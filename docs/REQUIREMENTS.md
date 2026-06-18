@@ -218,7 +218,8 @@ One UI sans plus a monospace for all numerics — a real contrast axis, not two 
 
 ### 7.4 Layout
 
-- Mobile-first. Bottom tab bar for thumb reach: Fixtures · Ranks · Bonus · Profile (plus an Admin tab visible only to admins). On wider screens the tabs become a left side-nav.
+- Mobile-first. Bottom tab bar for thumb reach: **Predict · Standings** (plus an **Admin** tab visible only to admins). Predict shows the fixtures column; Standings shows the ranks column; Bonus is embedded inline at the top of the Predict view (not its own tab). On wider screens the bottom tab bar is hidden and navigation moves to a **centered pill nav in the topbar** (Predictions · Admin), with the two columns shown side by side.
+- **Profile** is a **dropdown menu opened from the user chip in the topbar** (not a tab): it shows the signed-in identity, a "How to play" action, and a **Log out** action. Log out is destructive — it uses an icon and an inline confirm step before signing out.
 - Fixtures are a **vertical list grouped by IST date** — not an identical-card grid. Each row: teams, IST kickoff + countdown, inline score inputs, prediction state.
 - Leaderboard is a true **ranked table**; rank 1 gets the brand-accent highlight.
 - Admin screens use a slightly different neutral surface layer but the same component vocabulary.
