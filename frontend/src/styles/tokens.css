@@ -52,7 +52,10 @@
   /* ---- Type families — San Francisco / system (Apple) ---- */
   --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
-  --font-mono: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  /* V2: numerics use the system sans with tabular figures (font-variant-numeric: tabular-nums),
+     not a monospace face. --font-mono is kept as an explicit alias of --font-sans for back-compat
+     of existing usages; do not assume a monospaced glyph here. */
+  --font-mono: var(--font-sans);
 
   /* ---- Radii — soft, Apple-generous ---- */
   --r-xs: 9px;
