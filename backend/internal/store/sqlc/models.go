@@ -248,6 +248,12 @@ type BonusResult struct {
 	UpdatedAt time.Time            `json:"updated_at"`
 }
 
+type CelebrationView struct {
+	UserID  int64     `json:"user_id"`
+	MatchID int64     `json:"match_id"`
+	SeenAt  time.Time `json:"seen_at"`
+}
+
 type Match struct {
 	ID                  int64         `json:"id"`
 	SourceID            int64         `json:"source_id"`
