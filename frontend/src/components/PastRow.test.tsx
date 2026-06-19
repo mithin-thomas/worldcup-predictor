@@ -324,12 +324,12 @@ describe("PastRow — others' picks modal", () => {
       makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
     );
 
-    const { container } = render(<PastRow match={baseMatch} />);
+    render(<PastRow match={baseMatch} />);
     await user.click(screen.getByRole("button", { name: /others' picks/i }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     // Click the overlay element (the dialog itself, not the inner dialog card)
-    const overlay = container.querySelector(".op-overlay") as HTMLElement;
+    const overlay = document.body.querySelector(".op-overlay") as HTMLElement;
     await user.click(overlay);
     expect(screen.queryByRole("dialog")).toBeNull();
   });
@@ -340,10 +340,10 @@ describe("PastRow — others' picks modal", () => {
       makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
     );
 
-    const { container } = render(<PastRow match={baseMatch} />);
+    render(<PastRow match={baseMatch} />);
     await user.click(screen.getByRole("button", { name: /others' picks/i }));
 
-    const skeletons = container.querySelectorAll(".op-row--skeleton");
+    const skeletons = document.body.querySelectorAll(".op-row--skeleton");
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
@@ -380,11 +380,11 @@ describe("PastRow — others' picks modal", () => {
       }),
     );
 
-    const { container } = render(<PastRow match={baseMatch} />);
+    render(<PastRow match={baseMatch} />);
     await user.click(screen.getByRole("button", { name: /others' picks/i }));
 
     // Scoreline elements should exist with mono class
-    const scoreEls = container.querySelectorAll(".op-score");
+    const scoreEls = document.body.querySelectorAll(".op-score");
     expect(scoreEls.length).toBe(samplePredictions.length);
   });
 
@@ -526,10 +526,10 @@ describe("PastRow — others' picks modal", () => {
       }),
     );
 
-    const { container } = render(<PastRow match={baseMatch} />);
+    render(<PastRow match={baseMatch} />);
     await user.click(screen.getByRole("button", { name: /others' picks/i }));
 
-    const meRow = container.querySelector(".op-row--me");
+    const meRow = document.body.querySelector(".op-row--me");
     expect(meRow).toBeInTheDocument();
     // The "You" tag should be inside the me-row
     expect(meRow?.textContent).toMatch(/\(You\)/);

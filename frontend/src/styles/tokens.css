@@ -2671,7 +2671,7 @@ input  { font-family: inherit; }
   }
   .bonus-head-sub {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: flex-start!important;
     gap: 5px;
   }
   .bonus-head-sub > span:first-child {
@@ -2732,7 +2732,10 @@ input  { font-family: inherit; }
     flex-direction: column;
     justify-content: flex-start;
     gap: 7px;
-    text-align: center;
+    text-align: center!important;
+  }
+  .mc-team.away .mc-team-txt {
+    align-items: center!important;
   }
   .mc-team-txt,
   .mc-team.away .mc-team-txt {
@@ -3017,9 +3020,7 @@ input  { font-family: inherit; }
     grid-template-columns: 1fr;
     justify-items: stretch;
   }
-  .mc-steps-vs {
-    order: -1;
-  }
+
   .stepper-pill {
     width: 100%;
   }
@@ -3079,8 +3080,7 @@ input  { font-family: inherit; }
     overflow-x: hidden;
     background:
       radial-gradient(420px 320px at 100% 0%, var(--blue-soft), transparent 62%),
-      radial-gradient(440px 360px at 0% 100%, var(--coral-soft), transparent 60%),
-      var(--bg);
+      radial-gradient(440px 360px at 0% 100%, var(--coral-soft), transparent 60%);
   }
 
   .topbar {

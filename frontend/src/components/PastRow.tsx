@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { MatchDTO, MatchPredictionDTO } from "../lib/matches";
 import { useMatchPredictions } from "../lib/matches";
 import { Avatar } from "./Avatar";
@@ -259,9 +260,11 @@ function OthersPicksTrigger({ match }: { match: MatchDTO }) {
         <span>{label}</span>
       </button>
 
-      {open && (
-        <OthersPicksModal match={match} onClose={() => setOpen(false)} />
-      )}
+      {open &&
+        createPortal(
+          <OthersPicksModal match={match} onClose={() => setOpen(false)} />,
+          document.body,
+        )}
     </>
   );
 }
@@ -275,7 +278,7 @@ export function PastRow({ match }: Props) {
   // TBD past match (shouldn't happen but be safe)
   if (!home || !away) {
     return (
-      <article className="past-row" aria-label={label}>
+      <article className="past-row match-card" aria-label={label}>
         <span style={{ color: "var(--text-3)", fontSize: 13 }}>{label}</span>
       </article>
     );
@@ -308,22 +311,21 @@ export function PastRow({ match }: Props) {
     else if (ptsVal > 0) { cls = "ok"; verdict = "Right result"; }
     else { cls = "miss"; verdict = "Missed"; }
   }
+  const verdictCls = scored ? cls : "pending";
 
   return (
     <article
-      className={`past-row ${cls}`.trim()}
+      className={`past-row match-card ${cls}`.trim()}
       aria-label={
         scored
           ? `${home.name} ${hs}–${as_} ${away.name}, result`
           : `${home.name} versus ${away.name}, awaiting result`
       }
     >
-      <span className="pr-stripe" aria-hidden="true" />
-      <div className="pr-card-body">
-        {/* ── Header: stage tag + verdict chip ─────────────────────────── */}
-        <header className="pr-head">
-          <span className="pr-grp eyebrow">{tag}</span>
-          <span className={`pr-verdict ${cls || "miss"}`.trim()}>
+      <header className="mc-head pr-head">
+        <span className="eyebrow mc-grp pr-grp">{tag}</span>
+        <span className="mc-meta">
+          <span className={`pill pr-verdict ${verdictCls}`.trim()}>
             {cls === "win" && (
               <span className="pr-vic">
                 <CheckIcon size={12} />
@@ -334,35 +336,41 @@ export function PastRow({ match }: Props) {
               <b className="mono">{ptsVal > 0 ? "+" : ""}{ptsVal}</b>
             )}
           </span>
-        </header>
+        </span>
+      </header>
 
-        {/* ── Score layout ─────────────────────────────────────────────── */}
-        <div className="pr-main">
-          <div className={`pr-team home${homeWin ? " w" : ""}`}>
-            <span className="pr-name">{home.name}</span>
-            <Flag code={home.code} size={30} />
-          </div>
-
-          <div className="pr-score">
-            {scored ? (
-              <>
-                <span className="mono">{hs}</span>
-                <span className="pr-dash">–</span>
-                <span className="mono">{as_}</span>
-              </>
-            ) : (
-              <span className="mono muted">vs</span>
-            )}
-          </div>
-
-          <div className={`pr-team away${awayWin ? " w" : ""}`}>
-            <Flag code={away.code} size={30} />
-            <span className="pr-name">{away.name}</span>
+      <div className="mc-teams pr-main">
+        <div className={`mc-team home pr-team${homeWin ? " w" : ""}`}>
+          <Flag code={home.code} size={46} />
+          <div className="mc-team-txt">
+            <span className="mc-team-name">{home.name}</span>
+            <span className="mono mc-team-code">{home.code}</span>
           </div>
         </div>
 
-        {/* ── Footer: your pick → final compare ────────────────────────── */}
-        <footer className="pr-foot">
+        <div className="mc-vs pr-score">
+          {scored ? (
+            <>
+              <span className="mc-score mono">{hs}</span>
+              <span className="mc-dash pr-dash">–</span>
+              <span className="mc-score mono">{as_}</span>
+            </>
+          ) : (
+            <span className="mc-score mono muted">vs</span>
+          )}
+        </div>
+
+        <div className={`mc-team away pr-team${awayWin ? " w" : ""}`}>
+          <div className="mc-team-txt">
+            <span className="mc-team-name">{away.name}</span>
+            <span className="mono mc-team-code">{away.code}</span>
+          </div>
+          <Flag code={away.code} size={46} />
+        </div>
+      </div>
+
+      <footer className="mc-predict pr-foot">
+        <div className="pr-pick-summary">
           <span className="pr-foot-lbl">Your prediction</span>
           {prediction != null ? (
             <span className="pr-compare">
@@ -380,11 +388,12 @@ export function PastRow({ match }: Props) {
           ) : (
             <span className="pr-foot-lbl">No prediction</span>
           )}
-        </footer>
+        </div>
 
-        {/* ── Others' picks (spec §4 — only shown on locked matches) ─────── */}
-        <OthersPicksTrigger match={match} />
-      </div>
+        <div className="mc-action pr-action">
+          <OthersPicksTrigger match={match} />
+        </div>
+      </footer>
     </article>
   );
 }
