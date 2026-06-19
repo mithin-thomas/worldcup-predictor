@@ -223,3 +223,18 @@
   .vc-overlay.playing .vc-sub,
   .vc-overlay.playing .vc-scoreline { animation-duration: 0.4s; animation-delay: 0s; }
 }
+
+/* Admin-only replay trigger (works in all environments) */
+.vc-debug-fab {
+  position: fixed; left: 20px; bottom: 20px; z-index: 99980;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 999px; cursor: pointer;
+  font-family: var(--font-display); font-size: 13px; font-weight: 700;
+  color: #04210f; background: linear-gradient(180deg, #ffe14d, #ffc400);
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 0 8px 22px -6px rgba(255,196,0,0.6), inset 0 1px 0 rgba(255,255,255,0.7);
+  transition: transform 0.14s, box-shadow 0.14s;
+}
+.vc-debug-fab:hover { transform: translateY(-2px); }
+.vc-debug-fab:active { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) { .vc-debug-fab { transition: none; } }
