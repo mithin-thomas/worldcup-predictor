@@ -10,8 +10,14 @@
  *   useLeaderboard("week", 1) for me.rank (weekly rank)
  */
 
+import type { CSSProperties } from "react";
 import { useMe } from "../lib/auth";
 import { useLeaderboard } from "../lib/leaderboard";
+import football from "../assets/football.png";
+
+// Optional stadium photo behind the hero. Drop `standing-bg.png` into
+// frontend/public/ to light it up; absent, the FIFA gradient/pitch shows.
+const photoStyle = { "--standing-photo": "url('/standing-bg.png')" } as CSSProperties;
 
 export function StandingCard() {
   const meQuery = useMe();
@@ -50,10 +56,11 @@ export function StandingCard() {
   if (!me || !myOverall) {
     return (
       <div className="standing" aria-label="Your standing">
+        <div className="standing-bg" style={photoStyle} aria-hidden="true" />
         <div className="standing-top">
           <span className="eyebrow">Your standing</span>
         </div>
-        <div style={{ padding: "16px 0", color: "var(--text-3)", fontSize: 13, lineHeight: 1.6 }}>
+        <div style={{ padding: "16px 0", color: "rgba(255,255,255,0.82)", fontSize: 13, lineHeight: 1.6 }}>
           Make your first prediction to enter the rankings.
         </div>
       </div>
@@ -72,6 +79,7 @@ export function StandingCard() {
 
   return (
     <div className="standing" aria-label="Your standing">
+      <div className="standing-bg" style={photoStyle} aria-hidden="true" />
       <div className="standing-top">
         <span className="eyebrow">Your standing</span>
         {/* streak slot intentionally empty — no streak data in API */}
@@ -98,7 +106,11 @@ export function StandingCard() {
 
       <div className="standing-bar" role="progressbar" aria-valuenow={barPct} aria-valuemin={0} aria-valuemax={100}
         aria-label={isLeading ? "Leading the overall standings" : `${gap} points behind #1`}>
-        <div className="standing-bar-fill" style={{ width: `${barPct}%` }} />
+        <div className="standing-bar-fill" style={{ width: `${barPct}%` }}>
+          <span className="standing-ball" aria-hidden="true">
+            <img src={football} alt="" width={20} height={20} />
+          </span>
+        </div>
         <span className="standing-gap mono">
           {isLeading ? "Leading" : `${gap} pts behind #1`}
         </span>

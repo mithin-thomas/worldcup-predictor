@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,14 +12,12 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#141220" />
+    <meta name="theme-color" content="#000000" />
     <meta property="og:title" content="SayScore — World Cup 2026 Predictions" />
     <meta property="og:image" content="/og-image.png" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- SayOne design fonts: Space Grotesk (display), Hanken Grotesk (body), JetBrains Mono (numerics) -->
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- v2 Apple-style design system uses the native San Francisco / system
+         font stack (see frontend/src/styles/tokens.css) — no web fonts loaded. -->
 
     <!-- Google Identity Services loader. Intentionally NO crossorigin and NO SRI:
          it's an unversioned auto-updating script with no stable hash, and forcing
@@ -27,6 +25,10 @@
     <script src="https://accounts.google.com/gsi/client" async></script>
   </head>
   <body>
+    <!-- Always-on backdrop layers (match Saxone Predictions.html shell) -->
+    <div class="app-bg"></div>
+    <div class="thunder-bg" aria-hidden="true"></div>
+    <div class="thunder-flash" aria-hidden="true"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

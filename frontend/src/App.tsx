@@ -5,10 +5,8 @@ import { Admin } from "./routes/Admin";
 import { HowToPlayModal } from "./components/HowToPlayModal";
 import { ChevronDownIcon, HelpIcon, LogOutIcon, ShieldTabIcon, SparkIcon, StandingsIcon } from "./components/icons";
 import { Avatar } from "./components/Avatar";
-// Auth screen: full dark wordmark logo
-import sayscoreLogo from "./assets/sayscore-logo-dark.png";
-// Topbar: transparent mark (works on the dark blurred glass topbar)
-import sayscoreMark from "./assets/sayscore-logo-transparent.png";
+// Brand wordmark from the design handoff (transparent webp — sits on the dark glass topbar)
+import sayoneLogo from "./assets/sayone-logo.webp";
 
 // SayOne redesign shell — Predictions + Admin tabs (Bonus is embedded in Home)
 type View = "predictions" | "admin";
@@ -45,6 +43,7 @@ export default function App() {
   const profileRef = useRef<HTMLDivElement>(null);
   const isAdmin = me?.role === "admin";
 
+  // Close the profile dropdown on outside-click / Escape.
   useEffect(() => {
     if (!profileOpen) return;
 
@@ -52,13 +51,9 @@ export default function App() {
       setProfileOpen(false);
       setLogoutConfirm(false);
     }
-
     function onPointerDown(event: PointerEvent) {
-      if (!profileRef.current?.contains(event.target as Node)) {
-        closeMenu();
-      }
+      if (!profileRef.current?.contains(event.target as Node)) closeMenu();
     }
-
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") closeMenu();
     }
@@ -88,7 +83,7 @@ export default function App() {
           <h1 id="auth-title" className="sr-only">SayScore</h1>
           <img
             className="auth__logo"
-            src={sayscoreLogo}
+            src={sayoneLogo}
             alt="SayScore, by SayOne"
           />
           <p className="auth__tagline">
@@ -124,51 +119,26 @@ export default function App() {
 
   return (
     <>
-      {/* Fixed ambient radial-gradient backdrop (z-index: 0) */}
-      <div className="app-bg" aria-hidden="true" />
+      {/* Backdrop layers (app-bg + thunderstorm) live in index.html, outside #root */}
 
       {/* App shell sits above the backdrop (z-index: 1) */}
       <div className="app">
-        {/* ── Topbar ── */}
+        {/* ── Topbar: logo (left) · profile dropdown (right). No pill nav —
+              Admin / Predictions / How to play / Log out live in the menu. ── */}
         <header className="topbar" role="banner">
-          {/* LEFT: logo */}
-          <div className="logo">
-            <img
-              className="logo-slot"
-              src={sayscoreMark}
-              alt="SayScore"
-              width={132}
-              height={36}
-            />
-          </div>
+          {/* LEFT: brand wordmark (click → predictions) */}
+          <button
+            type="button"
+            className="logo logo--btn"
+            aria-label="SayScore — predictions"
+            onClick={() => setView("predictions")}
+          >
+            <img className="logo-slot" src={sayoneLogo} alt="SayScore" />
+          </button>
 
-          {/* CENTER: pill nav */}
-          <nav className="topbar-nav" aria-label="Main navigation">
-            <button
-              type="button"
-              className={`nav-btn${activeView === "predictions" ? " on" : ""}`}
-              aria-current={activeView === "predictions" ? "page" : undefined}
-              onClick={() => setView("predictions")}
-            >
-              {/* Active indicator rendered as an absolutely-positioned bg layer */}
-              {activeView === "predictions" && <span className="nav-bg" aria-hidden="true" />}
-              <span className="nav-lbl">Predictions</span>
-            </button>
+          <div className="topbar-spacer" />
 
-            {isAdmin && (
-              <button
-                type="button"
-                className={`nav-btn${activeView === "admin" ? " on" : ""}`}
-                aria-current={activeView === "admin" ? "page" : undefined}
-                onClick={() => setView("admin")}
-              >
-                {activeView === "admin" && <span className="nav-bg" aria-hidden="true" />}
-                <span className="nav-lbl">Admin</span>
-              </button>
-            )}
-          </nav>
-
-          {/* RIGHT: profile menu */}
+          {/* RIGHT: profile dropdown */}
           <div className="topbar-r">
             <div className="topbar-profile" ref={profileRef}>
               <button
@@ -199,6 +169,38 @@ export default function App() {
                     <span className="profile-menu__name">{userName}</span>
                     <span className="profile-menu__email">{me.email}</span>
                   </div>
+
+                  {/* Navigation lives in the menu (no header nav bar) */}
+                  {isAdmin && activeView === "admin" && (
+                    <button
+                      type="button"
+                      className="profile-menu__item"
+                      role="menuitem"
+                      onClick={() => {
+                        setView("predictions");
+                        setProfileOpen(false);
+                      }}
+                    >
+                      <SparkIcon />
+                      <span>Predictions</span>
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      className={`profile-menu__item${activeView === "admin" ? " is-active" : ""}`}
+                      role="menuitem"
+                      aria-current={activeView === "admin" ? "page" : undefined}
+                      onClick={() => {
+                        setView("admin");
+                        setProfileOpen(false);
+                      }}
+                    >
+                      <ShieldTabIcon />
+                      <span>Admin</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     className="profile-menu__item"
@@ -212,6 +214,7 @@ export default function App() {
                     <HelpIcon />
                     <span>How to play</span>
                   </button>
+
                   {!logoutConfirm ? (
                     <button
                       type="button"
@@ -223,11 +226,7 @@ export default function App() {
                       <span>Log out</span>
                     </button>
                   ) : (
-                    <div
-                      className="profile-menu__confirm"
-                      role="group"
-                      aria-label="Confirm log out"
-                    >
+                    <div className="profile-menu__confirm" role="group" aria-label="Confirm log out">
                       <p className="profile-menu__confirm-text">Log out of SayScore?</p>
                       <div className="profile-menu__confirm-row">
                         <button

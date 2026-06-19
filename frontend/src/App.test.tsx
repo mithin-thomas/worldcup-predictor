@@ -106,7 +106,7 @@ describe("App shell", () => {
     expect(screen.queryByTestId("home")).not.toBeInTheDocument();
   });
 
-  it("opens profile actions from the topbar menu", async () => {
+  it("opens profile actions (help + confirm-gated log out) from the topbar menu", async () => {
     const user = userEvent.setup();
 
     render(<App />);
@@ -123,5 +123,21 @@ describe("App shell", () => {
     expect(logoutMutate).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Log out" }));
     expect(logoutMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes to Admin from the profile menu for admins (no header nav bar)", async () => {
+    const user = userEvent.setup();
+    mockSession("admin");
+
+    render(<App />);
+
+    // No pill nav in the header.
+    expect(
+      screen.queryByRole("navigation", { name: "Main navigation" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Profile menu for Priya" }));
+    await user.click(screen.getByRole("menuitem", { name: "Admin" }));
+    expect(screen.getByTestId("admin")).toBeInTheDocument();
   });
 });

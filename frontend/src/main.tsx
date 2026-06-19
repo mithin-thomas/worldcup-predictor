@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import "flag-icons/css/flag-icons.min.css";
 import "./styles/tokens.css";
+import "./styles/v2-components.css";
 
 const qc = new QueryClient();
 

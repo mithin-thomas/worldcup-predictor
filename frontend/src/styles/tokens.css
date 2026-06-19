@@ -5,60 +5,78 @@
    ============================================================ */
 
 :root {
-  /* ---- Accent: SayOne coral ---- */
-  --coral: #fb5740;
-  --coral-hi: #ff6e57;
-  --coral-press: #e8472f;
-  --coral-soft: rgba(251, 87, 64, 0.14);
-  --coral-ring: rgba(251, 87, 64, 0.40);
+  /* ---- Accent: primary blue #1a84ff ---- */
+  --coral: #1a84ff;
+  --coral-hi: #4d9eff;
+  --coral-press: #0a6fe0;
+  --coral-soft: rgba(26, 132, 255, 0.16);
+  --coral-ring: rgba(26, 132, 255, 0.40);
 
-  --blue: #5b8def;
-  --blue-hi: #9bbcff;
-  --blue-soft: rgba(91, 141, 239, 0.14);
+  --blue: #1a84ff;
+  --blue-hi: #4d9eff;
+  --blue-soft: rgba(26, 132, 255, 0.16);
 
-  --win: #34d399;
-  --win-soft: rgba(52, 211, 153, 0.13);
-  --gold: #f5b13c;
-  --gold-soft: rgba(245, 177, 60, 0.14);
+  --win: #30d158;
+  --win-soft: rgba(48, 209, 88, 0.16);
+  --gold: #ff9f0a;
+  --gold-soft: rgba(255, 159, 10, 0.16);
   --silver: #cdd5e3;
-  --bronze: #d8a06a;
-  --loss: #f4615b;
+  --bronze: #c0894f;
+  --loss: #ff453a;
+  --loss-soft: rgba(255, 69, 58, 0.16);
 
-  /* ---- Surfaces — deep ink navy, layered ---- */
-  --bg: #070912;
-  --bg-2: #0a0d18;
-  --surface: #10131f;
-  --surface-2: #161a28;
-  --surface-3: #1d2233;
-  --hover: #20253a;
-  --border: rgba(255, 255, 255, 0.065);
-  --border-2: rgba(255, 255, 255, 0.11);
-  --border-strong: rgba(255, 255, 255, 0.17);
+  /* ---- Surfaces — Apple system dark, layered ---- */
+  --bg: #000000;
+  --bg-2: #0b0b0d;
+  --surface: #1c1c1e;
+  --surface-2: #2c2c2e;
+  --surface-3: #3a3a3c;
+  --hover: #48484a;
+  --border: rgba(255, 255, 255, 0.10);
+  --border-2: rgba(255, 255, 255, 0.16);
+  --border-strong: rgba(255, 255, 255, 0.26);
 
   /* ---- Text ramp ---- */
-  --text: #eef1fa;
-  --text-2: #aab2c8;
-  --text-3: #6f7894;
-  --text-faint: #424a63;
+  --text: #f5f5f7;
+  --text-2: #aeaeb2;
+  --text-3: #8e8e93;
+  --text-faint: #5a5a5e;
 
-  /* ---- Type families ---- */
-  --font-display: "Space Grotesk", system-ui, sans-serif;
-  --font-sans: "Hanken Grotesk", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* ---- On-accent text ---- */
+  --on-accent: #ffffff;
 
-  /* ---- Radii ---- */
-  --r-xs: 8px;
-  --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 18px;
-  --r-xl: 24px;
+  /* ---- Segmented controls (iOS): recessed track, elevated active pill ---- */
+  --control-track: #2c2c2e;
+  --control-pill: #48484a;
+
+  /* ---- Type families — San Francisco / system (Apple) ---- */
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+
+  /* ---- Radii — soft, Apple-generous ---- */
+  --r-xs: 9px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-xl: 26px;
   --r-pill: 999px;
 
-  /* ---- Shadows ---- */
+  /* ---- Shadows — soft, layered, low opacity ---- */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 24px 60px -16px rgba(0, 0, 0, 0.7);
-  --glow: 0 0 0 1px var(--coral-ring), 0 8px 30px -6px rgba(251, 87, 64, 0.4);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.4);
+  --glow: 0 8px 30px -8px var(--coral-ring);
+  --accent-grad: linear-gradient(135deg, var(--coral-hi), var(--coral) 60%, var(--coral-press));
+
+  /* ---- Liquid glass (dark) ---- */
+  --glass-base: rgba(34, 34, 40, 0.46);
+  --glass-top: rgba(255, 255, 255, 0.10);
+  --glass-bot: rgba(255, 255, 255, 0.02);
+  --glass-brd: rgba(255, 255, 255, 0.13);
+  --glass-edge: rgba(255, 255, 255, 0.22);
+  --glass-blur: blur(22px) saturate(1.6);
 
   /* ---- Spacing scale (kept for existing components) ---- */
   --space-1: 4px;
@@ -73,22 +91,21 @@
 
   /* ==============================================================
      BACKWARD-COMPAT ALIASES
-     Old token names → new. Keeps M1/M2/M3 components rendering
-     until they are rebuilt in later units. Do NOT remove until all
-     consumers are migrated.
+     Old token names → new. The v2 reskin reuses the same variable
+     names so existing components re-skin with zero JS changes.
      ============================================================== */
   --brand:        var(--coral);
   --brand-hover:  var(--coral-hi);
-  --on-brand:     #1c0a05;
+  --on-brand:     var(--on-accent);
   --ink:          var(--text);
   --muted:        var(--text-3);
   --surface-1:    var(--surface);
-  /* Destructive actions use a deeper, calmer red than --loss (the result hue) */
-  --danger:       #e0463c;
-  --danger-hover: #c93a31;
-  --danger-fg:    #f9a8a5;
-  --danger-bg:    rgba(224, 70, 60, 0.14);
-  --danger-border: rgba(224, 70, 60, 0.35);
+  /* Destructive actions */
+  --danger:       #ff453a;
+  --danger-hover: #ff5e54;
+  --danger-fg:    #ffb3ae;
+  --danger-bg:    rgba(255, 69, 58, 0.16);
+  --danger-border: rgba(255, 69, 58, 0.38);
   --live:         var(--win);
   --live-bg:      var(--win-soft);
 
@@ -96,27 +113,6 @@
   --radius-sm: var(--r-sm);
   --radius-md: var(--r-md);
   --radius-lg: var(--r-lg);
-}
-
-/* ---- Optional theme variants (default deep-ink is canonical) ---- */
-:root[data-theme="midnight"] {
-  --bg: #0a0f1e;
-  --bg-2: #0c1226;
-  --surface: #121a30;
-  --surface-2: #18223c;
-  --surface-3: #1f2c4c;
-  --hover: #243456;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-2: rgba(255, 255, 255, 0.12);
-}
-
-:root[data-theme="charcoal"] {
-  --bg: #0c0c0e;
-  --bg-2: #111114;
-  --surface: #17181c;
-  --surface-2: #1e2026;
-  --surface-3: #262931;
-  --hover: #2c2f38;
 }
 
 /* ============================================================
@@ -150,8 +146,8 @@ input  { font-family: inherit; }
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(900px 600px at 88% -8%, rgba(91, 141, 239, 0.10), transparent 60%),
-    radial-gradient(800px 620px at 6% 108%, rgba(251, 87, 64, 0.085), transparent 58%),
+    radial-gradient(1100px 700px at 92% -12%, rgba(26, 132, 255, 0.14), transparent 60%),
+    radial-gradient(800px 620px at 6% 108%, rgba(26, 132, 255, 0.06), transparent 58%),
     var(--bg);
 }
 
@@ -192,12 +188,12 @@ input  { font-family: inherit; }
 .tnum { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
 .eyebrow {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-3);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Legacy alias */

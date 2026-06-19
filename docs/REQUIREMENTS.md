@@ -169,11 +169,13 @@ Design serves the task: predict fast, glance at standings. The bar is earned fam
 
 > **Implementation note:** the frontend is built using the **`impeccable`** design skill, which realizes the tokens, layout, component states, and motion defined in this section. Treat §7 as the design contract that skill must satisfy.
 
+> **🅥2 Visual language (current — supersedes the coral/OKLCH palette below).** Per a product decision (imported from the "Saxone Predictions" Claude Design project, 2026-06-18), v1 ships an **Apple-style "liquid glass"** look: a **system-dark** canvas with an **Apple-blue accent** (`#0a84ff` dark), frosted translucent card surfaces, the native **San Francisco / system font stack** (no web fonts; numerics use tabular system figures rather than JetBrains Mono), and Apple-generous radii/soft shadows. Football-themed motion is intentional here (a FIFA-card standing hero with mowed-pitch stripes + a spinning ball, and a thunderstorm backdrop revealed by lightning). The CSS variable **names** are unchanged (`--coral` is the accent, `--brand` aliases it, `--bg`/`--surface`/`--text`/etc.), so the §7.4–§7.7 contracts (layout, component states, motion, accessibility) still hold; only the **values** in §7.2 and the §7.3 font choice are superseded. Tokens live in `frontend/src/styles/tokens.css`. The two optional background **photos** (`standing-bg.png`, `stadium-ronaldo.png`) exceed the design connector's 256 KiB fetch cap — drop them into `frontend/public/` to activate; absent, a CSS gradient stands in.
+
 ### 7.1 Theme & rationale
 
-Dark-first. The usage scene is an employee on their phone, late evening IST, locking a scoreline minutes before a North-America kickoff near midnight their time — often in a dim room. That justifies a dark default (by use, not fashion). A light theme can be added later from the same tokens; dark is canonical for v1.
+Dark-first (canonical and **only** theme in v1; light remains deferred). The usage scene is an employee on their phone, late evening IST, locking a scoreline minutes before a North-America kickoff near midnight their time — often in a dim room. That justifies a dark default (by use, not fashion).
 
-Color strategy is **Restrained**: an indigo-ink canvas plus a single warm brand accent. No cream/sand backgrounds, no grass-green-and-gold football cliché, no scoreboard-terminal look.
+Color strategy (v2): a near-black Apple system canvas plus a single Apple-blue accent, with liquid-glass card surfaces. (The original "restrained indigo-ink + warm coral" strategy below is retained for historical rationale.)
 
 ### 7.2 Color tokens (OKLCH)
 
@@ -209,6 +211,8 @@ The SayOne brand color `#E95145` is the single warm accent. Because it is warm a
 Rules: `--brand` solid fill is reserved for **safe** primary actions and achievement only. Destructive actions use `--danger` with a leading icon (`trash`/`alert`) and a confirm step — never a coral solid fill. Body text never uses coral; coral is for accents, fills, and small emphasis.
 
 ### 7.3 Typography
+
+_(v2 supersedes the font choice below: the app uses the native San Francisco / system stack for both UI and numerics, with tabular figures `font-feature-settings: "tnum"` for aligned numbers — no web fonts. The original Inter + JetBrains Mono pairing is kept here for rationale.)_
 
 One UI sans plus a monospace for all numerics — a real contrast axis, not two similar sans fonts.
 
