@@ -109,6 +109,7 @@ func main() {
 		AdminMatches:       st,
 		AdminUsers:         st,
 		Results:            st,
+		Celebrations:       st,
 		Settings:           settingsSvc,
 		Recompute:          recomputeAdapter{r: recomputeJob},
 		JobRunner:          jobRunner,
