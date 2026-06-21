@@ -48,6 +48,7 @@ type Deps struct {
 	AdminMatches       store.AdminMatchStore
 	AdminUsers         store.AdminUserStore
 	Results            store.ResultsStore
+	Celebrations       store.CelebrationStore
 	Settings           SettingsProvider
 	Recompute          RecomputeRunner
 	JobRunner          JobRunner

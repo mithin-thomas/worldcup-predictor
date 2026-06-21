@@ -95,6 +95,23 @@ Fixtures sync (initial seed + re-sync), manual match create/edit/delete, result 
 
 A **Help** button in the top bar opens a "How to play" modal summarising the rules for players: the scoring tiers (§3.3) and knockout penalty bonus, the tournament bonus and its lock (§3.4), the weekly/overall leaderboards and prizes (§3.5), the 3-day prediction window (§3.2), and prediction privacy (§4). Its content mirrors this spec.
 
+### 3.8 Match celebrations
+
+When a **celebrated team (Brazil only)** wins a match, each user sees a one-time
+full-screen **victory celebration** on their next visit after the match goes FINAL —
+**once per user per match, across devices** (tracked server-side in `celebration_views`).
+The overlay (canvas confetti/fireworks + a synthesized carnival soundtrack + a "VITÓRIA"
+reveal) shows an inline **scorecard** of the won match (e.g. `BRA 3 – 1 JOR`) and a "Skip"
+button. A "celebrated win" is a FINAL match whose winner (higher score, or the knockout
+shootout winner on a draw) is an allowlisted team (`BRA`). If multiple unseen celebrated
+wins exist, only the **most recent** plays; the rest are marked seen. Admins get a replay
+button (all environments). The allowlist is server-side and extensible (Brazil only for now).
+
+**Audio (browser-policy note):** the soundtrack only plays when the celebration is started by a
+user gesture (browser autoplay rules). The admin replay button (a click) plays with sound; the
+**automatic** on-login celebration is **visual-only** — it auto-plays muted and resumes audio only
+if the user taps the overlay. This is intentional, not a defect.
+
 ---
 
 ## 4. Privacy of predictions
@@ -169,11 +186,13 @@ Design serves the task: predict fast, glance at standings. The bar is earned fam
 
 > **Implementation note:** the frontend is built using the **`impeccable`** design skill, which realizes the tokens, layout, component states, and motion defined in this section. Treat §7 as the design contract that skill must satisfy.
 
+> **🅥2 Visual language (current — supersedes the coral/OKLCH palette below).** Per a product decision (imported from the "Saxone Predictions" Claude Design project, 2026-06-18), v1 ships an **Apple-style "liquid glass"** look: a **system-dark** canvas with an **Apple-blue accent** (`#1a84ff` dark), frosted translucent card surfaces, the native **San Francisco / system font stack** (no web fonts; numerics use tabular system figures rather than JetBrains Mono), and Apple-generous radii/soft shadows. Football-themed motion is intentional here (a FIFA-card standing hero with mowed-pitch stripes + a spinning ball, and a thunderstorm backdrop revealed by lightning). The CSS variable **names** are unchanged (`--coral` is the accent, `--brand` aliases it, `--bg`/`--surface`/`--text`/etc.), so the §7.4–§7.7 contracts (layout, component states, motion, accessibility) still hold; only the **values** in §7.2 and the §7.3 font choice are superseded. Tokens live in `frontend/src/styles/tokens.css`. The two optional background **photos** (`standing-bg.png`, `stadium-ronaldo.png`) exceed the design connector's 256 KiB fetch cap — drop them into `frontend/public/` to activate; absent, a CSS gradient stands in.
+
 ### 7.1 Theme & rationale
 
-Dark-first. The usage scene is an employee on their phone, late evening IST, locking a scoreline minutes before a North-America kickoff near midnight their time — often in a dim room. That justifies a dark default (by use, not fashion). A light theme can be added later from the same tokens; dark is canonical for v1.
+Dark-first (canonical and **only** theme in v1; light remains deferred). The usage scene is an employee on their phone, late evening IST, locking a scoreline minutes before a North-America kickoff near midnight their time — often in a dim room. That justifies a dark default (by use, not fashion).
 
-Color strategy is **Restrained**: an indigo-ink canvas plus a single warm brand accent. No cream/sand backgrounds, no grass-green-and-gold football cliché, no scoreboard-terminal look.
+Color strategy (v2): a near-black Apple system canvas plus a single Apple-blue accent, with liquid-glass card surfaces. (The original "restrained indigo-ink + warm coral" strategy below is retained for historical rationale.)
 
 ### 7.2 Color tokens (OKLCH)
 
@@ -209,6 +228,8 @@ The SayOne brand color `#E95145` is the single warm accent. Because it is warm a
 Rules: `--brand` solid fill is reserved for **safe** primary actions and achievement only. Destructive actions use `--danger` with a leading icon (`trash`/`alert`) and a confirm step — never a coral solid fill. Body text never uses coral; coral is for accents, fills, and small emphasis.
 
 ### 7.3 Typography
+
+_(v2 supersedes the font choice below: the app uses the native San Francisco / system stack for both UI and numerics, with tabular figures `font-feature-settings: "tnum"` for aligned numbers — no web fonts. The original Inter + JetBrains Mono pairing is kept here for rationale.)_
 
 One UI sans plus a monospace for all numerics — a real contrast axis, not two similar sans fonts.
 
@@ -360,6 +381,14 @@ Bonus
 - `PUT /api/bonus` — upsert picks; body `{ "picks": [ { "category", "ref_id" } ] }` (any subset of the 7). Validates each category and that `ref_id` exists in the correct table for the category's ref-type; returns the same shape as `GET /api/bonus`. **403 when `now >= BONUS_LOCK_AT`** (server-authoritative; the client clock is never trusted); 400 on a bad category / missing or wrong-type ref / invalid JSON.
 - `GET /api/teams` — `[{ id, name, code }]` for the team-award dropdowns.
 - `GET /api/players?q=<term>` — `[{ id, name, team_code, position }]`, name search, capped (20 rows) for the player-award typeahead.
+
+Celebrations
+
+- `GET    /api/celebrations` — unseen celebrated-team wins for the caller, newest-first:
+  `{ "celebrations": [ { "match_id", "team_code", "team_score", "opponent_code",
+  "opponent_score", "kickoff_utc" } ] }`. `RequireAuth`, all environments.
+- `POST   /api/celebrations/seen` — body `{ "match_ids": [int,…] }` → `200 { "seen": N }`.
+  Idempotently records the caller has seen those celebrations. `400` on empty/invalid body.
 
 Admin (role=admin)
 

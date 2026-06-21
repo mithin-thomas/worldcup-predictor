@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { useLogout, useMe } from "./lib/auth";
+import { useCelebrations, useMarkCelebrationsSeen } from "./lib/celebrations";
 
 vi.mock("./lib/auth", () => ({
   GoogleSignInButton: () => <button type="button">Sign in with Google</button>,
@@ -28,6 +29,19 @@ vi.mock("./components/HowToPlayModal", () => ({
       <button type="button" onClick={onClose}>
         Close help
       </button>
+    </div>
+  ),
+}));
+
+vi.mock("./lib/celebrations", () => ({
+  useCelebrations: vi.fn(),
+  useMarkCelebrationsSeen: vi.fn(),
+}));
+
+vi.mock("./components/VictoryCelebration", () => ({
+  VictoryCelebration: ({ celebration, onDone }: { celebration: { match_id: number }; onDone: () => void }) => (
+    <div data-testid="victory" data-match={celebration.match_id}>
+      <button onClick={onDone}>finish-celebration</button>
     </div>
   ),
 }));
@@ -70,6 +84,8 @@ describe("App shell", () => {
     vi.clearAllMocks();
     setPhoneViewport(false);
     mockSession();
+    vi.mocked(useCelebrations).mockReturnValue({ data: [] } as unknown as ReturnType<typeof useCelebrations>);
+    vi.mocked(useMarkCelebrationsSeen).mockReturnValue({ mutate: vi.fn() } as unknown as ReturnType<typeof useMarkCelebrationsSeen>);
   });
 
   it("routes the phone tab bar between prediction fixtures and standings", async () => {
@@ -106,7 +122,7 @@ describe("App shell", () => {
     expect(screen.queryByTestId("home")).not.toBeInTheDocument();
   });
 
-  it("opens profile actions from the topbar menu", async () => {
+  it("opens profile actions (help + confirm-gated log out) from the topbar menu", async () => {
     const user = userEvent.setup();
 
     render(<App />);
@@ -123,5 +139,72 @@ describe("App shell", () => {
     expect(logoutMutate).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Log out" }));
     expect(logoutMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes to Admin from the profile menu for admins (no header nav bar)", async () => {
+    const user = userEvent.setup();
+    mockSession("admin");
+
+    render(<App />);
+
+    // No pill nav in the header.
+    expect(
+      screen.queryByRole("navigation", { name: "Main navigation" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Profile menu for Priya" }));
+    await user.click(screen.getByRole("menuitem", { name: "Admin" }));
+    expect(screen.getByTestId("admin")).toBeInTheDocument();
+  });
+});
+
+describe("App — celebrations", () => {
+  const markMutate = vi.fn();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSession("user");
+    vi.mocked(useMarkCelebrationsSeen).mockReturnValue({ mutate: markMutate } as unknown as ReturnType<typeof useMarkCelebrationsSeen>);
+  });
+
+  it("plays the latest pending celebration and marks ALL pending seen on done", async () => {
+    const user = userEvent.setup();
+    vi.mocked(useCelebrations).mockReturnValue({
+      data: [
+        { match_id: 20, team_code: "BRA", team_score: 2, opponent_code: "ESP", opponent_score: 0, kickoff_utc: "2026-06-20T18:00:00Z" },
+        { match_id: 12, team_code: "BRA", team_score: 3, opponent_code: "JOR", opponent_score: 1, kickoff_utc: "2026-06-19T18:00:00Z" },
+      ],
+    } as unknown as ReturnType<typeof useCelebrations>);
+
+    render(<App />);
+    // latest (index 0) is shown
+    expect(screen.getByTestId("victory")).toHaveAttribute("data-match", "20");
+    await user.click(screen.getByText("finish-celebration"));
+    expect(markMutate).toHaveBeenCalledWith([20, 12]);
+    expect(screen.queryByTestId("victory")).not.toBeInTheDocument();
+  });
+
+  it("shows no celebration when none pending", () => {
+    vi.mocked(useCelebrations).mockReturnValue({ data: [] } as unknown as ReturnType<typeof useCelebrations>);
+    render(<App />);
+    expect(screen.queryByTestId("victory")).not.toBeInTheDocument();
+  });
+
+  it("admin debug button replays without marking seen; absent for non-admins", async () => {
+    const user = userEvent.setup();
+    vi.mocked(useCelebrations).mockReturnValue({ data: [] } as unknown as ReturnType<typeof useCelebrations>);
+
+    // non-admin: no button
+    mockSession("user");
+    const { unmount } = render(<App />);
+    expect(screen.queryByRole("button", { name: /play victory/i })).not.toBeInTheDocument();
+    unmount();
+
+    // admin: button present, replays without a seen POST
+    mockSession("admin");
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /play victory/i }));
+    expect(screen.getByTestId("victory")).toBeInTheDocument();
+    await user.click(screen.getByText("finish-celebration"));
+    expect(markMutate).not.toHaveBeenCalled();
   });
 });

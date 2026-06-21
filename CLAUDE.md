@@ -172,9 +172,11 @@ frontend/src/
 - **Roles:** show the Admin tab/section only when `me.role === "admin"`.
 
 **Design system (spec §7):** dark-first; tokens in `styles/tokens.css`. Build screens with the
-**`impeccable`** design skill, treating §7 as the contract. Inter for UI, **JetBrains Mono for all
-numerics** (scores, countdowns, points). Coral `--brand` only for safe primary actions + achievement;
-destructive = `--danger` + icon + confirm. Every interactive element defines default/hover/focus
+**`impeccable`** design skill, treating §7 as the contract. **V2 "liquid glass" (current, per §7
+supersede note):** the native **San Francisco / system font stack** for UI **and** numerics (tabular
+figures `font-feature-settings: "tnum"` for aligned numbers — no web fonts; the old Inter +
+JetBrains Mono pairing is retired). **Apple-blue** `--brand` (`#1a84ff`, aliased from `--coral`) only
+for safe primary actions + achievement; destructive = `--danger` + icon + confirm. Every interactive element defines default/hover/focus
 (visible ring)/active/disabled/loading/error; **skeletons not spinners**; teaching empty states.
 Accessibility: ≥4.5:1 contrast, keyboard nav, `aria-label` on icon buttons, ≥44px targets,
 `prefers-reduced-motion` fallbacks. Mobile-first: bottom tab bar → side-nav on wide screens; fixtures

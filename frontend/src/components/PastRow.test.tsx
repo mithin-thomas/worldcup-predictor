@@ -108,64 +108,81 @@ beforeEach(() => {
   );
 });
 
-// ── Existing PastRow assertions (must keep passing) ─────────────────────────
-describe("PastRow — existing behaviour", () => {
+// ── PastRow result-card assertions (v2 verdict + compare layout) ────────────
+describe("PastRow — result card", () => {
   it("renders team names and score", () => {
     render(<PastRow match={baseMatch} />);
     expect(screen.getByText("Mexico")).toBeInTheDocument();
     expect(screen.getByText("South Africa")).toBeInTheDocument();
-    // Score visible
+    // Final scoreline visible
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 
-  it("shows 'No prediction' when no prediction set", () => {
-    render(<PastRow match={baseMatch} />);
-    expect(screen.getByText(/No prediction/i)).toBeInTheDocument();
+  it("shows a 'No prediction' verdict when no prediction set", () => {
+    const { container } = render(<PastRow match={baseMatch} />);
+    const verdict = container.querySelector(".pr-verdict");
+    expect(verdict).toHaveClass("miss");
+    expect(verdict).toHaveTextContent(/No prediction/i);
+    // miss stripe on the row
+    expect(container.querySelector(".past-row")).toHaveClass("miss");
   });
 
-  it("shows pick and +0 pts chip when prediction has 0 points", () => {
+  it("shows 'Missed' verdict + the pick→final compare when prediction scores 0", () => {
     const m: MatchDTO = {
       ...baseMatch,
       prediction: { home_score: 0, away_score: 0, penalty_winner_team_id: null, points: 0, penalty_bonus: null },
     };
-    render(<PastRow match={m} />);
-    expect(screen.getByText(/Your pick/i)).toBeInTheDocument();
-    const chip = screen.getByLabelText("0 points");
-    expect(chip).toHaveClass("miss");
-    const bold = document.querySelector(".pr-pick b");
-    expect(bold?.textContent).toMatch(/0/);
+    const { container } = render(<PastRow match={m} />);
+    const verdict = container.querySelector(".pr-verdict");
+    expect(verdict).toHaveClass("miss");
+    expect(verdict).toHaveTextContent(/Missed/i);
+    // 0 points renders without a leading "+" (reserved for positive points)
+    expect(verdict?.textContent).toMatch(/Missed\s*0$/);
+    // Compare: my pick (not a hit) → final
+    const mypick = container.querySelector(".pr-mypick");
+    expect(mypick).not.toHaveClass("hit");
+    expect(mypick?.textContent).toMatch(/0.?0/);
+    expect(container.querySelector(".pr-final")?.textContent).toMatch(/2.?1/);
   });
 
-  it("shows +3 pts chip with 'ok' class for correct result", () => {
+  it("shows 'Right result' verdict with 'ok' class for a correct result", () => {
     const m: MatchDTO = {
       ...baseMatch,
       prediction: { home_score: 3, away_score: 1, penalty_winner_team_id: null, points: 3, penalty_bonus: null },
     };
-    render(<PastRow match={m} />);
-    const chip = screen.getByLabelText("3 points");
-    expect(chip).toHaveClass("ok");
-    expect(chip).toHaveTextContent("+3 pts");
+    const { container } = render(<PastRow match={m} />);
+    const verdict = container.querySelector(".pr-verdict");
+    expect(verdict).toHaveClass("ok");
+    expect(verdict).toHaveTextContent(/Right result/i);
+    expect(verdict).toHaveTextContent("+3");
   });
 
-  it("shows +5 pts chip with 'win' class for exact score", () => {
+  it("shows 'Exact score' verdict with 'win' class + hit pick for an exact score", () => {
     const m: MatchDTO = {
       ...baseMatch,
       prediction: { home_score: 2, away_score: 1, penalty_winner_team_id: null, points: 5, penalty_bonus: null },
     };
-    render(<PastRow match={m} />);
-    const chip = screen.getByLabelText("5 points");
-    expect(chip).toHaveClass("win");
-    expect(chip).toHaveTextContent("+5 pts");
+    const { container } = render(<PastRow match={m} />);
+    const verdict = container.querySelector(".pr-verdict");
+    expect(verdict).toHaveClass("win");
+    expect(verdict).toHaveTextContent(/Exact score/i);
+    expect(verdict).toHaveTextContent("+5");
+    // Exact prediction → my pick is highlighted as a hit
+    expect(container.querySelector(".pr-mypick")).toHaveClass("hit");
+    expect(container.querySelector(".past-row")).toHaveClass("win");
   });
 
-  it("shows '—' chip when points is null (not yet scored)", () => {
+  it("shows 'Awaiting result' and 'vs' when the match is not yet scored", () => {
     const m: MatchDTO = {
       ...baseMatch,
-      prediction: { home_score: 2, away_score: 1, penalty_winner_team_id: null, points: null, penalty_bonus: null },
+      status: "live",
+      home_score: null,
+      away_score: null,
     };
     render(<PastRow match={m} />);
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getByText(/Awaiting result/i)).toBeInTheDocument();
+    expect(screen.getByText("vs")).toBeInTheDocument();
   });
 
   it("surfaces +1 PEN bonus when penalty_bonus > 0", () => {
@@ -307,12 +324,12 @@ describe("PastRow — others' picks modal", () => {
       makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
     );
 
-    const { container } = render(<PastRow match={baseMatch} />);
+    render(<PastRow match={baseMatch} />);
     await user.click(screen.getByRole("button", { name: /others' picks/i }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     // Click the overlay element (the dialog itself, not the inner dialog card)
-    const overlay = container.querySelector(".op-overlay") as HTMLElement;
+    const overlay = document.body.querySelector(".op-overlay") as HTMLElement;
     await user.click(overlay);
     expect(screen.queryByRole("dialog")).toBeNull();
   });
@@ -323,10 +340,10 @@ describe("PastRow — others' picks modal", () => {
       makeQueryResult<MatchPredictionDTO[]>({ isLoading: true }),
     );
 
-    const { container } = render(<PastRow match={baseMatch} />);
+    render(<PastRow match={baseMatch} />);
     await user.click(screen.getByRole("button", { name: /others' picks/i }));
 
-    const skeletons = container.querySelectorAll(".op-row--skeleton");
+    const skeletons = document.body.querySelectorAll(".op-row--skeleton");
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
@@ -363,11 +380,11 @@ describe("PastRow — others' picks modal", () => {
       }),
     );
 
-    const { container } = render(<PastRow match={baseMatch} />);
+    render(<PastRow match={baseMatch} />);
     await user.click(screen.getByRole("button", { name: /others' picks/i }));
 
     // Scoreline elements should exist with mono class
-    const scoreEls = container.querySelectorAll(".op-score");
+    const scoreEls = document.body.querySelectorAll(".op-score");
     expect(scoreEls.length).toBe(samplePredictions.length);
   });
 
@@ -509,10 +526,10 @@ describe("PastRow — others' picks modal", () => {
       }),
     );
 
-    const { container } = render(<PastRow match={baseMatch} />);
+    render(<PastRow match={baseMatch} />);
     await user.click(screen.getByRole("button", { name: /others' picks/i }));
 
-    const meRow = container.querySelector(".op-row--me");
+    const meRow = document.body.querySelector(".op-row--me");
     expect(meRow).toBeInTheDocument();
     // The "You" tag should be inside the me-row
     expect(meRow?.textContent).toMatch(/\(You\)/);
