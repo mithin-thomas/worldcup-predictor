@@ -107,6 +107,11 @@ shootout winner on a draw) is an allowlisted team (`BRA`). If multiple unseen ce
 wins exist, only the **most recent** plays; the rest are marked seen. Admins get a replay
 button (all environments). The allowlist is server-side and extensible (Brazil only for now).
 
+**Audio (browser-policy note):** the soundtrack only plays when the celebration is started by a
+user gesture (browser autoplay rules). The admin replay button (a click) plays with sound; the
+**automatic** on-login celebration is **visual-only** — it auto-plays muted and resumes audio only
+if the user taps the overlay. This is intentional, not a defect.
+
 ---
 
 ## 4. Privacy of predictions
