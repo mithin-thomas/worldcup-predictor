@@ -128,7 +128,7 @@ describe("MatchCard", () => {
       locked: true,
       prediction: { home_score: 2, away_score: 1, penalty_winner_team_id: null, points: 5, penalty_bonus: null },
     }} />);
-    expect(screen.getByText(/2.+1/)).toBeInTheDocument(); // "Pick locked · 2–1"
+    expect(screen.getByText(/pick locked.*2.+1/i)).toBeInTheDocument(); // "Pick locked · 2–1"
   });
 
   // ── Server 409 lock ───────────────────────────────────────────────────────

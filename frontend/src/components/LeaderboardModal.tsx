@@ -50,6 +50,8 @@ export function LeaderboardModal({ initialPeriod, onClose }: LeaderboardModalPro
 
   const [period, setPeriod] = useState<Period>(initialPeriod);
   const [page, setPage] = useState(1);
+  // "Exact" filter: reveals each player's count of exact-score (5-pt) picks.
+  const [showExact, setShowExact] = useState(false);
 
   const { data, isLoading, isError } = useLeaderboard(period, page);
 
@@ -138,6 +140,15 @@ export function LeaderboardModal({ initialPeriod, onClose }: LeaderboardModalPro
           />
           <button
             type="button"
+            className="lbm-exact-toggle"
+            aria-pressed={showExact}
+            onClick={() => setShowExact((v) => !v)}
+            title="Show each player's exact-score (5-pt) picks"
+          >
+            ✓ Exact Score
+          </button>
+          <button
+            type="button"
             ref={closeRef}
             className="lbm-close"
             aria-label="Close leaderboard"
@@ -211,11 +222,21 @@ export function LeaderboardModal({ initialPeriod, onClose }: LeaderboardModalPro
                           </span>
                         )}
                       </span>
-                      <span
-                        className="lb-pts mono"
-                        aria-label={`${r.points} points`}
-                      >
-                        {r.points}
+                      <span className="lb-score-cell">
+                        {showExact && (
+                          <span
+                            className="lb-exact mono"
+                            aria-label={`${r.exact} exact picks`}
+                          >
+                            ✓ {r.exact}
+                          </span>
+                        )}
+                        <span
+                          className="lb-pts mono"
+                          aria-label={`${r.points} points`}
+                        >
+                          {r.points}
+                        </span>
                       </span>
                     </li>
                   );

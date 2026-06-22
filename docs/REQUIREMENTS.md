@@ -75,7 +75,7 @@ Maximum bonus = **100**. These are scored once, after the tournament concludes, 
 - **Weekly**: every Monday, sum points from matches whose **kickoff** falls in the previous IST week (Mon 00:00 → Sun 23:59 IST). Attribution is by kickoff timestamp (deterministic, so a late result-correction never shifts points between weeks). Highest total(s) are the Weekly Winner(s). **Weekly ties stand** — they produce multiple co-winners, and **every co-winner is paid the full prize** (the §5.1 tie-break does **not** apply to the weekly prize; it only decides distinct 1st/2nd for the overall standings). Prize: ₹500 Amazon Gift Card per weekly winner.
 - **Overall**: all match points + bonus points combined, for the final standings. **Final-standings ties are broken by the cascade in §5.1** (so 1st and 2nd are distinct winners). Prizes: 1st ₹5,000, 2nd ₹2,500.
 - **Hall of Fame**: past weekly champions are retained and shown to **all** users (newest week first) — each week lists its co-winner(s), their points, and the ₹500 gift-card payout status. Read-only for regular users; admins additionally toggle the payout status (§3.6). The UI pages **one week at a time** with Prev/Next.
-- **Presentation**: the leaderboard panel shows the **top 5** for the selected period (Overall/Weekly) with a **"View full leaderboard"** modal — scrollable, paginated — for the complete list. The current user's row is marked "(You)", and an off-page "Your rank: N" line shows when they fall outside the visible rows.
+- **Presentation**: the leaderboard panel shows the **top 5** for the selected period (Overall/Weekly) with a **"View full leaderboard"** modal — scrollable, paginated — for the complete list. The current user's row is marked "(You)", and an off-page "Your rank: N" line shows when they fall outside the visible rows. The modal also has an **"Exact Score" filter** toggle that reveals each player's count of **exact-score (5-pt) picks** next to their points (display-only — it does not re-rank or hide anyone).
 
 ### 3.6 Admin features
 
@@ -104,13 +104,13 @@ The overlay (canvas confetti/fireworks + a synthesized carnival soundtrack + a "
 reveal) shows an inline **scorecard** of the won match (e.g. `BRA 3 – 1 JOR`) and a "Skip"
 button. A "celebrated win" is a FINAL match whose winner (higher score, or the knockout
 shootout winner on a draw) is an allowlisted team (`BRA`). If multiple unseen celebrated
-wins exist, only the **most recent** plays; the rest are marked seen. Admins get a replay
-button (all environments). The allowlist is server-side and extensible (Brazil only for now).
+wins exist, only the **most recent** plays; the rest are marked seen. The allowlist is
+server-side and extensible (Brazil only for now).
 
 **Audio (browser-policy note):** the soundtrack only plays when the celebration is started by a
-user gesture (browser autoplay rules). The admin replay button (a click) plays with sound; the
-**automatic** on-login celebration is **visual-only** — it auto-plays muted and resumes audio only
-if the user taps the overlay. This is intentional, not a defect.
+user gesture (browser autoplay rules). The **automatic** on-login celebration is therefore
+**visual-only** — it auto-plays muted and resumes audio only if the user taps the overlay. This
+is intentional, not a defect.
 
 ---
 

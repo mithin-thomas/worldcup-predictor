@@ -2390,6 +2390,16 @@ input  { font-family: inherit; }
 .lb-name  { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
 .you-tag  { font-size: 12px; font-weight: 600; color: var(--coral-hi); margin-left: 4px; flex: none; }
 .lb-pts   { font-size: 15px; font-weight: 700; color: var(--text); min-width: 30px; text-align: right; font-family: var(--font-mono); font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+/* Score cell holds the optional "exact picks" badge next to the points (Exact filter). */
+.lb-score-cell { display: inline-flex; align-items: center; gap: 10px; justify-self: end; }
+.lb-exact { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; color: var(--win); font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+/* "✓ Exact" filter toggle in the leaderboard modal header. */
+.lbm-exact-toggle { margin-left: auto; min-height: 32px; padding: 0 12px; border-radius: var(--r-pill); font-size: 12.5px; font-weight: 600; cursor: pointer; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); transition: background 0.16s, color 0.16s, border-color 0.16s; }
+.lbm-exact-toggle:hover { border-color: var(--text-3); color: var(--text); }
+.lbm-exact-toggle:active { background: var(--surface-3); }
+.lbm-exact-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.lbm-exact-toggle[aria-pressed="true"] { background: rgba(52, 211, 153, 0.14); color: var(--win); border-color: var(--win); }
+@media (prefers-reduced-motion: reduce) { .lbm-exact-toggle { transition: none; } }
 
 /* "View all N players" button below the top-5 list */
 .lb-view-all {
