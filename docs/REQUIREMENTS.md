@@ -104,13 +104,13 @@ The overlay (canvas confetti/fireworks + a synthesized carnival soundtrack + a "
 reveal) shows an inline **scorecard** of the won match (e.g. `BRA 3 – 1 JOR`) and a "Skip"
 button. A "celebrated win" is a FINAL match whose winner (higher score, or the knockout
 shootout winner on a draw) is an allowlisted team (`BRA`). If multiple unseen celebrated
-wins exist, only the **most recent** plays; the rest are marked seen. Admins get a replay
-button (all environments). The allowlist is server-side and extensible (Brazil only for now).
+wins exist, only the **most recent** plays; the rest are marked seen. The allowlist is
+server-side and extensible (Brazil only for now).
 
 **Audio (browser-policy note):** the soundtrack only plays when the celebration is started by a
-user gesture (browser autoplay rules). The admin replay button (a click) plays with sound; the
-**automatic** on-login celebration is **visual-only** — it auto-plays muted and resumes audio only
-if the user taps the overlay. This is intentional, not a defect.
+user gesture (browser autoplay rules). The **automatic** on-login celebration is therefore
+**visual-only** — it auto-plays muted and resumes audio only if the user taps the overlay. This
+is intentional, not a defect.
 
 ---
 

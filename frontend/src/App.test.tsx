@@ -188,23 +188,4 @@ describe("App — celebrations", () => {
     render(<App />);
     expect(screen.queryByTestId("victory")).not.toBeInTheDocument();
   });
-
-  it("admin debug button replays without marking seen; absent for non-admins", async () => {
-    const user = userEvent.setup();
-    vi.mocked(useCelebrations).mockReturnValue({ data: [] } as unknown as ReturnType<typeof useCelebrations>);
-
-    // non-admin: no button
-    mockSession("user");
-    const { unmount } = render(<App />);
-    expect(screen.queryByRole("button", { name: /play victory/i })).not.toBeInTheDocument();
-    unmount();
-
-    // admin: button present, replays without a seen POST
-    mockSession("admin");
-    render(<App />);
-    await user.click(screen.getByRole("button", { name: /play victory/i }));
-    expect(screen.getByTestId("victory")).toBeInTheDocument();
-    await user.click(screen.getByText("finish-celebration"));
-    expect(markMutate).not.toHaveBeenCalled();
-  });
 });
