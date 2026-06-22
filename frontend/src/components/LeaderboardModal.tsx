@@ -145,7 +145,7 @@ export function LeaderboardModal({ initialPeriod, onClose }: LeaderboardModalPro
             onClick={() => setShowExact((v) => !v)}
             title="Show each player's exact-score (5-pt) picks"
           >
-            ✓ Exact
+            ✓ Exact Score
           </button>
           <button
             type="button"
