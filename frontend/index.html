@@ -37,12 +37,48 @@
       defer
     ></script>
   </head>
-  <body>
     <!-- Always-on backdrop layers (match Saxone Predictions.html shell) -->
     <div class="app-bg" aria-hidden="true"></div>
-    <div class="thunder-bg" aria-hidden="true"></div>
+
+    <!-- Shimmer stage: mask animation lives here, children cycle per iteration -->
+    <div class="shimmer-stage" aria-hidden="true">
+      <video class="thunder-bg" autoplay loop muted playsinline>
+        <source src="/bg.webm" type="video/webm">
+      </video>
+      <img class="shimmer-img" src="/argentina_trophy_2022.png" alt="">
+      <img class="shimmer-img" src="/france_trophy_2018.jpeg" alt="">
+      <img class="shimmer-img" src="/germany_trophy_2014.jpg" alt="">
+    </div>
+
     <div class="thunder-flash" aria-hidden="true"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Cycle shimmer backgrounds on each animation iteration.
+         The switch happens at the dark-pause boundary (mask fully off-screen)
+         so the swap is invisible to the user. -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var stage = document.querySelector('.shimmer-stage');
+        if (!stage) return;
+
+        var video = stage.querySelector('video');
+        var imgs  = Array.from(stage.querySelectorAll('.shimmer-img'));
+        // Sequence: 0 = video, 1 = argentina, 2 = france, 3 = germany
+        var idx = 0;
+
+        stage.addEventListener('animationiteration', function () {
+          idx = (idx + 1) % (imgs.length + 1);
+
+          // Show/hide video
+          video.style.opacity = (idx === 0) ? '1' : '0';
+
+          // Show/hide images
+          imgs.forEach(function (img, i) {
+            img.style.opacity = (i === idx - 1) ? '1' : '0';
+          });
+        });
+      });
+    </script>
   </body>
 </html>

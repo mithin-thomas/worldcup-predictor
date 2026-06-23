@@ -182,6 +182,17 @@ Accessibility: ≥4.5:1 contrast, keyboard nav, `aria-label` on icon buttons, �
 `prefers-reduced-motion` fallbacks. Mobile-first: bottom tab bar → side-nav on wide screens; fixtures
 are a vertical list grouped by IST date; leaderboard is a ranked table.
 
+**Background layer (shimmer-stage):** `index.html` uses a `.shimmer-stage` container (fixed, z-index 0)
+that holds a looping `<video class="thunder-bg">` (bg.webm) and three `<img class="shimmer-img">` trophy
+assets (Argentina 2022, France 2018, Germany 2014). A CSS `shimmer-mask-sweep` animation sweeps a
+diagonal gradient mask across the stage every 6 s; inline JS listens for `animationiteration` and
+cycles active child (video → trophy imgs in sequence) at the dark-pause boundary so the swap is
+invisible. The `.thunder-flash` div is now a plain vignette overlay (z-index 1, no animation). Under
+`prefers-reduced-motion` the mask is removed and the video shows at reduced opacity. When adding new
+background assets: drop them in `frontend/public/`, add an `<img class="shimmer-img">` in `index.html`,
+and the JS cycle picks it up automatically. Never re-add `thunder-reveal`/`thunder-bolt` keyframes —
+those are retired.
+
 **Build & test:** `pnpm dev` (Vite, proxies `/api` → `:8000`), `pnpm build`, `pnpm tsc --noEmit`,
 `pnpm vitest run`. Component tests (Vitest + Testing Library) cover the prediction form's lock states
 and key rendering; type-check must be clean before done.
