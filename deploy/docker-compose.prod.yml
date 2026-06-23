@@ -89,17 +89,9 @@ services:
     # No host port: Caddy proxies to backend:8000 on the internal network.
 
   caddy:
-    # Normally pulled from ECR via FRONTEND_IMAGE (built + pushed by CI).
-    # The build: section lets you build the image locally with the same VITE_*
-    # vars from .env.prod — no need to pass them explicitly as --build-arg.
+    # Built + pushed to ECR by CI (with the prod VITE_GOOGLE_CLIENT_ID baked in);
+    # the host pulls it via FRONTEND_IMAGE from .env.prod.
     image: ${FRONTEND_IMAGE:?set FRONTEND_IMAGE in .env.prod}
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile.prod
-      args:
-        VITE_GOOGLE_CLIENT_ID: "${VITE_GOOGLE_CLIENT_ID:-}"
-        VITE_API_BASE_URL: "/api"
-        VITE_MADCROW_ASSISTANT_ID: "${VITE_MADCROW_ASSISTANT_ID:-}"
     restart: unless-stopped
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env.prod (your public hostname)}
