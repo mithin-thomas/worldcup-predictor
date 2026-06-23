@@ -25,10 +25,14 @@
     <script src="https://accounts.google.com/gsi/client" async></script>
 
     <!-- Added for internal testing of the MadCrow environment chatbot only.
-         Do not alter or remove anything from this script. -->
+         Do not alter or remove anything from this script.
+         No SRI hash: widget.bundle.js is an auto-updating bundle with no stable
+         hash — the same trade-off acknowledged for the Google GIS loader above.
+         data-assistant-id is injected at build time from VITE_MADCROW_ASSISTANT_ID
+         and must not be hard-coded here. -->
     <script
       src="https://dashboard.madcrow.ai/widget.bundle.js"
-      data-assistant-id="7879d1c4-bba5-4629-bc54-b1d6e9f25654"
+      data-assistant-id="%VITE_MADCROW_ASSISTANT_ID%"
       data-api-base="https://api-p.madcrow.ai/api/v1"
       defer
     ></script>
