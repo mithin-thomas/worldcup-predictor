@@ -23,6 +23,15 @@
          it's an unversioned auto-updating script with no stable hash, and forcing
          CORS mode makes the plain <script> load fail (no ACAO header from Google). -->
     <script src="https://accounts.google.com/gsi/client" async></script>
+
+    <!-- Added for internal testing of the MadCrow environment chatbot only.
+         Do not alter or remove anything from this script. -->
+    <script
+      src="https://dashboard.madcrow.ai/widget.bundle.js"
+      data-assistant-id="7879d1c4-bba5-4629-bc54-b1d6e9f25654"
+      data-api-base="https://api-p.madcrow.ai/api/v1"
+      defer
+    ></script>
   </head>
   <body>
     <!-- Always-on backdrop layers (match Saxone Predictions.html shell) -->
