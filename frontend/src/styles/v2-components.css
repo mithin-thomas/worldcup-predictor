@@ -411,40 +411,80 @@
 @keyframes bar-ball-spin { to { transform: rotate(360deg); } }
 @keyframes btn-sweep { from { transform: translateX(-220%) skewX(-18deg); } to { transform: translateX(320%) skewX(-18deg); } }
 @keyframes saved-pop { 0% { transform: scale(0.7); opacity: 0; } 60% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
-@keyframes thunder-reveal {
-  0%, 67% { opacity: 0.05; filter: brightness(0.55) saturate(1.1); }
-  68%     { opacity: 0.82; filter: brightness(1.8) saturate(1.2); }
-  70%     { opacity: 0.12; filter: brightness(0.8) saturate(1.1); }
-  71.5%   { opacity: 0.9;  filter: brightness(2.1) saturate(1.25); }
-  73%     { opacity: 0.22; filter: brightness(0.95) saturate(1.1); }
-  76%     { opacity: 0.45; filter: brightness(1.25) saturate(1.15); }
-  82%,100%{ opacity: 0.05; filter: brightness(0.55) saturate(1.1); }
-}
-@keyframes thunder-bolt {
-  0%, 67%  { opacity: 0; }
-  68%      { opacity: 0.95; }
-  69.5%    { opacity: 0.08; }
-  71.5%    { opacity: 1; }
-  73%      { opacity: 0.12; }
-  77%      { opacity: 0; }
-  100%     { opacity: 0; }
+
+/*
+  Narrow band: 40–60% of 350vw mask = 140–210vw from mask left (~70vw wide).
+  Off-screen left:  mask_left = -230vw → trailing edge at -230+210 = -20vw ✓
+  Off-screen right: mask_left =  -20vw → leading edge at  -20+140 = 120vw ✓
+
+  Cycle: 4s sweep (linear) → instant reset → 4s dark pause = 8s total.
+*/
+@keyframes shimmer-mask-sweep {
+  0%      { -webkit-mask-position: -240vw 0; mask-position: -240vw 0; } /* off-screen left  */
+  67%     { -webkit-mask-position:  -10vw 0; mask-position:  -10vw 0; } /* off-screen right */
+  67.01%  { -webkit-mask-position: -240vw 0; mask-position: -240vw 0; } /* instant reset    */
+  100%    { -webkit-mask-position: -240vw 0; mask-position: -240vw 0; } /* ~2s dark pause   */
 }
 
-/* ---------- Thunderstorm background ---------- */
-.thunder-bg {
+/* ---------- Shimmer stage — container that holds video + trophy images ---------- */
+.shimmer-stage {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background:
-    radial-gradient(120% 90% at 78% 8%, #0a1424 0%, #03050d 70%),
-    url("/stadium-ronaldo.png") center 30% / cover no-repeat;
-  background-blend-mode: overlay;
-  opacity: 0.05; filter: brightness(0.55) saturate(1.1);
-  animation: thunder-reveal 8s ease-out infinite;
+
+  /* ~80vw strip — core 38%–62% of 350vw mask ≈ 84vw, feather at 35%–65% */
+  -webkit-mask-image: linear-gradient(
+    105deg,
+    transparent        0%,
+    transparent       35%,
+    rgba(0,0,0,0.08)  38%,
+    rgba(0,0,0,0.50)  50%,
+    rgba(0,0,0,0.08)  62%,
+    transparent       65%,
+    transparent      100%
+  );
+  mask-image: linear-gradient(
+    105deg,
+    transparent        0%,
+    transparent       35%,
+    rgba(0,0,0,0.08)  38%,
+    rgba(0,0,0,0.50)  50%,
+    rgba(0,0,0,0.08)  62%,
+    transparent       65%,
+    transparent      100%
+  );
+  -webkit-mask-size: 350% 100%;
+  mask-size: 350% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  animation: shimmer-mask-sweep 6s linear infinite;
 }
+
+/* Video background — fills the stage, visible on iteration 0 */
+.thunder-bg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 1;
+  filter: brightness(0.75) saturate(1.1);
+}
+
+/* Trophy images — hidden by default, JS sets opacity:1 on active one */
+.shimmer-img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  filter: brightness(0.75) saturate(1.1);
+}
+
+/* Vignette overlay — darkens edges, keeps focus on the band */
 .thunder-flash {
-  position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  mix-blend-mode: screen; opacity: 0;
-  background: radial-gradient(72% 56% at 78% 5%, rgba(255,245,214,0.9), rgba(255,236,190,0) 62%);
-  animation: thunder-bolt 8s ease-out infinite;
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(
+    ellipse 85% 75% at 50% 50%,
+    transparent 20%,
+    rgba(0, 0, 0, 0.72) 100%
+  );
 }
 
 /* ---------- Liquid glass — frosted card surfaces ---------- */
@@ -546,9 +586,14 @@
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .standing, .standing::before, .standing-ball img, .standing-ball svg,
-  .thunder-bg, .btn-save::after, .mc-saved { animation: none; }
-  .thunder-bg { opacity: 0.12; filter: brightness(0.8); }
-  .thunder-flash { display: none; }
+  .shimmer-stage, .btn-save::after, .mc-saved { animation: none; }
+  /* Without animation the mask would hide everything; show video at steady 50% instead */
+  .shimmer-stage {
+    -webkit-mask-image: none; mask-image: none;
+  }
+  .thunder-bg {
+    opacity: 0.5; filter: brightness(0.65) saturate(1.05);
+  }
 }
 
 /* ============================================================
