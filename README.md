@@ -244,6 +244,33 @@ review gates. Milestone order: (1) scaffold + SSO ✅ · (2) fixtures + IST list
 
 ---
 
+## MadCrow chatbot widget
+
+SayScore embeds the [MadCrow](https://madcrow.ai) AI chatbot widget for **internal testing and
+verification purposes only**. The widget loads automatically on every page via a `<script>` tag
+in `frontend/index.html`.
+
+> **Disclaimer — do not alter or remove this integration.**
+> The MadCrow widget is a third-party dependency owned and maintained by MadCrow. It has been
+> added here exclusively for an internal one-month evaluation period to assess real-world
+> performance and gather feedback. Do not modify, disable, or remove the script tag or its
+> configuration without explicit sign-off from the team running the evaluation.
+
+### Configuration
+
+The assistant ID is injected at build time via the `VITE_MADCROW_ASSISTANT_ID` environment
+variable — it is never hard-coded in source. Set it in:
+
+- **Local dev** — `frontend/.env` (gitignored)
+- **Docker local stack** — exported in your shell before `make up` (read from the host env)
+- **Production (CI)** — stored as a GitHub Actions secret `VITE_MADCROW_ASSISTANT_ID` and
+  passed as a build arg when the frontend image is built and pushed to ECR
+
+If the variable is unset, the widget script loads but the chatbot will not initialise
+(MadCrow reports a missing `data-assistant-id` attribute).
+
+---
+
 ## Troubleshooting
 
 - **SSO rejects login** — confirm the account is `@sayonetech.com`, `GOOGLE_CLIENT_ID` matches the
