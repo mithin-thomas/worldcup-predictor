@@ -226,3 +226,21 @@ export function LogOutIcon() {
     </svg>
   );
 }
+
+export function BallChatIcon({ size = 26 }: { size?: number }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 6.5l4.3 3.1-1.6 5H9.3l-1.6-5z" fill="currentColor" stroke="none" />
+      <path d="M12 6.5V3.2M6.4 10.1 3.6 8.4M17.6 10.1l2.8-1.7M9 18.6l-1.4 2.6M15 18.6l1.4 2.6" />
+    </svg>
+  );
+}

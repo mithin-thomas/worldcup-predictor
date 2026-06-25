@@ -4,6 +4,7 @@ import { Home } from "./routes/Home";
 import { Admin } from "./routes/Admin";
 import { HowToPlayModal } from "./components/HowToPlayModal";
 import { VictoryCelebration } from "./components/VictoryCelebration";
+import { ChatWidget } from "./components/ChatWidget";
 import { ChevronDownIcon, HelpIcon, LogOutIcon, ShieldTabIcon, SparkIcon, StandingsIcon } from "./components/icons";
 import { Avatar } from "./components/Avatar";
 import { useCelebrations, useMarkCelebrationsSeen, type Celebration } from "./lib/celebrations";
@@ -319,6 +320,7 @@ export default function App() {
       {activeCelebration && (
         <VictoryCelebration celebration={activeCelebration} onDone={handleCelebrationDone} />
       )}
+      <ChatWidget />
     </>
   );
 }
