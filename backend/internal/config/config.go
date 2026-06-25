@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -36,6 +37,7 @@ type Config struct {
 	OpenAIAPIKey           string
 	OpenAISystemPromptFile string
 	OpenAIModel            string
+	OpenAITemperature      float64
 
 	BonusLockAt time.Time
 }
@@ -75,7 +77,8 @@ func Load() (Config, error) {
 
 		OpenAIAPIKey:           os.Getenv("OPENAI_API_KEY"),
 		OpenAISystemPromptFile: os.Getenv("OPENAI_SYSTEM_PROMPT_FILE"),
-		OpenAIModel:            getenv("OPENAI_MODEL", "gpt-4o-mini"),
+		OpenAIModel:            getenv("OPENAI_MODEL", "gpt-4.1-mini-2025-04-14"),
+		OpenAITemperature:      getfloat("OPENAI_TEMPERATURE", 0.8),
 	}
 	lockStr := getenv("BONUS_LOCK_AT", "2026-06-28T23:59:00+05:30")
 	lockAt, err := time.Parse(time.RFC3339, lockStr)
@@ -96,6 +99,16 @@ func Load() (Config, error) {
 func getenv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return def
+}
+
+// getfloat parses a float env var. Empty/unparseable falls back to def.
+func getfloat(key string, def float64) float64 {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
 	}
 	return def
 }

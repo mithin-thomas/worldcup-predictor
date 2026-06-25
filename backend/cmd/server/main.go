@@ -108,8 +108,8 @@ func main() {
 		if err != nil {
 			logger.Warn("chat disabled: cannot read OPENAI_SYSTEM_PROMPT_FILE", "path", cfg.OpenAISystemPromptFile, "err", err)
 		} else {
-			chatClient = chat.New(cfg.OpenAIAPIKey, cfg.OpenAIModel, prompt)
-			logger.Info("chat assistant enabled", "model", cfg.OpenAIModel)
+			chatClient = chat.New(cfg.OpenAIAPIKey, cfg.OpenAIModel, prompt, cfg.OpenAITemperature)
+			logger.Info("chat assistant enabled", "model", cfg.OpenAIModel, "temperature", cfg.OpenAITemperature)
 		}
 	} else {
 		logger.Info("chat assistant disabled (set OPENAI_API_KEY + OPENAI_SYSTEM_PROMPT_FILE to enable)")

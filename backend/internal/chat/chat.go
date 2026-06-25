@@ -53,15 +53,19 @@ type OpenAIClient struct {
 	model        string
 	systemPrompt string
 	maxTokens    int64
+	temperature  float64
 }
 
 // New builds a streaming client. Caller ensures apiKey and systemPrompt are set.
-func New(apiKey, model, systemPrompt string) *OpenAIClient {
+// temperature (0–2) controls how playful/varied replies are; ~0.8–1.0 suits a
+// sarcastic persona, lower is more deterministic.
+func New(apiKey, model, systemPrompt string, temperature float64) *OpenAIClient {
 	return &OpenAIClient{
 		client:       openai.NewClient(option.WithAPIKey(apiKey)),
 		model:        model,
 		systemPrompt: systemPrompt,
 		maxTokens:    defaultMaxTokens,
+		temperature:  temperature,
 	}
 }
 
@@ -71,6 +75,7 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, messages []Message, onDel
 	params := openai.ChatCompletionNewParams{
 		Model:               openai.ChatModel(c.model),
 		MaxCompletionTokens: openai.Int(c.maxTokens),
+		Temperature:         openai.Float(c.temperature),
 		Messages:            make([]openai.ChatCompletionMessageParamUnion, 0, len(all)),
 	}
 	for _, m := range all {

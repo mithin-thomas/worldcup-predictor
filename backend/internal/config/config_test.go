@@ -75,6 +75,7 @@ func TestLoad_OpenAIDefaults(t *testing.T) {
 	_ = os.Unsetenv("OPENAI_API_KEY")
 	_ = os.Unsetenv("OPENAI_SYSTEM_PROMPT_FILE")
 	_ = os.Unsetenv("OPENAI_MODEL")
+	_ = os.Unsetenv("OPENAI_TEMPERATURE")
 
 	c, err := Load()
 	if err != nil {
@@ -86,7 +87,10 @@ func TestLoad_OpenAIDefaults(t *testing.T) {
 	if c.OpenAISystemPromptFile != "" {
 		t.Errorf("OpenAISystemPromptFile = %q, want empty", c.OpenAISystemPromptFile)
 	}
-	if c.OpenAIModel != "gpt-4o-mini" {
-		t.Errorf("OpenAIModel = %q, want gpt-4o-mini", c.OpenAIModel)
+	if c.OpenAIModel != "gpt-4.1-mini-2025-04-14" {
+		t.Errorf("OpenAIModel = %q, want gpt-4.1-mini-2025-04-14", c.OpenAIModel)
+	}
+	if c.OpenAITemperature != 0.8 {
+		t.Errorf("OpenAITemperature = %v, want 0.8", c.OpenAITemperature)
 	}
 }
