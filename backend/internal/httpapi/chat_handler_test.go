@@ -48,6 +48,17 @@ func TestPostChat_StreamsSSE(t *testing.T) {
 	}
 }
 
+func TestPostChat_UnauthenticatedReturns401(t *testing.T) {
+	d := &Deps{Chat: fakeStreamer{deltas: []string{"hi"}}}
+	rec := httptest.NewRecorder()
+	// No user injected into the request context → the in-body auth guard must 401.
+	req := httptest.NewRequest(http.MethodPost, "/api/chat", strings.NewReader(`{"messages":[{"role":"user","content":"hi"}]}`))
+	d.PostChat(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("code = %d, want 401", rec.Code)
+	}
+}
+
 func TestPostChat_DisabledReturns503(t *testing.T) {
 	d := &Deps{Chat: nil}
 	rec := httptest.NewRecorder()
