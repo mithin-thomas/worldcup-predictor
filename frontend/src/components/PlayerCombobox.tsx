@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePlayerSearch, useTeams, type PlayerOption } from "../lib/bonus";
+import { useDropdownPortalPosition } from "./DropdownPortal";
 
 // Placeholder hint: shows the expected input as "player – country" so users
 // know to search by name and can disambiguate same-named players by country.
@@ -39,6 +41,8 @@ export function PlayerCombobox({
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const menuStyle = useDropdownPortalPosition(open, fieldRef);
 
   const { data: results = [], isFetching } = usePlayerSearch(debouncedQ);
 
@@ -100,7 +104,7 @@ export function PlayerCombobox({
 
   return (
     <div className="bonus-combobox" data-testid={`player-combobox-${comboboxKey}`}>
-      <div className="bonus-combobox__field">
+      <div className="bonus-combobox__field" ref={fieldRef}>
         <input
           type="text"
           role="combobox"
@@ -145,12 +149,13 @@ export function PlayerCombobox({
         {isFetching && <span className="bonus-combobox__spinner" aria-hidden="true" />}
       </div>
 
-      {open && results.length > 0 && (
+      {open && results.length > 0 && menuStyle && createPortal(
         <ul
           id={listboxId}
           role="listbox"
           className="bonus-combobox__list"
           aria-label="Player results"
+          style={menuStyle}
         >
           {results.map((opt, i) => (
             <li
@@ -171,13 +176,20 @@ export function PlayerCombobox({
               </span>
             </li>
           ))}
-        </ul>
+        </ul>,
+        document.body,
       )}
 
-      {open && debouncedQ.length >= 2 && results.length === 0 && !isFetching && (
-        <div className="bonus-combobox__empty" role="status" aria-live="polite">
+      {open && debouncedQ.length >= 2 && results.length === 0 && !isFetching && menuStyle && createPortal(
+        <div
+          className="bonus-combobox__empty"
+          role="status"
+          aria-live="polite"
+          style={menuStyle}
+        >
           No players found for &ldquo;{debouncedQ}&rdquo;
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Show server-sourced label for the saved pick — survives reload */}

@@ -38,6 +38,7 @@ Any admin edit to a match (fixture detail or result) sets a `manual_override` fl
 - A user enters a predicted score per match. Predictions **open 3 days (72h) before kickoff** and can be changed any number of times within that window, **until kickoff**.
 - **Prediction window is enforced server-side**: a write for a match kicking off more than 72h away is rejected (`422`, "predictions open 3 days before kickoff"). The UI shows an "opens on …" hint and a popup for not-yet-open matches, but the server is authoritative. (Decision added post-v1 at product request; see §17.)
 - **Locking is enforced server-side** from the stored kickoff timestamp: any write where `now >= kickoff_utc` is rejected, regardless of client state. The UI also reflects the locked state, but the server is authoritative.
+- Incrementing a team score gives lightweight goal feedback: a football travels from that team's `+` control toward the opposing flag on a responsive curved shot path. Left-team goals travel left-to-right; right-team goals travel right-to-left. Repeated clicks may play independently, and reduced-motion users receive no travelling-ball animation. As a visual-only Easter egg, an opponent's shot toward Argentina reaches the Argentina box, meets a subtle wall-impact cue, deflects upward, then loses momentum as it arcs down to midfield and fades; Argentina's own shots and matches without Argentina use the normal path. This feedback never changes score values, validation, locking, or save behavior.
 - For knockout matches where the user's predicted score is a **draw**, the user may additionally pick the penalty-shootout winner (see 3.3).
 
 ### 3.3 Scoring rules
@@ -70,6 +71,8 @@ On or before the **bonus lock** (28 June 2026, end of day IST — configurable),
 
 Maximum bonus = **100**. These are scored once, after the tournament concludes, and added to each participant's total.
 
+Team and player pickers use searchable dropdown menus that render above surrounding cards without changing the Tournament Bonus card's clipped visual surface. Menus remain anchored to their controls, flip when viewport space is limited, and stay within the desktop/mobile viewport.
+
 ### 3.5 Leaderboards
 
 - **Weekly**: every Monday, sum points from matches whose **kickoff** falls in the previous IST week (Mon 00:00 → Sun 23:59 IST). Attribution is by kickoff timestamp (deterministic, so a late result-correction never shifts points between weeks). Highest total(s) are the Weekly Winner(s). **Weekly ties stand** — they produce multiple co-winners, and **every co-winner is paid the full prize** (the §5.1 tie-break does **not** apply to the weekly prize; it only decides distinct 1st/2nd for the overall standings). Prize: ₹500 Amazon Gift Card per weekly winner.
@@ -82,6 +85,8 @@ Maximum bonus = **100**. These are scored once, after the tournament concludes, 
 Fixtures sync (initial seed + re-sync), manual match create/edit/delete, result and penalty-winner correction, settings management (cron time, bonus lock time, admin list), and a manual "recompute points" action. All destructive actions require an explicit confirm.
 
 **Implemented (M8a):** the manual match CRUD, result/penalty-winner correction, and user promote/demote tools described above now exist as standard `RequireAdmin` routes (registered in all environments) — see §11. Every admin match write sets `manual_override`; result correction immediately re-scores predictions (idempotent) under the kickoff precondition.
+
+The admin match-management UI presents **New Match**, **Edit Match**, and **Set Result** forms in one reusable responsive modal system rather than expanding forms inline in the fixture list. The modal uses the dark design system, traps focus, supports close button / backdrop / Escape dismissal when no save is pending, locks page scroll while open, and preserves all existing validation and mutation behavior.
 
 **Implemented (M8b):** **settings management** and the **manual recompute action** now exist as standard `RequireAdmin` routes (all environments) — see §11. Settings management edits exactly three validated keys — `results_cron`, `weekly_cron`, `bonus_lock_at` — via `GET/PUT /api/admin/settings`; values are validated before any write (no partial write). `bonus_lock_at` takes effect **live** (read per request by the bonus handler); `results_cron`/`weekly_cron` apply on the **next process restart**. The manual recompute (`POST /api/admin/recompute`) is an **idempotent points rebuild** that re-derives `predictions.points` (+ penalty bonus) and `bonus_predictions.points` from the stored results — it never touches match results or already-declared weekly winners (`weekly_results`). Fixtures sync remains deferred.
 
@@ -267,7 +272,7 @@ A semantic z-index scale: dropdown → sticky → modal-backdrop → modal → t
 
 ### 7.6 Motion
 
-150–250 ms, conveying state not decoration; ease-out curves, no bounce. One earned moment: the achievement chip counts up in brand color when a finished match settles. Every animation has a `@media (prefers-reduced-motion: reduce)` fallback (crossfade/instant). No orchestrated page-load sequences.
+Most state transitions are 150–250 ms, use ease-out curves, and avoid bounce. Earned interaction feedback may run longer when the motion communicates a physical action: the prediction score `+` control may play a ~720 ms constant-speed curved football shot toward the opposing flag. The achievement chip may count up in brand color when a finished match settles. Every animation has a `prefers-reduced-motion` fallback (crossfade/instant or omission). No orchestrated page-load sequences.
 
 ### 7.7 Accessibility
 

@@ -4,6 +4,8 @@ import { usePutPrediction, PredictionLockedError } from "../lib/matches";
 import { istTime } from "../lib/ist";
 import { Flag } from "./Flag";
 import { Countdown } from "./Countdown";
+import { GoalBallAnimation } from "./GoalBallAnimation";
+import type { GoalBallAnimationHandle } from "./GoalBallAnimation";
 import { ClockIcon, LockIcon, CheckIcon, MinusIcon, PlusIcon } from "./icons";
 
 // ── Prediction window: 72 h (3 days) before kickoff ─────────────────────────
@@ -35,11 +37,15 @@ function PillStepper({
   value,
   onChange,
   disabled,
+  plusRef,
+  onIncrement,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
   disabled: boolean;
+  plusRef?: React.RefObject<HTMLButtonElement | null>;
+  onIncrement?: () => void;
 }) {
   return (
     <div className={`stepper-pill${disabled ? " off" : ""}`}>
@@ -55,10 +61,14 @@ function PillStepper({
       <span className="step-val mono" aria-label={`${label} score: ${value}`}>{value}</span>
       <button
         type="button"
+        ref={plusRef}
         className="step-btn"
         aria-label={`Increase ${label} score`}
         disabled={disabled || value >= 99}
-        onClick={() => onChange(Math.min(99, value + 1))}
+        onClick={() => {
+          onChange(Math.min(99, value + 1));
+          onIncrement?.();
+        }}
       >
         <PlusIcon />
       </button>
@@ -263,6 +273,12 @@ function MatchCardEditor({
   const [windowDialogOpen, setWindowDialogOpen] = useState(false);
 
   const predictBtnRef = useRef<HTMLButtonElement>(null);
+  const cardRef = useRef<HTMLElement>(null);
+  const leftPlusRef = useRef<HTMLButtonElement>(null);
+  const rightPlusRef = useRef<HTMLButtonElement>(null);
+  const leftFlagRef = useRef<HTMLSpanElement>(null);
+  const rightFlagRef = useRef<HTMLSpanElement>(null);
+  const goalAnimationRef = useRef<GoalBallAnimationHandle>(null);
 
   const mut = usePutPrediction(match.id);
   const locked409 = mut.error instanceof PredictionLockedError;
@@ -320,9 +336,22 @@ function MatchCardEditor({
   return (
     <>
       <article
+        ref={cardRef}
         className={`match-card${hasPick ? " has-pick" : ""}`}
         aria-label={`${home.name} versus ${away.name}`}
       >
+        <GoalBallAnimation
+          ref={goalAnimationRef}
+          mode="argentina-advantage"
+          leftTeamCode={home.code}
+          rightTeamCode={away.code}
+          containerRef={cardRef}
+          leftSourceRef={leftPlusRef}
+          rightSourceRef={rightPlusRef}
+          leftTargetRef={leftFlagRef}
+          rightTargetRef={rightFlagRef}
+        />
+
         {/* ── Head ──────────────────────────────────────────────────────────── */}
         <header className="mc-head">
           <span className="eyebrow mc-grp">
@@ -347,7 +376,9 @@ function MatchCardEditor({
         {/* ── Teams + live scoreline ─────────────────────────────────────────── */}
         <div className="mc-teams">
           <div className="mc-team home">
-            <Flag code={home.code} size={46} />
+            <span ref={leftFlagRef} className="mc-flag-anchor">
+              <Flag code={home.code} size={46} />
+            </span>
             <div className="mc-team-txt">
               <span className="mc-team-name">{home.name}</span>
               <span className="mono mc-team-code">{home.code}</span>
@@ -365,7 +396,9 @@ function MatchCardEditor({
               <span className="mc-team-name">{away.name}</span>
               <span className="mono mc-team-code">{away.code}</span>
             </div>
-            <Flag code={away.code} size={46} />
+            <span ref={rightFlagRef} className="mc-flag-anchor">
+              <Flag code={away.code} size={46} />
+            </span>
           </div>
         </div>
 
@@ -382,6 +415,8 @@ function MatchCardEditor({
               <PillStepper
                 label={home.name}
                 value={h}
+                plusRef={leftPlusRef}
+                onIncrement={() => goalAnimationRef.current?.play("left")}
                 onChange={(v) => {
                   setH(v);
                   // Clear pen when the new scoreline is no longer a draw
@@ -393,6 +428,8 @@ function MatchCardEditor({
               <PillStepper
                 label={away.name}
                 value={a}
+                plusRef={rightPlusRef}
+                onIncrement={() => goalAnimationRef.current?.play("right")}
                 onChange={(v) => {
                   setA(v);
                   // Clear pen when the new scoreline is no longer a draw

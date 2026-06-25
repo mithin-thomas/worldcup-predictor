@@ -114,6 +114,9 @@ describe("BonusPanel", () => {
     // Search input appears
     const searchInput = screen.getByPlaceholderText(/Search teams/i);
     expect(searchInput).toBeInTheDocument();
+    const menu = screen.getByRole("menu", { name: /Select team for World Cup Winner/i });
+    expect(menu.parentElement).toBe(document.body);
+    expect(menu).toHaveStyle({ position: "fixed", zIndex: "90" });
 
     // Type "bra" → only Brazil visible
     await user.type(searchInput, "bra");

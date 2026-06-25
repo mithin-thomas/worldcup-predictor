@@ -63,6 +63,9 @@ describe("PlayerCombobox", () => {
     await waitFor(() =>
       expect(screen.getByRole("option")).toHaveTextContent(/Portugal/),
     );
+    const listbox = screen.getByRole("listbox");
+    expect(listbox.parentElement).toBe(document.body);
+    expect(listbox).toHaveStyle({ position: "fixed", zIndex: "90" });
     // The 3-letter code alone must not be the meta text
     expect(screen.getByRole("option")).not.toHaveTextContent(/\bPOR\b · Offence/);
   });

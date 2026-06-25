@@ -138,12 +138,13 @@
 .bs-placeholder { color: var(--text-3); }
 .bs-chev { font-size: 15px; color: var(--text-3); flex: none; }
 .bonus-menu, .bonus-menu-wrap { position: absolute; top: calc(100% + 6px); right: 0; width: 246px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-lg); z-index: 30; padding: 7px; }
+.bonus-menu-wrap--portal { right: auto; top: auto; z-index: 90; }
 .bonus-search, .bonus-search-bar { display: flex; align-items: center; gap: 8px; padding: 9px 11px; margin-bottom: 5px; background: var(--surface-2); border: 1px solid var(--border-2); border-radius: var(--r-sm); }
 .bonus-search:focus-within, .bonus-search-bar:focus-within { border-color: var(--coral); box-shadow: 0 0 0 3px var(--coral-soft); }
 .bonus-search-ic { font-size: 15px; color: var(--text-3); flex: none; }
 .bonus-search-input { flex: 1; min-width: 0; background: none; border: none; outline: none; font-size: 13px; color: var(--text); }
 .bonus-search-input::placeholder { color: var(--text-3); }
-.bonus-menu-list { max-height: 232px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.bonus-menu-list { max-height: min(232px, calc(var(--dropdown-max-height, 320px) - 54px)); overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
 .bonus-empty { padding: 14px 10px; text-align: center; font-size: 12.5px; color: var(--text-3); }
 .bonus-opt, .bonus-opt-btn { width: 100%; display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: var(--r-xs); font-size: 13px; font-weight: 500; color: var(--text-2); }
 .bonus-opt:hover, .bonus-opt-btn:hover { background: var(--surface-2); color: var(--text); }
@@ -171,7 +172,7 @@
 .past-stack { display: flex; flex-direction: column; gap: 10px; }
 
 /* ---------- Match card ---------- */
-.match-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 22px 20px; transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s; box-shadow: var(--shadow-card); }
+.match-card { position: relative; isolation: isolate; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 22px 20px; transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s; box-shadow: var(--shadow-card); }
 .match-card:hover { box-shadow: var(--shadow-md); }
 .match-card.has-pick { border-color: color-mix(in srgb, var(--coral) 30%, var(--border)); }
 .mc-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -201,8 +202,106 @@
 .step-btn { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: var(--text); font-size: 16px; transition: 0.14s; background: var(--control-pill); box-shadow: var(--shadow-sm); }
 .step-btn:hover:not(:disabled) { background: var(--coral); color: #fff; }
 .step-btn:disabled { color: var(--text-faint); cursor: not-allowed; background: transparent; box-shadow: none; }
+.step-btn.goal-glow { animation: goal-button-glow 0.42s ease-out; }
 .step-val { min-width: 28px; text-align: center; font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 .stepper.off, .stepper-pill.off { opacity: 0.55; }
+
+.mc-flag-anchor { display: inline-flex; flex: none; }
+.goal-animation-layer { position: absolute; inset: 0; z-index: 5; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.goal-animation {
+  --goal-size: 22px;
+  --goal-trail-length: 44px;
+  --goal-trail-scale: 0;
+  --goal-trail-opacity: 1;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--goal-size);
+  height: var(--goal-size);
+  margin: calc(var(--goal-size) / -2);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.goal-ball-glow {
+  position: absolute;
+  z-index: 1;
+  inset: 2px;
+  border-radius: 50%;
+  background: rgba(255, 226, 157, 0.42);
+  filter: blur(7px);
+  transform: scale(1.28);
+}
+.goal-force-ripple {
+  position: absolute;
+  z-index: 2;
+  inset: -7px;
+  border: 1px solid rgba(164, 216, 255, 0.72);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 9px rgba(92, 177, 255, 0.24);
+  will-change: transform, opacity;
+}
+.goal-force-wall {
+  position: absolute;
+  z-index: 2;
+  left: calc(50% + 9px);
+  top: 50%;
+  width: 2px;
+  height: 34px;
+  border-radius: 999px;
+  opacity: 0;
+  background: linear-gradient(180deg, transparent, rgba(190, 226, 255, 0.86), transparent);
+  box-shadow: 0 0 8px rgba(92, 177, 255, 0.42);
+  transform: translateY(-50%) scaleY(0.4);
+  will-change: transform, opacity;
+}
+.goal-animation[data-impact-side="left"] .goal-force-wall {
+  right: calc(50% + 9px);
+  left: auto;
+}
+.goal-ball {
+  position: relative;
+  z-index: 3;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.72)) drop-shadow(-3px 1px 3px rgba(255, 181, 93, 0.2));
+  will-change: transform;
+}
+.goal-trail {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  right: 50%;
+  width: var(--goal-trail-length);
+  border-radius: 999px;
+  opacity: var(--goal-trail-opacity);
+  transform: translateY(-50%) scaleX(var(--goal-trail-scale));
+  transform-origin: right center;
+  will-change: transform, opacity;
+}
+.goal-trail--core {
+  height: 4px;
+  filter: blur(1px);
+  background: linear-gradient(90deg, transparent, rgba(255, 181, 93, 0.18), rgba(255, 245, 210, 0.72));
+}
+.goal-trail--haze {
+  width: calc(var(--goal-trail-length) + 8px);
+  height: 10px;
+  filter: blur(5px);
+  background: linear-gradient(90deg, transparent 4%, rgba(255, 149, 84, 0.08) 44%, rgba(255, 226, 157, 0.46));
+}
+@keyframes goal-button-glow {
+  0% { box-shadow: 0 0 0 0 rgba(251, 87, 64, 0.5); }
+  45% { background: var(--coral); color: #fff; box-shadow: 0 0 0 6px rgba(251, 87, 64, 0.12), 0 0 15px rgba(251, 87, 64, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(251, 87, 64, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goal-animation-layer { display: none; }
+  .step-btn.goal-glow { animation: none; }
+}
 
 .btn-save { padding: 11px 20px; border-radius: var(--r-pill); background: var(--coral); color: var(--on-accent); font-weight: 600; font-size: 13.5px; white-space: nowrap; transition: 0.16s; box-shadow: var(--shadow-sm); }
 .btn-save:hover:not(:disabled) { background: var(--coral-hi); transform: translateY(-1px); box-shadow: var(--shadow-md); }
