@@ -342,6 +342,9 @@ function MatchCardEditor({
       >
         <GoalBallAnimation
           ref={goalAnimationRef}
+          mode="argentina-advantage"
+          leftTeamCode={home.code}
+          rightTeamCode={away.code}
           containerRef={cardRef}
           leftSourceRef={leftPlusRef}
           rightSourceRef={rightPlusRef}

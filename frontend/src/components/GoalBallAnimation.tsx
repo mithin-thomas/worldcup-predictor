@@ -10,12 +10,16 @@ import type { RefObject } from "react";
 import footballImage from "../assets/football.png";
 
 export type GoalSide = "left" | "right";
+export type GoalAnimationMode = "normal" | "argentina-advantage";
 
 export interface GoalBallAnimationHandle {
   play: (side: GoalSide) => void;
 }
 
 interface GoalBallAnimationProps {
+  mode?: GoalAnimationMode;
+  leftTeamCode: string;
+  rightTeamCode: string;
   containerRef: RefObject<HTMLElement | null>;
   leftSourceRef: RefObject<HTMLElement | null>;
   rightSourceRef: RefObject<HTMLElement | null>;
@@ -23,17 +27,34 @@ interface GoalBallAnimationProps {
   rightTargetRef: RefObject<HTMLElement | null>;
 }
 
+interface Point {
+  x: number;
+  y: number;
+}
+
+interface CurveSegment {
+  start: Point;
+  control: Point;
+  end: Point;
+}
+
+type PhaseEasing = "linear" | "momentum-decay";
+
+interface MotionPhase {
+  segment: CurveSegment;
+  duration: number;
+  holdAfter?: number;
+  easing?: PhaseEasing;
+}
+
 interface Shot {
   id: number;
+  mode: GoalAnimationMode;
   direction: "left-to-right" | "right-to-left";
   startSide: GoalSide;
   targetSide: GoalSide;
-  startX: number;
-  startY: number;
-  controlX: number;
-  controlY: number;
-  endX: number;
-  endY: number;
+  phases: MotionPhase[];
+  duration: number;
   trailLength: number;
   spinDirection: 1 | -1;
 }
@@ -41,6 +62,7 @@ interface Shot {
 const DURATION_MS = 720;
 const CURVE_SAMPLES = 140;
 const BUTTON_GLOW_MS = 420;
+const ARGENTINA_CODE = "ARG";
 
 function getCenter(el: HTMLElement, container: HTMLElement) {
   const rect = el.getBoundingClientRect();
@@ -51,26 +73,35 @@ function getCenter(el: HTMLElement, container: HTMLElement) {
   };
 }
 
-function curvePoint(shot: Shot, t: number) {
+function curvePoint(segment: CurveSegment, t: number) {
   const inverse = 1 - t;
   return {
-    x: inverse * inverse * shot.startX
-      + 2 * inverse * t * shot.controlX
-      + t * t * shot.endX,
-    y: inverse * inverse * shot.startY
-      + 2 * inverse * t * shot.controlY
-      + t * t * shot.endY,
+    x: inverse * inverse * segment.start.x
+      + 2 * inverse * t * segment.control.x
+      + t * t * segment.end.x,
+    y: inverse * inverse * segment.start.y
+      + 2 * inverse * t * segment.control.y
+      + t * t * segment.end.y,
   };
 }
 
-function buildArcLengthTable(shot: Shot) {
+function curveTangent(segment: CurveSegment, t: number) {
+  return {
+    x: 2 * (1 - t) * (segment.control.x - segment.start.x)
+      + 2 * t * (segment.end.x - segment.control.x),
+    y: 2 * (1 - t) * (segment.control.y - segment.start.y)
+      + 2 * t * (segment.end.y - segment.control.y),
+  };
+}
+
+function buildArcLengthTable(segment: CurveSegment) {
   const table = [{ t: 0, length: 0 }];
-  let previous = curvePoint(shot, 0);
+  let previous = curvePoint(segment, 0);
   let totalLength = 0;
 
   for (let index = 1; index <= CURVE_SAMPLES; index += 1) {
     const t = index / CURVE_SAMPLES;
-    const point = curvePoint(shot, t);
+    const point = curvePoint(segment, t);
     totalLength += Math.hypot(point.x - previous.x, point.y - previous.y);
     table.push({ t, length: totalLength });
     previous = point;
@@ -100,12 +131,24 @@ function distanceProgressToCurveT(
   const segmentProgress = segmentLength === 0
     ? 0
     : (targetLength - previous.length) / segmentLength;
+
   return previous.t + (current.t - previous.t) * segmentProgress;
+}
+
+function easePhase(progress: number, easing: PhaseEasing = "linear") {
+  if (easing === "momentum-decay") {
+    // A rebound starts with stored impact energy, then continuously loses
+    // velocity to drag/friction until it nearly settles at the destination.
+    return 1 - (1 - progress) ** 3.6;
+  }
+  return progress;
 }
 
 function AnimatedShot({ shot, onComplete }: { shot: Shot; onComplete: (id: number) => void }) {
   const shotRef = useRef<HTMLSpanElement>(null);
   const ballRef = useRef<HTMLImageElement>(null);
+  const forceRef = useRef<HTMLSpanElement>(null);
+  const wallRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const element = shotRef.current;
@@ -117,7 +160,10 @@ function AnimatedShot({ shot, onComplete }: { shot: Shot; onComplete: (id: numbe
       return;
     }
 
-    const { table, totalLength } = buildArcLengthTable(shot);
+    const phaseTables = shot.phases.map((phase) => buildArcLengthTable(phase.segment));
+    const impactTime = shot.mode === "argentina-advantage"
+      ? shot.phases[0].duration
+      : -1;
     let frameId = 0;
     let startTime: number | null = null;
     element.style.setProperty("--goal-trail-length", `${shot.trailLength}px`);
@@ -125,26 +171,83 @@ function AnimatedShot({ shot, onComplete }: { shot: Shot; onComplete: (id: numbe
     const drawFrame = (timestamp: number) => {
       if (startTime === null) startTime = timestamp;
 
-      const progress = Math.min((timestamp - startTime) / DURATION_MS, 1);
-      const t = distanceProgressToCurveT(progress, table, totalLength);
-      const point = curvePoint(shot, t);
-      const tangentX = 2 * (1 - t) * (shot.controlX - shot.startX)
-        + 2 * t * (shot.endX - shot.controlX);
-      const tangentY = 2 * (1 - t) * (shot.controlY - shot.startY)
-        + 2 * t * (shot.endY - shot.controlY);
-      const angle = Math.atan2(tangentY, tangentX) * (180 / Math.PI);
+      const elapsed = Math.min(timestamp - startTime, shot.duration);
+      const progress = elapsed / shot.duration;
+      let phaseIndex = shot.phases.length - 1;
+      let phaseProgress = 1;
+      let holdingImpact = false;
+      let phaseStart = 0;
+
+      for (let index = 0; index < shot.phases.length; index += 1) {
+        const phase = shot.phases[index];
+        const phaseEnd = phaseStart + phase.duration;
+        const holdEnd = phaseEnd + (phase.holdAfter ?? 0);
+        if (elapsed <= phaseEnd) {
+          phaseIndex = index;
+          phaseProgress = (elapsed - phaseStart) / phase.duration;
+          break;
+        }
+        if (elapsed <= holdEnd) {
+          phaseIndex = index;
+          phaseProgress = 1;
+          holdingImpact = index === 0 && shot.mode === "argentina-advantage";
+          break;
+        }
+        phaseStart = holdEnd;
+      }
+
+      const phase = shot.phases[phaseIndex];
+      const easedPhaseProgress = easePhase(Math.max(0, phaseProgress), phase.easing);
+      const phaseTable = phaseTables[phaseIndex];
+      const t = distanceProgressToCurveT(
+        easedPhaseProgress,
+        phaseTable.table,
+        phaseTable.totalLength,
+      );
+      const point = curvePoint(phase.segment, t);
+      const tangent = curveTangent(phase.segment, t);
+      const angle = Math.atan2(tangent.y, tangent.x) * (180 / Math.PI);
       const fadeProgress = Math.max(0, (progress - 0.92) / 0.08);
       const opacity = 1 - fadeProgress * fadeProgress;
       const trailRamp = Math.min(progress / 0.12, 1);
       const trailFade = progress < 0.9 ? 1 : Math.max(0, (1 - progress) / 0.1);
+      const returning = shot.mode === "argentina-advantage" && phaseIndex > 0;
+      const returnTrailReduction = returning ? 1 - easedPhaseProgress * 0.72 : 1;
+      const impactDistance = Math.abs(elapsed - impactTime);
+      const forcePulse = shot.mode === "argentina-advantage"
+        ? Math.max(0, 1 - impactDistance / 105)
+        : 0;
+      const compression = Math.max(forcePulse, holdingImpact ? 1 : 0);
+      const squashX = 1 - compression * 0.18;
+      const squashY = 1 + compression * 0.16;
+      const shake = compression * Math.sin(elapsed * 0.32) * 1.2;
 
       element.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) rotate(${angle}deg)`;
       element.style.opacity = String(Math.max(0, opacity));
-      element.style.setProperty("--goal-trail-scale", String(trailRamp));
-      element.style.setProperty("--goal-trail-opacity", String(trailFade));
-      ball.style.transform = `rotate(${shot.spinDirection * progress * 720}deg)`;
+      element.style.setProperty(
+        "--goal-trail-scale",
+        String(trailRamp * returnTrailReduction),
+      );
+      element.style.setProperty(
+        "--goal-trail-opacity",
+        String(trailFade * returnTrailReduction),
+      );
+      const rotation = shot.mode === "argentina-advantage"
+        ? phaseIndex === 0
+          ? phaseProgress * 540
+          : 540 + easedPhaseProgress * 150
+        : progress * 720;
+      ball.style.transform = `translate3d(${shake}px, 0, 0) rotate(${shot.spinDirection * rotation}deg) scale(${squashX}, ${squashY})`;
+      if (forceRef.current) {
+        forceRef.current.style.opacity = String(forcePulse * 0.62);
+        forceRef.current.style.transform = `scale(${0.45 + forcePulse * 1.15})`;
+      }
+      if (wallRef.current) {
+        wallRef.current.style.opacity = String(forcePulse * 0.72);
+        wallRef.current.style.transform = `translateY(-50%) scaleY(${0.4 + forcePulse * 0.9})`;
+      }
 
-      if (progress < 1) frameId = window.requestAnimationFrame(drawFrame);
+      if (elapsed < shot.duration) frameId = window.requestAnimationFrame(drawFrame);
       else onComplete(shot.id);
     };
 
@@ -159,9 +262,18 @@ function AnimatedShot({ shot, onComplete }: { shot: Shot; onComplete: (id: numbe
       data-direction={shot.direction}
       data-start-side={shot.startSide}
       data-target-side={shot.targetSide}
+      data-animation-mode={shot.mode}
+      data-end-area={shot.mode === "argentina-advantage" ? "center" : "opponent-flag"}
+      data-motion-phases={shot.mode === "argentina-advantage"
+        ? "approach impact upward-rebound momentum-decay"
+        : "approach"}
+      data-impact-side={shot.mode === "argentina-advantage" ? shot.targetSide : undefined}
+      data-bounce-count="0"
     >
       <span className="goal-trail goal-trail--haze" />
       <span className="goal-trail goal-trail--core" />
+      <span ref={forceRef} className="goal-force-ripple" />
+      <span ref={wallRef} className="goal-force-wall" />
       <span className="goal-ball-glow" />
       <img ref={ballRef} className="goal-ball" src={footballImage} alt="" />
     </span>
@@ -171,6 +283,9 @@ function AnimatedShot({ shot, onComplete }: { shot: Shot; onComplete: (id: numbe
 export const GoalBallAnimation = forwardRef<GoalBallAnimationHandle, GoalBallAnimationProps>(
   function GoalBallAnimation(
     {
+      mode = "normal",
+      leftTeamCode,
+      rightTeamCode,
       containerRef,
       leftSourceRef,
       rightSourceRef,
@@ -211,26 +326,92 @@ export const GoalBallAnimation = forwardRef<GoalBallAnimationHandle, GoalBallAni
 
         const start = getCenter(source, container);
         const end = getCenter(target, container);
+        const clickedTeamCode = side === "left" ? leftTeamCode : rightTeamCode;
+        const defendingTeamCode = side === "left" ? rightTeamCode : leftTeamCode;
+        const useArgentinaAdvantage = mode === "argentina-advantage"
+          && clickedTeamCode !== ARGENTINA_CODE
+          && defendingTeamCode === ARGENTINA_CODE;
         const horizontalDistance = Math.abs(end.x - start.x);
         const directDistance = Math.hypot(end.x - start.x, end.y - start.y);
         const desiredLift = Math.min(118, Math.max(54, horizontalDistance * 0.24));
+        const normalSegment: CurveSegment = {
+          start,
+          control: {
+            x: start.x + (end.x - start.x) * 0.44,
+            y: Math.max(16, Math.min(start.y, end.y) - desiredLift),
+          },
+          end,
+        };
+        let phases: MotionPhase[] = [{
+          segment: normalSegment,
+          duration: DURATION_MS,
+        }];
+
+        if (useArgentinaAdvantage) {
+          const towardCenter = end.x < start.x ? 1 : -1;
+          const nearTargetOffset = Math.min(32, Math.max(18, horizontalDistance * 0.065));
+          const impact = {
+            x: end.x + towardCenter * nearTargetOffset,
+            y: end.y + Math.min(8, Math.abs(start.y - end.y) * 0.08),
+          };
+          const approach: CurveSegment = {
+            start,
+            control: {
+              x: start.x + (impact.x - start.x) * 0.5,
+              y: Math.max(14, Math.min(start.y, impact.y) - desiredLift),
+            },
+            end: impact,
+          };
+          const containerRect = container.getBoundingClientRect();
+          const centerPoint = {
+            x: containerRect.width / 2,
+            y: Math.min(
+              containerRect.height - 24,
+              Math.max(end.y + 30, (start.y + end.y) / 2 + 18),
+            ),
+          };
+          const softReturn: CurveSegment = {
+            start: impact,
+            control: {
+              x: impact.x + towardCenter * Math.min(82, horizontalDistance * 0.2),
+              y: Math.max(
+                8,
+                impact.y - Math.min(132, Math.max(76, containerRect.height * 0.34)),
+              ),
+            },
+            end: centerPoint,
+          };
+          phases = [
+            { segment: approach, duration: 575, holdAfter: 64 },
+            { segment: softReturn, duration: 1960, easing: "momentum-decay" },
+          ];
+        }
 
         setShots((current) => [...current, {
           id: ++nextIdRef.current,
+          mode: useArgentinaAdvantage ? "argentina-advantage" : "normal",
           direction: side === "left" ? "left-to-right" : "right-to-left",
           startSide: side,
           targetSide: side === "left" ? "right" : "left",
-          startX: start.x,
-          startY: start.y,
-          controlX: start.x + (end.x - start.x) * 0.44,
-          controlY: Math.max(16, Math.min(start.y, end.y) - desiredLift),
-          endX: end.x,
-          endY: end.y,
+          phases,
+          duration: phases.reduce(
+            (total, phase) => total + phase.duration + (phase.holdAfter ?? 0),
+            0,
+          ),
           trailLength: Math.min(58, Math.max(38, directDistance * 0.13)),
           spinDirection: side === "left" ? 1 : -1,
         }]);
       },
-    }), [containerRef, leftSourceRef, leftTargetRef, rightSourceRef, rightTargetRef]);
+    }), [
+      containerRef,
+      leftSourceRef,
+      leftTargetRef,
+      leftTeamCode,
+      mode,
+      rightSourceRef,
+      rightTargetRef,
+      rightTeamCode,
+    ]);
 
     return (
       <div className="goal-animation-layer" aria-hidden="true">

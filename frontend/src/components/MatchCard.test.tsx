@@ -149,6 +149,95 @@ describe("MatchCard", () => {
     expect(container.querySelectorAll(".goal-animation")).toHaveLength(2);
   });
 
+  it("uses Argentina Advantage only when the opponent attempts to score against Argentina", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        home_score: 1,
+        away_score: 1,
+        penalty_winner_team_id: null,
+        points: null,
+        penalty_bonus: null,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const argentinaVsBrazil: MatchDTO = {
+      ...baseMatch,
+      id: 3,
+      home: { id: 3, name: "Argentina", code: "ARG" },
+      away: { id: 4, name: "Brazil", code: "BRA" },
+    };
+    const user = userEvent.setup();
+    const { container } = wrap(<MatchCard match={argentinaVsBrazil} />);
+
+    await user.click(screen.getByRole("button", { name: /increase argentina/i }));
+    const argentinaShot = container.querySelector(".goal-animation");
+    expect(argentinaShot).toHaveAttribute("data-animation-mode", "normal");
+    expect(argentinaShot).toHaveAttribute("data-end-area", "opponent-flag");
+
+    await user.click(screen.getByRole("button", { name: /increase brazil/i }));
+    expect(screen.getByLabelText("Brazil score: 1")).toBeInTheDocument();
+    const shots = container.querySelectorAll(".goal-animation");
+    expect(shots[1]).toHaveAttribute("data-animation-mode", "argentina-advantage");
+    expect(shots[1]).toHaveAttribute("data-start-side", "right");
+    expect(shots[1]).toHaveAttribute("data-target-side", "left");
+    expect(shots[1]).toHaveAttribute("data-end-area", "center");
+    expect(shots[1]).toHaveAttribute("data-impact-side", "left");
+    expect(shots[1]).toHaveAttribute(
+      "data-motion-phases",
+      "approach impact upward-rebound momentum-decay",
+    );
+    expect(shots[1]).toHaveAttribute("data-bounce-count", "0");
+    expect(shots[1].querySelector(".goal-force-wall")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /save prediction/i }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      home_score: 1,
+      away_score: 1,
+    });
+  });
+
+  it("mirrors the Argentina wall impact when Argentina is the right team", async () => {
+    const brazilVsArgentina: MatchDTO = {
+      ...baseMatch,
+      id: 5,
+      home: { id: 4, name: "Brazil", code: "BRA" },
+      away: { id: 3, name: "Argentina", code: "ARG" },
+    };
+    const user = userEvent.setup();
+    const { container } = wrap(<MatchCard match={brazilVsArgentina} />);
+
+    await user.click(screen.getByRole("button", { name: /increase brazil/i }));
+
+    expect(screen.getByLabelText("Brazil score: 1")).toBeInTheDocument();
+    const shot = container.querySelector(".goal-animation");
+    expect(shot).toHaveAttribute("data-animation-mode", "argentina-advantage");
+    expect(shot).toHaveAttribute("data-direction", "left-to-right");
+    expect(shot).toHaveAttribute("data-impact-side", "right");
+    expect(shot).toHaveAttribute("data-bounce-count", "0");
+  });
+
+  it("keeps normal goal animations when Argentina is not playing", async () => {
+    const brazilVsGermany: MatchDTO = {
+      ...baseMatch,
+      id: 4,
+      home: { id: 4, name: "Brazil", code: "BRA" },
+      away: { id: 5, name: "Germany", code: "GER" },
+    };
+    const user = userEvent.setup();
+    const { container } = wrap(<MatchCard match={brazilVsGermany} />);
+
+    await user.click(screen.getByRole("button", { name: /increase brazil/i }));
+    await user.click(screen.getByRole("button", { name: /increase germany/i }));
+
+    const shots = container.querySelectorAll(".goal-animation");
+    expect(shots).toHaveLength(2);
+    expect(shots[0]).toHaveAttribute("data-animation-mode", "normal");
+    expect(shots[1]).toHaveAttribute("data-animation-mode", "normal");
+  });
+
   // ── Locked state ─────────────────────────────────────────────────────────
   it("renders locked state read-only when match.locked=true", () => {
     wrap(<MatchCard match={{ ...baseMatch, locked: true }} />);

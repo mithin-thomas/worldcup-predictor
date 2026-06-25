@@ -231,6 +231,34 @@
   filter: blur(7px);
   transform: scale(1.28);
 }
+.goal-force-ripple {
+  position: absolute;
+  z-index: 2;
+  inset: -7px;
+  border: 1px solid rgba(164, 216, 255, 0.72);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 9px rgba(92, 177, 255, 0.24);
+  will-change: transform, opacity;
+}
+.goal-force-wall {
+  position: absolute;
+  z-index: 2;
+  left: calc(50% + 9px);
+  top: 50%;
+  width: 2px;
+  height: 34px;
+  border-radius: 999px;
+  opacity: 0;
+  background: linear-gradient(180deg, transparent, rgba(190, 226, 255, 0.86), transparent);
+  box-shadow: 0 0 8px rgba(92, 177, 255, 0.42);
+  transform: translateY(-50%) scaleY(0.4);
+  will-change: transform, opacity;
+}
+.goal-animation[data-impact-side="left"] .goal-force-wall {
+  right: calc(50% + 9px);
+  left: auto;
+}
 .goal-ball {
   position: relative;
   z-index: 3;
