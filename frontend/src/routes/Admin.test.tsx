@@ -303,6 +303,7 @@ describe("Admin screen — matches tab", () => {
     });
     fireEvent.click(resultBtn);
 
+    expect(screen.getByRole("dialog", { name: /Set Result: Brazil vs Argentina/i })).toBeInTheDocument();
     // The "went to penalties" checkbox should NOT appear for group stage
     expect(screen.queryByLabelText(/penalty shootout/i)).not.toBeInTheDocument();
     // No penalty-winner row
@@ -397,12 +398,14 @@ describe("Admin screen — matches tab", () => {
 
     // Open Edit on match A (Brazil vs Argentina, id=10)
     fireEvent.click(screen.getByRole("button", { name: /Edit Brazil vs Argentina/i }));
-    // The edit panel heading should reference A
+    // The edit modal heading should reference A
+    expect(screen.getByRole("dialog", { name: /Edit Match: Brazil vs Argentina/i })).toBeInTheDocument();
     expect(screen.getByText(/Edit Match: Brazil vs Argentina/i)).toBeInTheDocument();
 
     // Now open Edit on match B (France vs Germany, id=11) — should replace A's form
     fireEvent.click(screen.getByRole("button", { name: /Edit France vs Germany/i }));
-    // Panel heading should switch to B
+    // Modal heading should switch to B
+    expect(screen.getByRole("dialog", { name: /Edit Match: France vs Germany/i })).toBeInTheDocument();
     expect(screen.getByText(/Edit Match: France vs Germany/i)).toBeInTheDocument();
     // A's panel heading should no longer be visible
     expect(screen.queryByText(/Edit Match: Brazil vs Argentina/i)).not.toBeInTheDocument();
@@ -447,10 +450,26 @@ describe("Admin screen — matches tab", () => {
     // Open the new-match form
     fireEvent.click(screen.getByRole("button", { name: /New Match/i }));
 
+    expect(screen.getByRole("dialog", { name: "New Match" })).toBeInTheDocument();
     // The error alert (role="alert") from the form should be present
     const alerts = screen.getAllByRole("alert");
     expect(alerts.length).toBeGreaterThan(0);
     expect(alerts.some((el) => el.textContent?.includes("Kickoff must be in the future"))).toBe(true);
+  });
+
+  it("opens create, edit, and result forms in the reusable modal", () => {
+    wrap(<Admin />);
+
+    fireEvent.click(screen.getByRole("button", { name: /New Match/i }));
+    expect(screen.getByRole("dialog", { name: "New Match" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close modal" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Edit Brazil vs Argentina/i }));
+    expect(screen.getByRole("dialog", { name: /Edit Match: Brazil vs Argentina/i })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Set result for Brazil vs Argentina/i }));
+    expect(screen.getByRole("dialog", { name: /Set Result: Brazil vs Argentina/i })).toBeInTheDocument();
   });
 
   it("pages the match list with Load more (like the Home fixtures)", () => {

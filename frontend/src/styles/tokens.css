@@ -1954,6 +1954,69 @@ input  { font-family: inherit; }
 .admin-dialog__confirm--brand:hover   { background: var(--coral-hi); border-color: var(--coral-hi); }
 .admin-dialog__confirm--brand:focus-visible { outline-color: var(--coral); }
 
+/* Reusable application modal */
+.app-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(7, 9, 18, 0.76);
+  backdrop-filter: blur(5px);
+}
+.app-modal {
+  width: min(560px, 100%);
+  max-height: min(760px, calc(100dvh - 32px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-lg);
+  box-shadow: 0 28px 90px -28px rgba(0, 0, 0, 0.82);
+}
+.app-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.app-modal__title {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.app-modal__close {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--text-2);
+  background: transparent;
+  transition: color 120ms ease, background 120ms ease;
+}
+.app-modal__close:hover:not(:disabled) { color: var(--text); background: var(--surface-3); }
+.app-modal__close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.app-modal__close:disabled { opacity: 0.45; cursor: not-allowed; }
+.app-modal__body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+.admin-match-modal .admin-form { gap: var(--space-4); }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-modal__close { transition: none; }
+}
+
 /* Admin settings */
 .admin-settings           { display: flex; flex-direction: column; gap: var(--space-5); }
 .admin-settings__fields   { display: flex; flex-direction: column; gap: var(--space-4); }
@@ -2980,6 +3043,20 @@ input  { font-family: inherit; }
   }
   .admin-panel {
     padding: var(--space-4);
+  }
+  .app-modal-overlay {
+    align-items: end;
+    padding: var(--space-2);
+  }
+  .app-modal {
+    width: 100%;
+    max-height: calc(100dvh - var(--space-4));
+    border-radius: var(--r-lg) var(--r-lg) var(--r-md) var(--r-md);
+  }
+  .app-modal__header,
+  .app-modal__body {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
   }
   .admin-form__actions,
   .admin-settings__actions,

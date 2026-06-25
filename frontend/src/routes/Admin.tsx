@@ -4,6 +4,7 @@ import { useTeams, type TeamOption } from "../lib/bonus";
 import { PlayerCombobox } from "../components/PlayerCombobox";
 import { Avatar } from "../components/Avatar";
 import { Flag } from "../components/Flag";
+import { Modal } from "../components/Modal";
 import { PlusIcon, ShieldIcon, UserIcon, EditIcon, FlagSmIcon, TrashIcon, ChevronDownIcon } from "../components/icons";
 import {
   useAdminMatches,
@@ -543,15 +544,15 @@ function MatchesSection() {
         </div>
         <button
           type="button"
-          className={showNewForm ? "btn-ghost" : "btn-primary"}
+          className="btn-primary"
           onClick={() => {
-            setShowNewForm((v) => !v);
+            setShowNewForm(true);
             setEditingId(null);
             setResultId(null);
           }}
-          aria-expanded={showNewForm}
+          aria-haspopup="dialog"
         >
-          {showNewForm ? "Cancel" : <><PlusIcon /> New Match</>}
+          <PlusIcon /> New Match
         </button>
       </div>
 
@@ -566,10 +567,14 @@ function MatchesSection() {
         {matchStatus}
       </span>
 
-      {/* ── New match form panel ── */}
+      {/* ── New match modal ── */}
       {showNewForm && (
-        <div className="admin-panel">
-          <h3 className="admin-panel__title">New Match</h3>
+        <Modal
+          title="New Match"
+          onClose={() => setShowNewForm(false)}
+          closeDisabled={createMatch.isPending}
+          className="admin-match-modal"
+        >
           <MatchForm
             teams={teams}
             onSubmit={(values) => {
@@ -588,15 +593,17 @@ function MatchesSection() {
             onCancel={() => setShowNewForm(false)}
             submitLabel="Create Match"
           />
-        </div>
+        </Modal>
       )}
 
-      {/* ── Edit form panel ── */}
+      {/* ── Edit match modal ── */}
       {editingMatch && (
-        <div className="admin-panel">
-          <h3 className="admin-panel__title">
-            Edit Match: {editingMatch.home_team || editingMatch.home_code} vs {editingMatch.away_team || editingMatch.away_code}
-          </h3>
+        <Modal
+          title={`Edit Match: ${editingMatch.home_team || editingMatch.home_code} vs ${editingMatch.away_team || editingMatch.away_code}`}
+          onClose={() => setEditingId(null)}
+          closeDisabled={updateMatch.isPending}
+          className="admin-match-modal"
+        >
           <MatchForm
             key={editingMatch.id}
             initial={editingMatch}
@@ -617,15 +624,17 @@ function MatchesSection() {
             onCancel={() => setEditingId(null)}
             submitLabel="Save Changes"
           />
-        </div>
+        </Modal>
       )}
 
-      {/* ── Result form panel ── */}
+      {/* ── Result modal ── */}
       {resultMatch && (
-        <div className="admin-panel">
-          <h3 className="admin-panel__title">
-            Set Result: {resultMatch.home_team || resultMatch.home_code} vs {resultMatch.away_team || resultMatch.away_code}
-          </h3>
+        <Modal
+          title={`Set Result: ${resultMatch.home_team || resultMatch.home_code} vs ${resultMatch.away_team || resultMatch.away_code}`}
+          onClose={() => setResultId(null)}
+          closeDisabled={setResult.isPending}
+          className="admin-match-modal"
+        >
           <ResultForm
             key={resultMatch.id}
             match={resultMatch}
@@ -645,7 +654,7 @@ function MatchesSection() {
             }
             onCancel={() => setResultId(null)}
           />
-        </div>
+        </Modal>
       )}
 
       {/* ── Match list (date-grouped) ── */}
@@ -719,7 +728,7 @@ function MatchesSection() {
                           aria-label={`Edit ${m.home_team} vs ${m.away_team}`}
                           disabled={anyPending}
                           onClick={() => {
-                            setEditingId(editingId === m.id ? null : m.id);
+                            setEditingId(m.id);
                             setResultId(null);
                             setShowNewForm(false);
                           }}
@@ -732,7 +741,7 @@ function MatchesSection() {
                           aria-label={`Set result for ${m.home_team} vs ${m.away_team}`}
                           disabled={anyPending}
                           onClick={() => {
-                            setResultId(resultId === m.id ? null : m.id);
+                            setResultId(m.id);
                             setEditingId(null);
                             setShowNewForm(false);
                           }}
