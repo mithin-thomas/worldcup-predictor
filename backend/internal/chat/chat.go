@@ -24,11 +24,46 @@ type Message struct {
 	Content string
 }
 
-// Streamer streams an assistant reply token-by-token. onDelta is called per
-// content chunk; returning an error from onDelta (e.g. client disconnected)
-// aborts the stream.
+// UserInfo is the per-request identity of the signed-in user. Its values are
+// substituted into the system prompt via {{user_name}} / {{user_first_name}}
+// placeholders so the assistant can address (and roast) the user by name.
+type UserInfo struct {
+	Name string
+}
+
+// userNameFallback fills the name placeholders when the user has no display name.
+const userNameFallback = "there"
+
+// firstName returns the first whitespace-separated token of a display name.
+func firstName(name string) string {
+	if f := strings.Fields(name); len(f) > 0 {
+		return f[0]
+	}
+	return ""
+}
+
+// interpolatePrompt substitutes the signed-in user's identity into the prompt
+// template. Unknown placeholders are left untouched; a blank name falls back to
+// "there" so "Hi {{user_name}}" still reads naturally.
+func interpolatePrompt(template string, u UserInfo) string {
+	full := strings.TrimSpace(u.Name)
+	if full == "" {
+		full = userNameFallback
+	}
+	first := firstName(u.Name)
+	if first == "" {
+		first = userNameFallback
+	}
+	out := strings.ReplaceAll(template, "{{user_name}}", full)
+	return strings.ReplaceAll(out, "{{user_first_name}}", first)
+}
+
+// Streamer streams an assistant reply token-by-token. The signed-in user's
+// identity is substituted into the system prompt before sending. onDelta is
+// called per content chunk; returning an error from onDelta (e.g. client
+// disconnected) aborts the stream.
 type Streamer interface {
-	StreamChat(ctx context.Context, messages []Message, onDelta func(string) error) error
+	StreamChat(ctx context.Context, user UserInfo, messages []Message, onDelta func(string) error) error
 }
 
 // assembleMessages prepends the system prompt to the conversation.
@@ -70,8 +105,9 @@ func New(apiKey, model, systemPrompt string, temperature float64) *OpenAIClient 
 }
 
 // StreamChat calls OpenAI with streaming enabled and forwards content deltas.
-func (c *OpenAIClient) StreamChat(ctx context.Context, messages []Message, onDelta func(string) error) error {
-	all := assembleMessages(c.systemPrompt, messages)
+// The user's identity is substituted into the system prompt before sending.
+func (c *OpenAIClient) StreamChat(ctx context.Context, user UserInfo, messages []Message, onDelta func(string) error) error {
+	all := assembleMessages(interpolatePrompt(c.systemPrompt, user), messages)
 	params := openai.ChatCompletionNewParams{
 		Model:               openai.ChatModel(c.model),
 		MaxCompletionTokens: openai.Int(c.maxTokens),

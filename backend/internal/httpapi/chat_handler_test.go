@@ -12,11 +12,13 @@ import (
 )
 
 type fakeStreamer struct {
-	deltas []string
-	err    error
+	deltas  []string
+	err     error
+	gotUser chat.UserInfo // records the user the handler passed
 }
 
-func (f fakeStreamer) StreamChat(_ context.Context, _ []chat.Message, onDelta func(string) error) error {
+func (f *fakeStreamer) StreamChat(_ context.Context, user chat.UserInfo, _ []chat.Message, onDelta func(string) error) error {
+	f.gotUser = user
 	for _, d := range f.deltas {
 		if err := onDelta(d); err != nil {
 			return err
@@ -33,7 +35,7 @@ func authedChatReq(body string) *http.Request {
 }
 
 func TestPostChat_StreamsSSE(t *testing.T) {
-	d := &Deps{Chat: fakeStreamer{deltas: []string{"Hel", "lo"}}}
+	d := &Deps{Chat: &fakeStreamer{deltas: []string{"Hel", "lo"}}}
 	rec := httptest.NewRecorder()
 	d.PostChat(rec, authedChatReq(`{"messages":[{"role":"user","content":"hi"}]}`))
 
@@ -49,7 +51,7 @@ func TestPostChat_StreamsSSE(t *testing.T) {
 }
 
 func TestPostChat_UnauthenticatedReturns401(t *testing.T) {
-	d := &Deps{Chat: fakeStreamer{deltas: []string{"hi"}}}
+	d := &Deps{Chat: &fakeStreamer{deltas: []string{"hi"}}}
 	rec := httptest.NewRecorder()
 	// No user injected into the request context → the in-body auth guard must 401.
 	req := httptest.NewRequest(http.MethodPost, "/api/chat", strings.NewReader(`{"messages":[{"role":"user","content":"hi"}]}`))
@@ -69,7 +71,7 @@ func TestPostChat_DisabledReturns503(t *testing.T) {
 }
 
 func TestPostChat_ValidationErrors(t *testing.T) {
-	d := &Deps{Chat: fakeStreamer{}}
+	d := &Deps{Chat: &fakeStreamer{}}
 	cases := map[string]string{
 		"empty messages": `{"messages":[]}`,
 		"bad role":       `{"messages":[{"role":"system","content":"x"}]}`,
@@ -83,6 +85,19 @@ func TestPostChat_ValidationErrors(t *testing.T) {
 				t.Errorf("code = %d, want 400", rec.Code)
 			}
 		})
+	}
+}
+
+func TestPostChat_PassesLoggedInUserName(t *testing.T) {
+	fs := &fakeStreamer{deltas: []string{"x"}}
+	d := &Deps{Chat: fs}
+	rec := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/chat", strings.NewReader(`{"messages":[{"role":"user","content":"hi"}]}`))
+	ctx := context.WithValue(r.Context(), userCtxKey, store.User{ID: 7, Name: "Renjith Raj"})
+	d.PostChat(rec, r.WithContext(ctx))
+
+	if fs.gotUser.Name != "Renjith Raj" {
+		t.Errorf("StreamChat got user name %q, want %q", fs.gotUser.Name, "Renjith Raj")
 	}
 }
 

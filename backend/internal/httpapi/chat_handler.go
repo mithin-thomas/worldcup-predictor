@@ -26,7 +26,8 @@ type chatRequest struct {
 // PostChat streams an OpenAI chat completion back to the client as SSE.
 // The system prompt is injected server-side; clients send only user/assistant turns.
 func (d *Deps) PostChat(w http.ResponseWriter, r *http.Request) {
-	if _, ok := userFromContext(r.Context()); !ok {
+	u, ok := userFromContext(r.Context())
+	if !ok {
 		writeError(w, http.StatusUnauthorized, "not authenticated")
 		return
 	}
@@ -69,7 +70,7 @@ func (d *Deps) PostChat(w http.ResponseWriter, r *http.Request) {
 		return r.Context().Err() // non-nil if the client disconnected → abort
 	}
 
-	if err := d.Chat.StreamChat(r.Context(), msgs, onDelta); err != nil {
+	if err := d.Chat.StreamChat(r.Context(), chat.UserInfo{Name: u.Name}, msgs, onDelta); err != nil {
 		slog.Error("chat stream", "err", err)
 		b, _ := json.Marshal("the assistant is unavailable right now")
 		writeFrame("event: error\ndata: " + string(b) + "\n\n")
