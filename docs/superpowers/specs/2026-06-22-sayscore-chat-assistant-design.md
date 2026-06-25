@@ -125,8 +125,16 @@ Uses `fetch` + `response.body.getReader()` + `TextDecoder` (EventSource can't PO
 `ChatUnavailableError` on 503 so the UI can hide/disable.
 
 ### 6.2 `components/ChatWidget.tsx`
-- **Launcher:** a fixed, bottom-right round button with a **World-Cup-themed icon** (football /
-  chat-bubble motif), `aria-label="Open chat assistant"`, ≥44px target, brand styling per §7.
+
+**Visual direction (chosen in brainstorming): "Solid Stadium Card."** Opaque panel on `--surface`
+(`#1c1c1e`) with a `--line` border and `--r-lg` (20px) radius; a **brand-gradient header banner**
+(`--accent-grad`, white text) carrying the football mark, title, green "online" dot, and close;
+neutral assistant bubbles on `--surface-2`, the user's bubble in solid `--brand`; a pill input with
+a solid-blue circular send button. The **launcher** is a solid blue-gradient circle (`--accent-grad`)
+with a **white football mark**, fixed bottom-right.
+
+- **Launcher:** a fixed, bottom-right round button with the **World-Cup football mark** (white on the
+  blue gradient), `aria-label="Open chat assistant"`, ≥44px target, brand styling per §7.
 - **Panel:** header (title + **Clear chat** + close), a scrollable message list (user/assistant
   bubbles, a typing indicator while streaming), and an input row (textarea + Send). Opens/closes
   from the launcher; Escape closes; focus moves into the input on open and back to the launcher on
