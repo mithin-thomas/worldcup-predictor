@@ -95,6 +95,20 @@ Fixtures sync (initial seed + re-sync), manual match create/edit/delete, result 
 
 A **Help** button in the top bar opens a "How to play" modal summarising the rules for players: the scoring tiers (§3.3) and knockout penalty bonus, the tournament bonus and its lock (§3.4), the weekly/overall leaderboards and prizes (§3.5), the 3-day prediction window (§3.2), and prediction privacy (§4). Its content mirrors this spec.
 
+### 3.9 Chat assistant
+
+SayScore includes a first-party, prompt-only AI chat assistant powered by OpenAI.
+
+- **Launcher**: a bottom-right floating button opens a "Solid Stadium Card" chat panel. The panel always renders; when the backend is unconfigured (503) it shows an "unavailable" message inline rather than hiding the launcher.
+- **Auth-gated**: `POST /api/chat` is inside the `RequireAuth` group — unauthenticated requests receive 401. The route also carries its own per-user rate limiter (separate from the general write limiter) to bound OpenAI costs.
+- **Streaming**: the backend proxies the OpenAI completion as **Server-Sent Events** (SSE). Each `data:` frame carries a JSON-encoded token delta; `data: [DONE]` signals end of stream; `event: error` frames carry mid-stream failures (the 200 status is already committed at that point; pre-stream failures remain 4xx/503).
+- **System prompt**: loaded from the file path in `OPENAI_SYSTEM_PROMPT_FILE` at server start. Clients send only user/assistant turns in the request body — the system prompt is **never** read from the request.
+- **Per-user personalization**: the prompt may contain `{{user_name}}` / `{{user_first_name}}` placeholders, substituted per request with the signed-in user's display name (first name derived from it; a blank name falls back to "there"). Only the name is sent — no other profile fields.
+- **Last-20 window**: the handler trims incoming history to the last 20 messages before forwarding to OpenAI, bounding token cost.
+- **Disabled when unconfigured**: if `OPENAI_API_KEY` is empty, `POST /api/chat` returns `503 Service Unavailable`. No DB tables are added by this feature.
+- **Frontend history**: conversation history lives in `sessionStorage` only — no server-side persistence, no DB. Clearing the tab or refreshing the page starts a fresh session.
+- **Model & temperature**: model defaults to `gpt-4.1-mini-2025-04-14` (override with `OPENAI_MODEL`); sampling temperature defaults to `0.8` (override with `OPENAI_TEMPERATURE`).
+
 ### 3.8 Match celebrations
 
 When a **celebrated team (Brazil only)** wins a match, each user sees a one-time
@@ -421,6 +435,10 @@ Other:
 - `PUT    /api/admin/bonus/results` *(auto-scores, M8c)* — body `{ "results": [ { "category", "ref_id" } ] }` → 200 `{ "saved": N }`. Upserts one or more tournament-award outcomes (validated like bonus picks: known category, `ref_id` exists in the correct table). **Saving auto-scores:** after the validate-all-then-upsert, the handler immediately materializes `bonus_predictions.points` from the new outcomes (idempotent recompute, never increment) so the overall leaderboard reflects the winners at once — no separate step. Outcomes are persisted **before** scoring, so a scoring failure returns 500 but never loses the saved outcomes (re-run via `POST /api/admin/recompute`). The response is intentionally **`{ "saved": N }` only** (N = outcomes upserted); recompute remains the bulk path. 400 on a bad category / wrong-type ref / invalid JSON. A **standard `RequireAdmin` route, registered in all environments** (not debug-gated).
 - `POST   /api/admin/jobs/run` — body `{ "job": "results-ingest" | "weekly-winner" | "bonus-score" }`. A **standard `RequireAdmin` route, registered in all environments** (not debug-gated), so an admin can run a missed cron from production. `bonus-score` idempotently materializes `bonus_predictions.points` from `bonus_results` (recompute, never increment).
 
+Chat (§3.9)
+
+- `POST /api/chat` — `RequireAuth`. Body: `{ "messages": [ { "role": "user"|"assistant", "content": "…" } ] }`. Trims to the last 20 messages, injects the server-side system prompt, and streams the OpenAI completion as SSE (`Content-Type: text/event-stream`). Each `data:` frame is a JSON-encoded token delta; `data: [DONE]` closes the stream; `event: error` frames carry mid-stream failures. Returns `401` when unauthenticated, `400` on bad JSON / empty messages / invalid role, `503` when `OPENAI_API_KEY` is unset or the streamer is unconfigured, `429` when the per-user chat rate limit is exceeded. The system prompt is **never** read from the request body.
+
 Ops
 - `GET /healthz`
 
@@ -500,7 +518,7 @@ Install once per clone with `lefthook install` (wired into the Makefile / postin
 
 ### Environment variables
 
-Backend: `APP_ENV`, `HTTP_PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `ALLOWED_EMAIL_DOMAIN=sayonetech.com`, `SEED_ADMIN_EMAILS`, `FOOTBALL_DATA_API_KEY`, `FOOTBALL_DATA_BASE_URL=https://api.football-data.org/v4`, `RESULTS_CRON=0 3,8,13 * * *`, `WEEKLY_CRON=0 9 * * 1`, `RESULTS_CRON_ENABLED=true`, `SLACK_WEBHOOK_URL` (optional), `BONUS_LOCK_AT=2026-06-28T23:59:00+05:30`, `TZ=Asia/Kolkata`.
+Backend: `APP_ENV`, `HTTP_PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `ALLOWED_EMAIL_DOMAIN=sayonetech.com`, `SEED_ADMIN_EMAILS`, `FOOTBALL_DATA_API_KEY`, `FOOTBALL_DATA_BASE_URL=https://api.football-data.org/v4`, `RESULTS_CRON=0 3,8,13 * * *`, `WEEKLY_CRON=0 9 * * 1`, `RESULTS_CRON_ENABLED=true`, `SLACK_WEBHOOK_URL` (optional), `BONUS_LOCK_AT=2026-06-28T23:59:00+05:30`, `TZ=Asia/Kolkata`, `OPENAI_API_KEY` (optional — chat disabled / 503 when unset), `OPENAI_SYSTEM_PROMPT_FILE` (path to a text file containing the chat system prompt; loaded at server start; supports `{{user_name}}`/`{{user_first_name}}` placeholders), `OPENAI_MODEL` (default `gpt-4.1-mini-2025-04-14`), `OPENAI_TEMPERATURE` (default `0.8`).
 
 Frontend (Vite): `VITE_GOOGLE_CLIENT_ID`, `VITE_API_BASE_URL`.
 

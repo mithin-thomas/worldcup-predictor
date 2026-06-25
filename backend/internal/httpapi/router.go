@@ -25,6 +25,7 @@ func NewRouter(d *Deps, _ bool) chi.Router {
 
 	authLimiter := newKeyedLimiter(authRate, authBurst)
 	writeLimiter := newKeyedLimiter(writeRate, writeBurst)
+	chatLimiter := newKeyedLimiter(chatRate, chatBurst)
 
 	r.Route("/api", func(api chi.Router) {
 		api.Use(maxBodyBytes(maxBodyBytesLimit))
@@ -70,6 +71,8 @@ func NewRouter(d *Deps, _ bool) chi.Router {
 			// Manual job trigger — admin-only, registered in all environments so an
 			// admin can run a missed cron (e.g. results-ingest) from production.
 			priv.With(d.RequireAdmin).Post("/admin/jobs/run", d.PostRunJob)
+
+			priv.With(rateLimitWrites(chatLimiter)).Post("/chat", d.PostChat)
 		})
 	})
 

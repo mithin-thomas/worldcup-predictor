@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestLoadReadsEnvAndAppliesDefaults(t *testing.T) {
 	t.Setenv("HTTP_PORT", "")
@@ -61,5 +64,33 @@ func TestLoadSeedDataDirDefault(t *testing.T) {
 	cfg, _ = Load()
 	if cfg.SeedDataDir != "/srv/data" {
 		t.Errorf("SeedDataDir override = %q, want /srv/data", cfg.SeedDataDir)
+	}
+}
+
+func TestLoad_OpenAIDefaults(t *testing.T) {
+	// Required vars so Load() succeeds.
+	t.Setenv("SESSION_SECRET", "x")
+	t.Setenv("GOOGLE_CLIENT_ID", "y")
+	// Ensure OpenAI vars are unset for the default case.
+	_ = os.Unsetenv("OPENAI_API_KEY")
+	_ = os.Unsetenv("OPENAI_SYSTEM_PROMPT_FILE")
+	_ = os.Unsetenv("OPENAI_MODEL")
+	_ = os.Unsetenv("OPENAI_TEMPERATURE")
+
+	c, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.OpenAIAPIKey != "" {
+		t.Errorf("OpenAIAPIKey = %q, want empty", c.OpenAIAPIKey)
+	}
+	if c.OpenAISystemPromptFile != "" {
+		t.Errorf("OpenAISystemPromptFile = %q, want empty", c.OpenAISystemPromptFile)
+	}
+	if c.OpenAIModel != "gpt-4.1-mini-2025-04-14" {
+		t.Errorf("OpenAIModel = %q, want gpt-4.1-mini-2025-04-14", c.OpenAIModel)
+	}
+	if c.OpenAITemperature != 0.8 {
+		t.Errorf("OpenAITemperature = %v, want 0.8", c.OpenAITemperature)
 	}
 }

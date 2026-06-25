@@ -199,6 +199,27 @@ no Slack; jobs still run. Never commit a real webhook URL.
 
 ---
 
+## Chat assistant
+
+SayScore includes a first-party AI chat assistant (bottom-right launcher) backed by OpenAI.
+History is session-only — stored in `sessionStorage`, never the DB.
+
+**Setup (backend env vars):**
+
+```bash
+OPENAI_API_KEY=sk-...              # required to enable chat; leave blank to disable (returns 503)
+OPENAI_SYSTEM_PROMPT_FILE=/path/to/prompt.txt  # text file containing the system prompt
+OPENAI_MODEL=gpt-4o-mini          # optional; default is gpt-4o-mini
+```
+
+- Add these to `backend/.env` for local dev, or to `.env.prod` for production.
+- `OPENAI_API_KEY` is the only required key — leaving it blank disables the chat panel with a
+  503 response (the launcher renders but shows "unavailable").
+- The system prompt is loaded from the file at `OPENAI_SYSTEM_PROMPT_FILE` at server start and
+  injected server-side — clients never send it.
+
+---
+
 ## Project structure
 
 ```text
@@ -241,33 +262,6 @@ spec; each milestone gets a plan in `docs/superpowers/plans/` and is executed ta
 review gates. Milestone order: (1) scaffold + SSO ✅ · (2) fixtures + IST list ✅ · (3) predictions
 + kickoff lock · (4) scoring engine · (5) results cron · (6) leaderboards · (7) bonus + lock ·
 (8) admin tools · (9) Docker/CI hardening.
-
----
-
-## MadCrow chatbot widget
-
-SayScore embeds the [MadCrow](https://madcrow.ai) AI chatbot widget for **internal testing and
-verification purposes only**. The widget loads automatically on every page via a `<script>` tag
-in `frontend/index.html`.
-
-> **Disclaimer — do not alter or remove this integration.**
-> The MadCrow widget is a third-party dependency owned and maintained by MadCrow. It has been
-> added here exclusively for an internal one-month evaluation period to assess real-world
-> performance and gather feedback. Do not modify, disable, or remove the script tag or its
-> configuration without explicit sign-off from the team running the evaluation.
-
-### Configuration
-
-The assistant ID is injected at build time via the `VITE_MADCROW_ASSISTANT_ID` environment
-variable — it is never hard-coded in source. Set it in:
-
-- **Local dev** — `frontend/.env` (gitignored)
-- **Docker local stack** — exported in your shell before `make up` (read from the host env)
-- **Production (CI)** — stored as a GitHub Actions secret `VITE_MADCROW_ASSISTANT_ID` and
-  passed as a build arg when the frontend image is built and pushed to ECR
-
-If the variable is unset, the widget script loads but the chatbot will not initialise
-(MadCrow reports a missing `data-assistant-id` attribute).
 
 ---
 

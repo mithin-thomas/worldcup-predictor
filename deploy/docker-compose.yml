@@ -80,8 +80,15 @@ services:
       # The results-ingest scheduler + debug trigger read the fd-team alias map
       # from here; the dataset is mounted below.
       SEED_DATA_DIR: /app/data
+      # Chat assistant: OPENAI_API_KEY / OPENAI_MODEL / OPENAI_TEMPERATURE come from
+      # ../backend/.env (env_file above). The prompt path in that file is a HOST path,
+      # so override it here to the in-container mount below. Provide ../chat-system.txt
+      # on the host (gitignored) to enable chat; without it the bind mounts an empty
+      # dir and chat stays disabled (503) — the intended "unconfigured" behavior.
+      OPENAI_SYSTEM_PROMPT_FILE: /app/chat-system.txt
     volumes:
       - ../data:/app/data:ro
+      - ../chat-system.txt:/app/chat-system.txt:ro
     ports:
       - "8000:8000"
     depends_on:
@@ -97,7 +104,6 @@ services:
       args:
         VITE_GOOGLE_CLIENT_ID: "${VITE_GOOGLE_CLIENT_ID:-}"
         VITE_API_BASE_URL: "/api"
-        VITE_MADCROW_ASSISTANT_ID: "${VITE_MADCROW_ASSISTANT_ID:-}"
     ports:
       - "8080:80"
     depends_on:

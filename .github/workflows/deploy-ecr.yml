@@ -86,7 +86,6 @@ jobs:
           build-args: |
             VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }}
             VITE_API_BASE_URL=/api
-            VITE_MADCROW_ASSISTANT_ID=${{ secrets.VITE_MADCROW_ASSISTANT_ID }}
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:frontend-${{ github.sha }}
             ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:frontend-latest

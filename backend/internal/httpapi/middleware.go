@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sayonetech/worldcup-predictor/backend/internal/auth"
+	"github.com/sayonetech/worldcup-predictor/backend/internal/chat"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/store"
 )
 
@@ -49,6 +50,7 @@ type Deps struct {
 	AdminUsers         store.AdminUserStore
 	Results            store.ResultsStore
 	Celebrations       store.CelebrationStore
+	Chat               chat.Streamer
 	Settings           SettingsProvider
 	Recompute          RecomputeRunner
 	JobRunner          JobRunner
