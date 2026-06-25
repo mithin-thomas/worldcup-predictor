@@ -30,7 +30,8 @@
 .chat-iconbtn {
   font: inherit; font-size: 12px; color: #fff; cursor: pointer;
   background: rgba(255,255,255,.16); border: none; border-radius: var(--r-pill);
-  padding: 5px 10px; line-height: 1;
+  padding: 5px 10px; line-height: 1; min-height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 .chat-iconbtn:last-child { margin-left: 2px; padding: 5px 9px; }
 .chat-iconbtn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
@@ -50,13 +51,13 @@
 .chat-typing i:nth-child(3) { animation-delay: .3s; }
 @keyframes chat-bb { 0%,80%,100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 
-.chat-foot { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--hairline, rgba(255,255,255,.07)); }
+.chat-foot { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
 .chat-input { flex: 1; height: 38px; border-radius: var(--r-pill); padding: 0 14px;
   background: var(--bg-2); color: var(--text); border: 1px solid var(--border); font: inherit; font-size: 13px; }
 .chat-input::placeholder { color: var(--text-3); }
 .chat-input:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--brand); }
 .chat-input:disabled { opacity: .6; }
-.chat-send { width: 38px; height: 38px; border-radius: 50%; flex: none; border: none; cursor: pointer;
+.chat-send { width: 44px; height: 44px; border-radius: 50%; flex: none; border: none; cursor: pointer;
   display: grid; place-items: center; color: #fff; background: var(--accent-grad);
   box-shadow: 0 6px 16px -6px var(--coral-ring); }
 .chat-send:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
