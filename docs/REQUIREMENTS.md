@@ -38,6 +38,7 @@ Any admin edit to a match (fixture detail or result) sets a `manual_override` fl
 - A user enters a predicted score per match. Predictions **open 3 days (72h) before kickoff** and can be changed any number of times within that window, **until kickoff**.
 - **Prediction window is enforced server-side**: a write for a match kicking off more than 72h away is rejected (`422`, "predictions open 3 days before kickoff"). The UI shows an "opens on …" hint and a popup for not-yet-open matches, but the server is authoritative. (Decision added post-v1 at product request; see §17.)
 - **Locking is enforced server-side** from the stored kickoff timestamp: any write where `now >= kickoff_utc` is rejected, regardless of client state. The UI also reflects the locked state, but the server is authoritative.
+- Incrementing a team score gives lightweight goal feedback: a football travels from that team's `+` control toward the opposing flag on a responsive curved shot path. Left-team goals travel left-to-right; right-team goals travel right-to-left. Repeated clicks may play independently, and reduced-motion users receive no travelling-ball animation. This feedback is visual only and never changes score validation, locking, or save behavior.
 - For knockout matches where the user's predicted score is a **draw**, the user may additionally pick the penalty-shootout winner (see 3.3).
 
 ### 3.3 Scoring rules
@@ -69,6 +70,8 @@ On or before the **bonus lock** (28 June 2026, end of day IST — configurable),
 | Fair Play Trophy Winner | 10 |
 
 Maximum bonus = **100**. These are scored once, after the tournament concludes, and added to each participant's total.
+
+Team and player pickers use searchable dropdown menus that render above surrounding cards without changing the Tournament Bonus card's clipped visual surface. Menus remain anchored to their controls, flip when viewport space is limited, and stay within the desktop/mobile viewport.
 
 ### 3.5 Leaderboards
 
@@ -253,7 +256,7 @@ A semantic z-index scale: dropdown → sticky → modal-backdrop → modal → t
 
 ### 7.6 Motion
 
-150–250 ms, conveying state not decoration; ease-out curves, no bounce. One earned moment: the achievement chip counts up in brand color when a finished match settles. Every animation has a `@media (prefers-reduced-motion: reduce)` fallback (crossfade/instant). No orchestrated page-load sequences.
+Most state transitions are 150–250 ms, use ease-out curves, and avoid bounce. Earned interaction feedback may run longer when the motion communicates a physical action: the prediction score `+` control may play a ~720 ms constant-speed curved football shot toward the opposing flag. The achievement chip may count up in brand color when a finished match settles. Every animation has a `prefers-reduced-motion` fallback (crossfade/instant or omission). No orchestrated page-load sequences.
 
 ### 7.7 Accessibility
 

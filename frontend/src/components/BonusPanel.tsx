@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   CATEGORIES,
   useBonus,
@@ -9,6 +10,7 @@ import {
   type PlayerOption,
 } from "../lib/bonus";
 import { PlayerCombobox } from "./PlayerCombobox";
+import { useDropdownPortalPosition } from "./DropdownPortal";
 import { Flag } from "./Flag";
 import {
   TrophyIcon,
@@ -58,6 +60,8 @@ function TeamSelect({ teams, selectedId, disabled, ariaLabel, onSelect }: TeamSe
   const [q, setQ] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuStyle = useDropdownPortalPosition(open, wrapRef, 246);
 
   const selTeam = selectedId != null ? teams.find((t) => t.id === selectedId) : null;
 
@@ -77,9 +81,10 @@ function TeamSelect({ teams, selectedId, disabled, ariaLabel, onSelect }: TeamSe
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      const insideControl = wrapRef.current?.contains(target) ?? false;
+      const insideMenu = menuRef.current?.contains(target) ?? false;
+      if (!insideControl && !insideMenu) setOpen(false);
     }
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
@@ -115,8 +120,14 @@ function TeamSelect({ teams, selectedId, disabled, ariaLabel, onSelect }: TeamSe
         <span className="bs-chev"><ChevronIcon /></span>
       </button>
 
-      {open && (
-        <div className="bonus-menu-wrap" role="menu" aria-label={ariaLabel}>
+      {open && menuStyle && createPortal(
+        <div
+          ref={menuRef}
+          className="bonus-menu-wrap bonus-menu-wrap--portal"
+          role="menu"
+          aria-label={ariaLabel}
+          style={menuStyle}
+        >
           <div className="bonus-search-bar">
             <SearchIcon />
             <input
@@ -150,7 +161,8 @@ function TeamSelect({ teams, selectedId, disabled, ariaLabel, onSelect }: TeamSe
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

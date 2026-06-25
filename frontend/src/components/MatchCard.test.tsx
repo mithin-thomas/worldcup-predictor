@@ -110,6 +110,45 @@ describe("MatchCard", () => {
     expect(screen.getByRole("button", { name: /update (pick|prediction)/i })).toBeEnabled();
   });
 
+  it("animates a left-team goal from the left controls toward the right flag", async () => {
+    const user = userEvent.setup();
+    const { container } = wrap(<MatchCard match={baseMatch} />);
+
+    await user.click(screen.getByRole("button", { name: /increase mexico/i }));
+
+    expect(screen.getByLabelText("Mexico score: 1")).toBeInTheDocument();
+    const animation = container.querySelector(".goal-animation");
+    expect(animation).toHaveAttribute("data-direction", "left-to-right");
+    expect(animation).toHaveAttribute("data-start-side", "left");
+    expect(animation).toHaveAttribute("data-target-side", "right");
+    expect(animation?.querySelector("img")).toHaveAttribute("src", expect.stringContaining("football"));
+  });
+
+  it("animates a right-team goal from the right controls toward the left flag", async () => {
+    const user = userEvent.setup();
+    const { container } = wrap(<MatchCard match={baseMatch} />);
+
+    await user.click(screen.getByRole("button", { name: /increase south africa/i }));
+
+    expect(screen.getByLabelText("South Africa score: 1")).toBeInTheDocument();
+    const animation = container.querySelector(".goal-animation");
+    expect(animation).toHaveAttribute("data-direction", "right-to-left");
+    expect(animation).toHaveAttribute("data-start-side", "right");
+    expect(animation).toHaveAttribute("data-target-side", "left");
+  });
+
+  it("supports repeated fast goal clicks with independent animations", async () => {
+    const user = userEvent.setup();
+    const { container } = wrap(<MatchCard match={baseMatch} />);
+    const increase = screen.getByRole("button", { name: /increase mexico/i });
+
+    await user.click(increase);
+    await user.click(increase);
+
+    expect(screen.getByLabelText("Mexico score: 2")).toBeInTheDocument();
+    expect(container.querySelectorAll(".goal-animation")).toHaveLength(2);
+  });
+
   // ── Locked state ─────────────────────────────────────────────────────────
   it("renders locked state read-only when match.locked=true", () => {
     wrap(<MatchCard match={{ ...baseMatch, locked: true }} />);
