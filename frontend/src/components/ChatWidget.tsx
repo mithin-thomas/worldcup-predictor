@@ -45,11 +45,6 @@ export function ChatWidget() {
     launcherRef.current?.focus();
   }
 
-  function clearChat() {
-    setMessages([]);
-    setError(null);
-  }
-
   async function send() {
     const text = draft.trim();
     if (!text || streaming) return;
@@ -119,11 +114,19 @@ export function ChatWidget() {
             online
           </span>
         </span>
-        <button type="button" className="chat-iconbtn" aria-label="Clear chat" onClick={clearChat}>
-          Clear
-        </button>
-        <button type="button" className="chat-iconbtn" aria-label="Close chat" onClick={close}>
-          ✕
+        <button type="button" className="chat-close" aria-label="Close chat" onClick={close}>
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
         </button>
       </header>
 

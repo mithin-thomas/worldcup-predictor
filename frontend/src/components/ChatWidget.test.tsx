@@ -50,17 +50,6 @@ describe("ChatWidget", () => {
     expect(screen.getByText("yo")).toBeInTheDocument();
   });
 
-  it("Clear chat empties the conversation", async () => {
-    vi.spyOn(chatLib, "streamChat").mockImplementation(async (_m, onToken) => onToken("yo"));
-    render(<ChatWidget />);
-    openPanel();
-    fireEvent.change(screen.getByPlaceholderText(/message/i), { target: { value: "ping" } });
-    fireEvent.click(screen.getByLabelText(/send message/i));
-    await screen.findByText("yo");
-    fireEvent.click(screen.getByLabelText(/clear chat/i));
-    expect(screen.queryByText("ping")).toBeNull();
-  });
-
   it("shows an unavailable notice on 503", async () => {
     vi.spyOn(chatLib, "streamChat").mockRejectedValue(new chatLib.ChatUnavailableError());
     render(<ChatWidget />);

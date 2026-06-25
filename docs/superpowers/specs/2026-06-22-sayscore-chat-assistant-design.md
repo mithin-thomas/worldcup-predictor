@@ -53,7 +53,7 @@ Delete every MadCrow reference (grep `madcrow`/`MADCROW`):
   at boot, the app still starts but `POST /api/chat` returns **503** and the frontend launcher hides
   (or shows a "chat unavailable" state). Config errors are logged at boot, never fatal.
 - **History is session-only** (`sessionStorage`): survives reloads within the tab, clears on tab
-  close. A "Clear chat" action empties it.
+  close.
 
 ## 5. Backend
 
@@ -135,7 +135,7 @@ with a **white football mark**, fixed bottom-right.
 
 - **Launcher:** a fixed, bottom-right round button with the **World-Cup football mark** (white on the
   blue gradient), `aria-label="Open chat assistant"`, ≥44px target, brand styling per §7.
-- **Panel:** header (title + **Clear chat** + close), a scrollable message list (user/assistant
+- **Panel:** header (title + close), a scrollable message list (user/assistant
   bubbles, a typing indicator while streaming), and an input row (textarea + Send). Opens/closes
   from the launcher; Escape closes; focus moves into the input on open and back to the launcher on
   close.
@@ -181,8 +181,7 @@ with a **white football mark**, fixed bottom-right.
 - `streamChat` parses a mocked `ReadableStream` of SSE frames → ordered `onToken` calls; 503 →
   `ChatUnavailableError`.
 - `ChatWidget`: launcher opens/closes the panel; sending appends a user message then streams an
-  assistant reply (mocked `streamChat`); `sessionStorage` persists across remount; Clear chat empties
-  it; error state shows Retry; launcher has its `aria-label` and is hidden when chat is unavailable.
+  assistant reply (mocked `streamChat`); `sessionStorage` persists across remount; error state shows Retry; launcher has its `aria-label` and is hidden when chat is unavailable.
 
 ## 9. Docs
 
