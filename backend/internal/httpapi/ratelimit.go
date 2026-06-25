@@ -19,6 +19,9 @@ const (
 	writeRate  = rate.Limit(1.0) // ~60/min per user (1 req/sec sustained)
 	writeBurst = 20
 
+	chatRate  = rate.Limit(20.0 / 60.0) // ~20/min per user (bounds OpenAI spend)
+	chatBurst = 5
+
 	limiterIdleTTL = 15 * time.Minute
 )
 
