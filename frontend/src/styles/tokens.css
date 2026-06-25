@@ -123,7 +123,11 @@
    ============================================================ */
 
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
+/* overflow-x: clip stops any accidental horizontal overflow from widening the
+   document on mobile (which would push fixed elements like the chat panel off
+   the right edge). `clip` — not `hidden` — so it never creates a scroll
+   container that would break the sticky topbar/sidebars. */
+html, body { margin: 0; padding: 0; overflow-x: clip; }
 
 body {
   background: var(--bg);
