@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sayonetech/worldcup-predictor/backend/internal/auth"
+	"github.com/sayonetech/worldcup-predictor/backend/internal/chat"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/config"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/httpapi"
 	"github.com/sayonetech/worldcup-predictor/backend/internal/jobs"
@@ -99,6 +100,21 @@ func main() {
 	// Recompute job + adapter implementing httpapi.RecomputeRunner.
 	recomputeJob := jobs.Recompute{Store: st, Bonus: jobs.BonusScore{Store: st}}
 
+	// Chat assistant (optional). Enabled only when an API key and a readable
+	// prompt file are both present; otherwise POST /api/chat returns 503.
+	var chatClient chat.Streamer
+	if cfg.OpenAIAPIKey != "" && cfg.OpenAISystemPromptFile != "" {
+		prompt, err := chat.LoadSystemPrompt(cfg.OpenAISystemPromptFile)
+		if err != nil {
+			logger.Warn("chat disabled: cannot read OPENAI_SYSTEM_PROMPT_FILE", "path", cfg.OpenAISystemPromptFile, "err", err)
+		} else {
+			chatClient = chat.New(cfg.OpenAIAPIKey, cfg.OpenAIModel, prompt)
+			logger.Info("chat assistant enabled", "model", cfg.OpenAIModel)
+		}
+	} else {
+		logger.Info("chat assistant disabled (set OPENAI_API_KEY + OPENAI_SYSTEM_PROMPT_FILE to enable)")
+	}
+
 	deps := &httpapi.Deps{
 		Store:              st,
 		Matches:            st,
@@ -110,6 +126,7 @@ func main() {
 		AdminUsers:         st,
 		Results:            st,
 		Celebrations:       st,
+		Chat:               chatClient,
 		Settings:           settingsSvc,
 		Recompute:          recomputeAdapter{r: recomputeJob},
 		JobRunner:          jobRunner,
