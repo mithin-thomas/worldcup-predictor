@@ -33,6 +33,10 @@ type Config struct {
 
 	SlackWebhookURL string
 
+	OpenAIAPIKey           string
+	OpenAISystemPromptFile string
+	OpenAIModel            string
+
 	BonusLockAt time.Time
 }
 
@@ -68,6 +72,10 @@ func Load() (Config, error) {
 		// Optional Slack Incoming Webhook for cron-completion notifications.
 		// Empty disables Slack (jobs still run; nothing is posted).
 		SlackWebhookURL: os.Getenv("SLACK_WEBHOOK_URL"),
+
+		OpenAIAPIKey:           os.Getenv("OPENAI_API_KEY"),
+		OpenAISystemPromptFile: os.Getenv("OPENAI_SYSTEM_PROMPT_FILE"),
+		OpenAIModel:            getenv("OPENAI_MODEL", "gpt-4o-mini"),
 	}
 	lockStr := getenv("BONUS_LOCK_AT", "2026-06-28T23:59:00+05:30")
 	lockAt, err := time.Parse(time.RFC3339, lockStr)
