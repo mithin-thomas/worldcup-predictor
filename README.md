@@ -199,6 +199,27 @@ no Slack; jobs still run. Never commit a real webhook URL.
 
 ---
 
+## Chat assistant
+
+SayScore includes a first-party AI chat assistant (bottom-right launcher) backed by OpenAI.
+History is session-only — stored in `sessionStorage`, never the DB.
+
+**Setup (backend env vars):**
+
+```bash
+OPENAI_API_KEY=sk-...              # required to enable chat; leave blank to disable (returns 503)
+OPENAI_SYSTEM_PROMPT_FILE=/path/to/prompt.txt  # text file containing the system prompt
+OPENAI_MODEL=gpt-4o-mini          # optional; default is gpt-4o-mini
+```
+
+- Add these to `backend/.env` for local dev, or to `.env.prod` for production.
+- `OPENAI_API_KEY` is the only required key — leaving it blank disables the chat panel with a
+  503 response (the launcher renders but shows "unavailable").
+- The system prompt is loaded from the file at `OPENAI_SYSTEM_PROMPT_FILE` at server start and
+  injected server-side — clients never send it.
+
+---
+
 ## Project structure
 
 ```text
