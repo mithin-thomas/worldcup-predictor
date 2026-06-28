@@ -45,12 +45,24 @@ func Compute(p Prediction, r Result) Score {
 		points = 3 // correct result (incl. draw == draw)
 	}
 
-	bonus := 0
-	if r.Knockout && r.WentToPenalties &&
-		p.Home == p.Away && // user predicted a draw
-		points > 0 && // the prediction earned score points
+	// Did the prediction name the correct shootout winner — i.e. the team that
+	// advanced when a knockout went to penalties?
+	correctShootout := r.Knockout && r.WentToPenalties &&
 		p.PenaltyWinner != nil && r.PenaltyWinner != nil &&
-		*p.PenaltyWinner == *r.PenaltyWinner {
+		*p.PenaltyWinner == *r.PenaltyWinner
+
+	// Advancement-first rule (§5): in a knockout that went to a shootout, a draw
+	// prediction must also name the correct advancing team to score at all. A
+	// wrong or missing shootout-winner pick zeroes the whole prediction, even on
+	// an exact draw score — you can't out-score someone who got the advancer right.
+	if r.Knockout && r.WentToPenalties && p.Home == p.Away && !correctShootout {
+		return Score{}
+	}
+
+	// Knockout penalty bonus: +1 when the (now necessarily correct) draw
+	// prediction earned points and named the correct shootout winner.
+	bonus := 0
+	if correctShootout && p.Home == p.Away && points > 0 {
 		bonus = 1
 	}
 

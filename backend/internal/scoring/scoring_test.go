@@ -74,35 +74,43 @@ func TestComputePenaltyBonus(t *testing.T) {
 			Result{Final: true, Knockout: true, Home: 2, Away: 2, WentToPenalties: true, PenaltyWinner: pw(7)},
 			Score{Points: 3, PenaltyBonus: 1}},
 
-		// No bonus: every guard.
-		{"wrong winner pick → no bonus",
+		// Advancement-first (§5): a draw prediction in a knockout SHOOTOUT scores
+		// only when it also names the correct shootout winner (the advancing
+		// team). A wrong or missing winner → 0, even on an exact draw score.
+		{"draw + WRONG winner → 0 (screenshot row 3: exact 1-1 but B advances)",
 			Prediction{1, 1, pw(7)},
 			Result{Final: true, Knockout: true, Home: 1, Away: 1, WentToPenalties: true, PenaltyWinner: pw(8)},
-			Score{Points: 5}},
-		{"nil winner pick → no bonus",
+			Score{}},
+		{"draw + WRONG winner, correct-result score → 0 (screenshot row 4)",
+			Prediction{1, 1, pw(7)},
+			Result{Final: true, Knockout: true, Home: 2, Away: 2, WentToPenalties: true, PenaltyWinner: pw(8)},
+			Score{}},
+		{"draw + NO winner pick → 0 (no advancing team predicted)",
 			Prediction{1, 1, nil},
 			Result{Final: true, Knockout: true, Home: 1, Away: 1, WentToPenalties: true, PenaltyWinner: pw(7)},
-			Score{Points: 5}},
-		{"nil actual winner → no bonus",
+			Score{}},
+		{"draw + unknown actual winner → 0 (can't confirm advancing team)",
 			Prediction{1, 1, pw(7)},
 			Result{Final: true, Knockout: true, Home: 1, Away: 1, WentToPenalties: true, PenaltyWinner: nil},
-			Score{Points: 5}},
-		{"not knockout → no bonus",
+			Score{}},
+
+		// Unaffected by the advancement gate:
+		{"group-stage exact draw (not knockout) → 5",
 			Prediction{1, 1, pw(7)},
 			Result{Final: true, Knockout: false, Home: 1, Away: 1, WentToPenalties: true, PenaltyWinner: pw(7)},
 			Score{Points: 5}},
-		{"knockout but no shootout → no bonus",
+		{"knockout draw not to a shootout → 5",
 			Prediction{1, 1, pw(7)},
 			Result{Final: true, Knockout: true, Home: 1, Away: 1, WentToPenalties: false, PenaltyWinner: pw(7)},
 			Score{Points: 5}},
-		{"non-draw prediction → no bonus",
+		{"non-draw prediction in shootout → 0",
 			Prediction{2, 1, pw(7)},
 			Result{Final: true, Knockout: true, Home: 1, Away: 1, WentToPenalties: true, PenaltyWinner: pw(7)},
-			Score{}}, // points 0 (2-1 vs 1-1 is wrong) and not a draw prediction
-		{"points==0 guard (draw pred scores 0) → no bonus",
+			Score{}}, // 2-1 vs 1-1 is wrong, and not a draw prediction
+		{"draw prediction scoring 0 on a non-draw result → 0",
 			Prediction{0, 0, pw(7)},
 			Result{Final: true, Knockout: true, Home: 1, Away: 0, WentToPenalties: true, PenaltyWinner: pw(7)},
-			Score{}}, // 0-0 vs 1-0 is wrong → points 0, so no bonus despite the draw prediction
+			Score{}}, // 0-0 vs 1-0 is wrong → 0
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

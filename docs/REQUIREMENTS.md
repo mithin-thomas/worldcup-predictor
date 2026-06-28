@@ -49,10 +49,11 @@ Per match:
 - **Correct result** (right winner, or correctly predicted a draw) but wrong score: **3 points**
 - **Incorrect**: **0 points**
 
-Knockout penalty bonus:
+Knockout penalty bonus + advancement rule:
 
 - Applies only to knockout matches that go to a penalty shootout.
-- If the user predicted a **draw** for the regulation/extra-time result *and* also correctly predicted the shootout winner, they earn **+1 point**, in addition to the score points above.
+- **Advancement-first:** when a knockout draw goes to a shootout, a draw prediction scores **only if it also names the correct shootout winner** (the advancing team). A wrong or missing winner pick scores **0**, even when the regulation/extra-time scoreline was exact.
+- When the shootout winner is correct, the usual tier applies (5 exact / 3 correct-result) **plus +1** penalty bonus.
 - See §5 for the precise, implementable definition (confirmed in §17).
 
 ### 3.4 Tournament bonus predictions
@@ -155,16 +156,24 @@ score(prediction, match):
   elif sign(ph - pa) == sign(ah - aa): pts = 3        # correct result (incl. draw==draw)
   else:                                pts = 0
 
+  correct_shootout = (match.stage == KNOCKOUT and match.went_to_penalties
+                      and prediction.penalty_winner == match.penalty_winner)
+
+  # Advancement-first: in a knockout that went to a shootout, a DRAW prediction
+  # must also name the correct advancing team (shootout winner) to score at all.
+  # A wrong or missing pick zeroes the whole prediction, even on an exact draw.
+  if match.stage == KNOCKOUT and match.went_to_penalties and ph == pa
+     and not correct_shootout:
+        return 0, penalty=0
+
   bonus = 0
-  if match.stage == KNOCKOUT and match.went_to_penalties
-     and ph == pa                                     # user predicted a draw
-     and pts > 0                                       # user earned score points
-     and prediction.penalty_winner == match.penalty_winner:
+  if correct_shootout and ph == pa and pts > 0:        # predicted draw, earned points, right winner
         bonus = 1
 
   return pts, bonus
 ```
 
+- **Advancement-first knockout rule:** for a knockout match that goes to a penalty shootout, predicting a draw is only worth points if you also picked the correct shootout winner (the team that advances). Get the advancing team wrong — or omit the pick — and the prediction scores **0**, regardless of how accurate the regulation/extra-time scoreline was. When the winner is correct, the usual score tier (5 exact / 3 correct-result) applies, plus the **+1** penalty bonus. (This makes the advancing team the first requirement, so no one can out-score a player who correctly predicted the advancing team.)
 - `sign(0)` represents a draw; a predicted draw matching an actual draw scores the correct-result path.
 - Points are stored on the prediction row (`points`, `penalty_bonus`) when a match goes FINAL, so leaderboard queries are simple sums over a date window.
 - Bonus-prediction points are computed once at tournament end from the seven award outcomes.

@@ -138,7 +138,8 @@ func TestRecompute_KnockoutPenaltyBonus(t *testing.T) {
 			matchID: {
 				// Draw predicted (different scoreline from result) + correct shootout winner → 3 + 1 bonus.
 				{ID: 20, HomeScore: 0, AwayScore: 0, PenaltyWinnerTeamID: &winnerID},
-				// Draw predicted (different scoreline) but WRONG shootout winner → 3, 0 bonus.
+				// Draw predicted (different scoreline) but WRONG shootout winner → 0
+				// (advancement-first: must name the correct advancing team).
 				{ID: 21, HomeScore: 0, AwayScore: 0, PenaltyWinnerTeamID: ptrI64(99)},
 				// Wrong prediction (home wins) → 0, 0 bonus.
 				{ID: 22, HomeScore: 2, AwayScore: 0},
@@ -154,7 +155,7 @@ func TestRecompute_KnockoutPenaltyBonus(t *testing.T) {
 
 	want := map[int64][2]int32{
 		20: {3, 1}, // correct draw (different score) + right shootout winner
-		21: {3, 0}, // correct draw (different score) + wrong shootout winner
+		21: {0, 0}, // draw + WRONG shootout winner → 0 (advancement-first)
 		22: {0, 0}, // wrong prediction
 	}
 	for _, sw := range fakeStore.scoreWrites {
