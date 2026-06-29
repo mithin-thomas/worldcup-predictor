@@ -56,6 +56,22 @@ export function Home({ mobileView }: HomeProps) {
       <div className="home__grid page">
         {/* LEFT: Bonus panel + Matches column */}
         <div className={`home__main main-left${activeMobileView === "ranks" ? " is-hidden-mobile" : ""}`}>
+          <section className="promo-banner-wrap" aria-label="Penalty Shootout">
+            <a
+              className="promo-banner"
+              href="https://d23okley85vr35.cloudfront.net/"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Open Penalty Shootout in a new tab"
+            >
+              <img
+                className="promo-banner__image"
+                src="/penalty-shootout-banner.png"
+                alt="Penalty Shootout. One kick. One chance. Be the hero."
+              />
+            </a>
+          </section>
+
           <BonusPanel />
           <MatchesColumn />
         </div>

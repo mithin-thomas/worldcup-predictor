@@ -37,6 +37,65 @@
 .btn-logout { padding: 8px 15px; border-radius: var(--r-pill); border: 1px solid var(--border-2); color: var(--text-2); font-size: 13px; font-weight: 600; transition: 0.18s; }
 .btn-logout:hover { background: var(--surface); color: var(--text); border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
 
+.promo-banner-wrap {
+  width: 100%;
+}
+.promo-banner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: clamp(120px, 18vw, 136px);
+  max-height: 136px;
+  min-height: 120px;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: var(--r-lg);
+  background: linear-gradient(157deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04) 48%), rgba(20,24,34,0.42);
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.32), inset 0 0 0 1px rgba(255,255,255,0.04);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  backdrop-filter: blur(20px) saturate(1.5);
+  transform: translateZ(0);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.promo-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.16), transparent 36%),
+    radial-gradient(420px 130px at 16% 0%, rgba(255,255,255,0.18), transparent 68%),
+    linear-gradient(90deg, rgba(5,8,18,0.18), transparent 42%, rgba(5,8,18,0.24));
+}
+.promo-banner::after {
+  content: "";
+  position: absolute;
+  inset: -40% auto -40% -24%;
+  z-index: 2;
+  width: 26%;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,0.38), transparent);
+  transform: skewX(-18deg);
+  opacity: 0;
+}
+.promo-banner:hover,
+.promo-banner:focus-visible {
+  border-color: rgba(255,255,255,0.34);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.38), inset 0 0 0 1px rgba(255,255,255,0.06);
+  transform: translateY(-1px);
+}
+.promo-banner:hover::after {
+  animation: promo-banner-sheen 0.75s ease;
+}
+.promo-banner__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(1.08) contrast(1.04);
+}
 .role-switch { display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--control-track); border-radius: var(--r-pill); }
 .role-switch button { padding: 6px 13px; border-radius: var(--r-pill); font-size: 12.5px; font-weight: 600; color: var(--text-2); display: flex; align-items: center; gap: 5px; transition: 0.15s; }
 .role-switch button .ic { font-size: 13px; display: grid; place-items: center; }
@@ -509,6 +568,7 @@
 @keyframes card-shine { 0%, 64% { transform: translateX(-130%); } 84%, 100% { transform: translateX(130%); } }
 @keyframes bar-ball-spin { to { transform: rotate(360deg); } }
 @keyframes btn-sweep { from { transform: translateX(-220%) skewX(-18deg); } to { transform: translateX(320%) skewX(-18deg); } }
+@keyframes promo-banner-sheen { from { opacity: 0; transform: translateX(0) skewX(-18deg); } 24% { opacity: 1; } to { opacity: 0; transform: translateX(560%) skewX(-18deg); } }
 @keyframes saved-pop { 0% { transform: scale(0.7); opacity: 0; } 60% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
 
 /*
@@ -628,7 +688,7 @@
   .topbar .logo { order: 0; margin-right: auto; flex: 0 0 auto; justify-content: flex-start; }
   .topbar .topbar-spacer { order: 1; flex: 1 1 auto; min-width: 0; }
   .topbar .topbar-r { order: 2; margin-left: 0; flex: 0 0 auto; }
-
+  .promo-banner { height: clamp(86px, 28vw, 136px); min-height: 86px; border-radius: var(--r-lg); }
   .mc-teams { gap: 8px; }
   .mc-team { gap: 9px; }
   .mc-team-name { font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; }
@@ -685,7 +745,8 @@
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .standing, .standing::before, .standing-ball img, .standing-ball svg,
-  .shimmer-stage, .btn-save::after, .mc-saved { animation: none; }
+  .shimmer-stage, .btn-save::after, .promo-banner::after, .mc-saved { animation: none; }
+  .promo-banner { transition: none; }
   /* Without animation the mask would hide everything; show video at steady 50% instead */
   .shimmer-stage {
     -webkit-mask-image: none; mask-image: none;
