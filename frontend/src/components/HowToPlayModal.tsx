@@ -147,10 +147,11 @@ export function HowToPlayModal({ onClose }: HowToPlayModalProps) {
               </li>
               <li className="htp-points-row htp-points-row--bonus">
                 <span className="htp-pts-label">
-                  <strong>Knockout penalty bonus:</strong> in a knockout match that
-                  goes to a penalty shootout, if you predicted a draw for the 90/extra-time
-                  result (and that pick earned points) AND you picked the correct shootout
-                  winner, you get +1 on top.
+                  <strong>Knockout shootout — pick who advances:</strong> if a knockout
+                  match goes to a penalty shootout and you predicted a draw, you must also
+                  pick the correct shootout winner to score at all. Wrong winner (or no
+                  pick) means <strong>0</strong>, even if your score was exact. Get the
+                  winner right and you keep your score (5 or 3) <strong>plus +1</strong>.
                 </span>
                 <span className="htp-pts-val mono htp-pts-bonus">+1</span>
               </li>
