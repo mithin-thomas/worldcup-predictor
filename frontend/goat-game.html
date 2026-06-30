@@ -14,19 +14,23 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#060913" />
 
-    <!-- FIFA.com-style light page background (self-contained; no shimmer-stage/GIS/app-bg).
+    <!-- Game page background (self-contained; no shimmer-stage/GIS/app-bg).
          !important is required: game-main.tsx imports tokens.css, whose `body { background: var(--bg) }`
          (the app's dark theme) loads later and would otherwise override this. -->
     <style>
       html,body{margin:0;height:100%}
       body{
         min-height:100vh;
-        color:#0a0e1a;
+        color:#f5f5f7;
         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
-        background:#eceef6 !important; /* FIFA World Cup 2026 light page colour */
+        /* Deep navy vertical gradient (#0A1E40 → #050E22) with a gold glow up
+           top and a green (pitch) glow at the bottom. */
+        background:
+          radial-gradient(1000px 440px at 50% -10%, rgba(232,184,75,.30), transparent 60%),
+          radial-gradient(1100px 540px at 50% 112%, rgba(31,150,82,.22), transparent 58%),
+          linear-gradient(180deg, #0A1E40 0%, #050E22 100%) !important;
+        background-attachment:fixed;
       }
-      /* Keep the brief loading text readable on the light background. */
-      .game-page__loading{color:#5b6170 !important;}
     </style>
   </head>
   <body>
