@@ -18,18 +18,20 @@
          !important is required: game-main.tsx imports tokens.css, whose `body { background: var(--bg) }`
          (the app's dark theme) loads later and would otherwise override this. -->
     <style>
-      html,body{margin:0;height:100%}
+      /* No rigid height:100% — it would clip a tall game-over screen in a short
+         (landscape) viewport instead of letting the page grow and scroll. */
+      html,body{margin:0}
       body{
         min-height:100vh;
         color:#f5f5f7;
         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
         /* Deep navy vertical gradient (#0A1E40 → #050E22) with a gold glow up
-           top and a green (pitch) glow at the bottom. */
+           top and a green (pitch) glow at the bottom. background-attachment:fixed
+           is intentionally avoided — it misbehaves in mobile landscape (iOS). */
         background:
           radial-gradient(1000px 440px at 50% -10%, rgba(232,184,75,.30), transparent 60%),
           radial-gradient(1100px 540px at 50% 112%, rgba(31,150,82,.22), transparent 58%),
           linear-gradient(180deg, #0A1E40 0%, #050E22 100%) !important;
-        background-attachment:fixed;
       }
     </style>
   </head>
