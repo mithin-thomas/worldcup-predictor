@@ -78,13 +78,11 @@ export function Home({ mobileView }: HomeProps) {
               rel="noreferrer"
               aria-label="Play Chased by the GOAT in a new tab"
             >
-              {/* When the banner art exists, swap this block for:
-                  <img className="promo-banner__image" src="/goat-game-banner.png"
-                       alt="Chased by the GOAT. Outrun the legend." /> */}
-              <span className="promo-banner__fallback">
-                <span className="promo-banner__fallback-title">Chased by the GOAT</span>
-                <span className="promo-banner__fallback-sub">Outrun the legend ▶</span>
-              </span>
+              <img
+                className="promo-banner__image"
+                src="/goat-game-banner.png"
+                alt=""
+              />
             </a>
           </section>
 
