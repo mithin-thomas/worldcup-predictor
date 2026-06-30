@@ -29,9 +29,10 @@ func NewRouter(d *Deps, _ bool) chi.Router {
 	r.Get("/docs", GetDocs)
 	r.Get("/openapi.yaml", GetOpenAPISpec)
 
-	authLimiter := newKeyedLimiter(authRate, authBurst)
-	writeLimiter := newKeyedLimiter(writeRate, writeBurst)
-	chatLimiter := newKeyedLimiter(chatRate, chatBurst)
+	authLimiter     := newKeyedLimiter(authRate, authBurst)
+	writeLimiter    := newKeyedLimiter(writeRate, writeBurst)
+	chatLimiter     := newKeyedLimiter(chatRate, chatBurst)
+	gameReadLimiter := newKeyedLimiter(gameReadRate, gameReadBurst)
 
 	r.Route("/api", func(api chi.Router) {
 		api.Use(maxBodyBytes(maxBodyBytesLimit))
@@ -81,7 +82,10 @@ func NewRouter(d *Deps, _ bool) chi.Router {
 			priv.With(rateLimitWrites(chatLimiter)).Post("/chat", d.PostChat)
 
 			// GOAT mini-game (§3.10 / §11)
-			priv.Get("/game/leaderboard", d.GetGameLeaderboard)
+			// GET issues a single-use run token on every call so it carries its own
+			// per-user rate limiter (rateLimitWrites skips GET). POST inherits the
+			// group-level write limiter (rateLimitWrites) applied above.
+			priv.With(rateLimitUser(gameReadLimiter)).Get("/game/leaderboard", d.GetGameLeaderboard)
 			priv.Post("/game/runs", d.PostGameRun)
 		})
 	})

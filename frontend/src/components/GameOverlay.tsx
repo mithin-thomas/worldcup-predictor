@@ -32,6 +32,32 @@ export function GameOverlay({ onClose }: { onClose: () => void }) {
     };
   }, [onClose]);
 
+  // Focus trap: cycle Tab/Shift+Tab within the panel (mirrors HowToPlayModal).
+  const handlePanelKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab") return;
+    const panel = e.currentTarget;
+    const focusable = Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => !el.hasAttribute("disabled"));
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const focused = document.activeElement;
+    if (e.shiftKey) {
+      if (focused === first) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (focused === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  };
+
   return (
     <div
       className="game-overlay"
@@ -42,7 +68,7 @@ export function GameOverlay({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="game-overlay__panel">
+      <div className="game-overlay__panel" onKeyDown={handlePanelKeyDown}>
         <div className="game-overlay__head">
           <h2 id={titleId} className="game-overlay__title">
             Chased by the GOAT

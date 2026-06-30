@@ -54,14 +54,9 @@ func reqWithUser(method, target string, body []byte, uid int64) *http.Request {
 
 func TestPostGameRun_AcceptsPlausibleAndStores(t *testing.T) {
 	base := time.Unix(1_700_000_000, 0).UTC()
-	calls := 0
-	nowFn := func() time.Time { calls++; return base.Add(time.Duration(calls) * time.Millisecond) } // ~stable
 	d, fs := testGameDeps(func() time.Time { return base.Add(61 * time.Second) })
-	_ = nowFn
-	tok := d.GameTokens.Issue(7, "jti-A")
-	// rewind issuedAt: token issued at base, validated 61s later
-	d.GameTokens = game.NewTokenManager("test-secret", 10*time.Minute, func() time.Time { return base.Add(61 * time.Second) })
-	tok = game.NewTokenManager("test-secret", 10*time.Minute, func() time.Time { return base }).Issue(7, "jti-A")
+	// token issued at base, validated 61s later (within 10-minute TTL)
+	tok := game.NewTokenManager("test-secret", 10*time.Minute, func() time.Time { return base }).Issue(7, "jti-A")
 
 	body, _ := json.Marshal(map[string]any{"run_token": tok, "distance": game.PaceDistance(60000), "coins": 4, "duration_ms": 60000})
 	w := httptest.NewRecorder()
@@ -111,5 +106,44 @@ func TestPostGameRun_RejectsTokenUserMismatch(t *testing.T) {
 	d.PostGameRun(w, reqWithUser(http.MethodPost, "/api/game/runs", body, 7)) // caller 7 ≠ token 99
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", w.Code)
+	}
+}
+
+// TestGetGameLeaderboard_ReturnsBoards asserts the leaderboard handler:
+//   (a) returns 200 with the distance/coins boards and the caller's me standing, and
+//   (b) includes a non-empty run_token issued for the caller.
+func TestGetGameLeaderboard_ReturnsBoards(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0).UTC()
+	d, fs := testGameDeps(func() time.Time { return base })
+	// Seed the fake store with a non-trivial me standing so the response is
+	// distinguishable from a zero value.
+	fs.me = store.GameMe{BestDistance: 42, CoinPool: 7}
+
+	w := httptest.NewRecorder()
+	d.GetGameLeaderboard(w, reqWithUser(http.MethodGet, "/api/game/leaderboard", nil, 5))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	var resp gameLeaderboardResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Me.BestDistance != 42 {
+		t.Errorf("me.best_distance = %d, want 42", resp.Me.BestDistance)
+	}
+	if resp.Me.CoinPool != 7 {
+		t.Errorf("me.coin_pool = %d, want 7", resp.Me.CoinPool)
+	}
+	if resp.RunToken == "" {
+		t.Error("run_token must be non-empty")
+	}
+	// Verify the token was issued for the caller (uid=5).
+	claims, err := d.GameTokens.Verify(resp.RunToken)
+	if err != nil {
+		t.Fatalf("run_token verification failed: %v", err)
+	}
+	if claims.UserID != 5 {
+		t.Errorf("run_token uid = %d, want 5", claims.UserID)
 	}
 }

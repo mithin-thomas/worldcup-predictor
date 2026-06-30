@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"sync"
 	"time"
@@ -124,6 +125,10 @@ func (d *Deps) PostGameRun(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Distance < 0 || req.Coins < 0 || req.DurationMs < 0 {
 		writeError(w, http.StatusBadRequest, "invalid run fields")
+		return
+	}
+	if req.Distance > math.MaxInt32 || req.Coins > math.MaxInt32 {
+		writeError(w, http.StatusBadRequest, "value out of range")
 		return
 	}
 	claims, err := d.GameTokens.Verify(req.RunToken)

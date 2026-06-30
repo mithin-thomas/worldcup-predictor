@@ -44,6 +44,7 @@ func NewTokenManager(secret string, ttl time.Duration, now func() time.Time) *To
 
 func (m *TokenManager) sign(b64 string) string {
 	h := hmac.New(sha256.New, m.key)
+	h.Write([]byte("game-run:")) // domain separation from auth session cookies
 	h.Write([]byte(b64))
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }

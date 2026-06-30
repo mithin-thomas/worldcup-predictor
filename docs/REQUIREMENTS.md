@@ -158,8 +158,11 @@ standings, and **no prize/payment data is attached to the game** (decision §17.
   materialized-points philosophy (§5).
 - **Server-authoritative validation (anti-cheat)**: the score is computed in the browser, so every
   run is validated server-side before it is stored — see **§18**.
-- **Auth & rate limiting**: `GET /api/game/leaderboard` and `POST /api/game/runs` sit inside the
-  `RequireAuth` group and inherit the per-user write rate limiter (§12).
+- **Auth & rate limiting**: both endpoints sit inside the `RequireAuth` group.
+  `GET /api/game/leaderboard` carries its **own** per-user rate limiter (separate from the write
+  limiter) because it mints a single-use run token on every call — this bounds token issuance
+  and `seenJTI` set growth (~30/min sustained, burst 10).
+  `POST /api/game/runs` inherits the per-user write rate limiter (§12).
 
 ---
 

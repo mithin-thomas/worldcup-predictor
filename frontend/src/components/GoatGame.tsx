@@ -5,8 +5,8 @@ import { useMe } from "../lib/auth";
 import { useGameLeaderboard, saveGameRun } from "../lib/game";
 
 export function GoatGame() {
-  const { data: me } = useMe();
-  const { data: board } = useGameLeaderboard();
+  const { data: me, isPending: mePending } = useMe();
+  const { data: board, isPending: boardPending } = useGameLeaderboard();
   const qc = useQueryClient();
   const hostRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<GoatGameHandle | null>(null);
@@ -34,7 +34,8 @@ export function GoatGame() {
           handleRef.current?.setRunToken(res.run_token); // arm next run
           await qc.invalidateQueries({ queryKey: ["game-leaderboard"] }); // refetch → effect below pushes boards
         } catch {
-          // Save failed (e.g. token race / rejected run) — leave boards as-is; the player can run again.
+          // Save failed (rejected run / network) — refetch so a fresh run_token is armed for the next run.
+          void qc.invalidateQueries({ queryKey: ["game-leaderboard"] });
         }
       },
     });
@@ -55,6 +56,14 @@ export function GoatGame() {
       handleRef.current.setRunToken(board.run_token);
     }
   }, [board]);
+
+  if (mePending || boardPending) {
+    return (
+      <div className="goat-host" style={{ width: "100%", padding: "24px 16px" }}>
+        <div className="skeleton skeleton--long" style={{ height: "180px", width: "100%", borderRadius: "var(--r-md)" }} />
+      </div>
+    );
+  }
 
   return <div className="goat-host" ref={hostRef} style={{ width: "100%" }} />;
 }
