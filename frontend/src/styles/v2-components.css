@@ -96,6 +96,137 @@
   object-fit: cover;
   filter: saturate(1.08) contrast(1.04);
 }
+
+/* ---------- Promo banner — 2-up split layout ---------- */
+.promo-banner-wrap--split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 560px) {
+  .promo-banner-wrap--split { grid-template-columns: 1fr; }
+}
+
+/* Reset button chrome so button.promo-banner matches the <a> card */
+button.promo-banner {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  /* Inherit the card styles from .promo-banner (already defined above) */
+  text-align: left;
+  /* Ensure minimum 44 px touch target (§7) */
+  min-height: 44px;
+}
+
+/* Fallback text card when banner art is not yet available */
+.promo-banner--goat .promo-banner__fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 6px;
+  padding: 0 16px;
+  /* Relative so text sits above the ::before gloss layer */
+  position: relative;
+  z-index: 3;
+}
+.promo-banner__fallback-title {
+  font-family: var(--font-display);
+  font-size: clamp(15px, 2vw, 18px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-align: center;
+}
+.promo-banner__fallback-sub {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-align: center;
+}
+
+/* Active state (press feedback) for the GOAT button */
+button.promo-banner:active {
+  transform: translateY(0) scale(0.985);
+}
+
+/* Explicit focus-visible ring on the GOAT button (§7 — visible focus ring) */
+button.promo-banner:focus-visible {
+  outline: 2px solid var(--coral);
+  outline-offset: 2px;
+}
+
+/* ---------- Game overlay (full-screen modal) ---------- */
+.game-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.82);
+  -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  backdrop-filter: blur(8px) saturate(1.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.game-overlay__panel {
+  display: flex;
+  flex-direction: column;
+  width: min(1100px, 96vw);
+  max-height: calc(100vh - 32px);
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-lg);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255,255,255,0.10);
+  overflow: hidden;
+}
+.game-overlay__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+.game-overlay__title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0;
+}
+.game-overlay__close {
+  display: grid;
+  place-items: center;
+  /* §7: ≥44px touch target */
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-2);
+  background: var(--surface-2);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  flex: none;
+}
+.game-overlay__close:hover {
+  background: var(--surface-3);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+/* §7: visible focus ring */
+.game-overlay__close:focus-visible {
+  outline: 2px solid var(--coral);
+  outline-offset: 2px;
+}
+.game-overlay__close:active {
+  transform: scale(0.88);
+}
+
 .role-switch { display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--control-track); border-radius: var(--r-pill); }
 .role-switch button { padding: 6px 13px; border-radius: var(--r-pill); font-size: 12.5px; font-weight: 600; color: var(--text-2); display: flex; align-items: center; gap: 5px; transition: 0.15s; }
 .role-switch button .ic { font-size: 13px; display: grid; place-items: center; }
@@ -758,6 +889,10 @@
   .thunder-bg {
     opacity: 0.5; filter: brightness(0.65) saturate(1.05);
   }
+  /* Disable GOAT button sheen and game overlay backdrop transition */
+  button.promo-banner { transition: none; }
+  .game-overlay { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .game-overlay__close { transition: none; }
 }
 
 /* ============================================================

@@ -9,9 +9,10 @@ type HomeMobileView = "fixtures" | "ranks";
 
 type HomeProps = {
   mobileView?: HomeMobileView;
+  onOpenGame: () => void;
 };
 
-export function Home({ mobileView }: HomeProps) {
+export function Home({ mobileView, onOpenGame }: HomeProps) {
   // Mobile: toggle between "left column" (bonus + fixtures) and "ranks" (sidebar)
   const [localMobileView, setLocalMobileView] = useState<HomeMobileView>("fixtures");
   const activeMobileView = mobileView ?? localMobileView;
@@ -56,7 +57,7 @@ export function Home({ mobileView }: HomeProps) {
       <div className="home__grid page">
         {/* LEFT: Bonus panel + Matches column */}
         <div className={`home__main main-left${activeMobileView === "ranks" ? " is-hidden-mobile" : ""}`}>
-          <section className="promo-banner-wrap" aria-label="Penalty Shootout">
+          <section className="promo-banner-wrap promo-banner-wrap--split" aria-label="Mini-games">
             <a
               className="promo-banner"
               href="https://d23okley85vr35.cloudfront.net/"
@@ -70,6 +71,21 @@ export function Home({ mobileView }: HomeProps) {
                 alt="Penalty Shootout. One kick. One chance. Be the hero."
               />
             </a>
+
+            <button
+              type="button"
+              className="promo-banner promo-banner--goat"
+              onClick={onOpenGame}
+              aria-label="Play Chased by the GOAT"
+            >
+              {/* When the banner art exists, swap this block for:
+                  <img className="promo-banner__image" src="/goat-game-banner.png"
+                       alt="Chased by the GOAT. Outrun the legend." /> */}
+              <span className="promo-banner__fallback">
+                <span className="promo-banner__fallback-title">Chased by the GOAT</span>
+                <span className="promo-banner__fallback-sub">Outrun the legend ▶</span>
+              </span>
+            </button>
           </section>
 
           <BonusPanel />
