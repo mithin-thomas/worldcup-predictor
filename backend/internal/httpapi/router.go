@@ -9,6 +9,12 @@ import (
 // gated the dev-only job-run route, now registered in all environments); it is
 // kept so existing call sites/tests need no change.
 func NewRouter(d *Deps, _ bool) chi.Router {
+	// Initialise the in-memory JTI set for the GOAT game if it hasn't been set
+	// up already (e.g. in tests that call initGameJTISet directly).
+	if d.gameJTI == nil {
+		d.initGameJTISet()
+	}
+
 	r := chi.NewRouter()
 	// RealIP normalizes r.RemoteAddr from proxy headers so the per-IP auth limiter
 	// keys on the real client. SA1019 flags X-Forwarded-For spoofing risk; that's
