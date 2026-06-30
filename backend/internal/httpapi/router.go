@@ -73,6 +73,10 @@ func NewRouter(d *Deps, _ bool) chi.Router {
 			priv.With(d.RequireAdmin).Post("/admin/jobs/run", d.PostRunJob)
 
 			priv.With(rateLimitWrites(chatLimiter)).Post("/chat", d.PostChat)
+
+			// GOAT mini-game (§3.10 / §11)
+			priv.Get("/game/leaderboard", d.GetGameLeaderboard)
+			priv.Post("/game/runs", d.PostGameRun)
 		})
 	})
 
