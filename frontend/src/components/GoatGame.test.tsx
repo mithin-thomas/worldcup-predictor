@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { GoatConfig, GoatGameHandle } from "chased-by-the-goat";
 
 const mount = vi.hoisted(() =>
-  vi.fn(() => ({ setLeaderboard: vi.fn(), setCoinLeaderboard: vi.fn(), setPlayer: vi.fn(), setRunToken: vi.fn(), update: vi.fn(), destroy: vi.fn() }))
+  vi.fn<(el: HTMLElement, cfg: GoatConfig) => GoatGameHandle>()
 );
 vi.mock("chased-by-the-goat", () => ({ mountGoatGame: mount }));
 vi.mock("../lib/auth", () => ({ useMe: () => ({ data: { id: 7, name: "Renjith", avatar_url: "" } }) }));
@@ -19,6 +20,17 @@ function wrap(ui: React.ReactNode) {
 }
 
 describe("GoatGame", () => {
+  beforeEach(() => {
+    mount.mockReturnValue({
+      setLeaderboard: vi.fn(),
+      setCoinLeaderboard: vi.fn(),
+      setPlayer: vi.fn(),
+      setRunToken: vi.fn(),
+      update: vi.fn(),
+      destroy: vi.fn(),
+    });
+  });
+
   it("mounts the bundle once with the player + run token", async () => {
     render(wrap(<GoatGame />));
     await waitFor(() => expect(mount).toHaveBeenCalledTimes(1));

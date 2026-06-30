@@ -39,7 +39,12 @@ func (s *seenJTI) consume(jti string) bool {
 
 func (d *Deps) initGameJTISet() {
 	now := func() time.Time { return time.Now().UTC() }
-	d.gameJTI = &seenJTI{at: map[string]time.Time{}, ttl: 15 * time.Minute, now: now}
+	ttl := d.GameTokenTTL
+	if ttl <= 0 {
+		ttl = 10 * time.Minute // safe default when unset (e.g. in unit tests)
+	}
+	ttl += 5 * time.Minute // margin beyond token validity
+	d.gameJTI = &seenJTI{at: map[string]time.Time{}, ttl: ttl, now: now}
 }
 
 func newJTI() string {

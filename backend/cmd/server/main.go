@@ -137,6 +137,7 @@ func main() {
 		Secure:             cfg.IsProduction(),
 		Game:               st,
 		GameTokens:         game.NewTokenManager(cfg.SessionSecret, cfg.GameTokenTTL, func() time.Time { return time.Now().UTC() }),
+		GameTokenTTL:       cfg.GameTokenTTL,
 		GameLimits: game.Limits{
 			DurationSlackMs: cfg.GameDurationSlackMs,
 			DistEpsM:        cfg.GameDistEpsM,

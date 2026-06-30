@@ -61,10 +61,11 @@ type Deps struct {
 	Secure             bool // Secure flag on the cookie (false for local http)
 
 	// GOAT mini-game (§3.10 / §11)
-	Game       store.GameStore
-	GameTokens *game.TokenManager
-	GameLimits game.Limits
-	gameJTI    *seenJTI
+	Game         store.GameStore
+	GameTokens   *game.TokenManager
+	GameLimits   game.Limits
+	GameTokenTTL time.Duration
+	gameJTI      *seenJTI
 }
 
 func userFromContext(ctx context.Context) (store.User, bool) {
