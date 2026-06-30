@@ -93,7 +93,12 @@ func (d *Deps) GetGameLeaderboard(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load game boards")
 		return
 	}
-	var resp gameLeaderboardResponse
+	// Initialise to empty (non-nil) slices so an empty board marshals as JSON
+	// `[]`, not `null` — the client maps over these arrays unconditionally.
+	resp := gameLeaderboardResponse{
+		Distance: make([]gameBoardRowDTO, 0, len(dist)),
+		Coins:    make([]gameBoardRowDTO, 0, len(coins)),
+	}
 	for _, row := range dist {
 		resp.Distance = append(resp.Distance, gameBoardRowDTO{UserID: row.UserID, Name: row.Name, AvatarURL: row.AvatarURL, Distance: row.Distance})
 	}

@@ -19,8 +19,8 @@ export function GoatGame() {
     tokenRef.current = board.run_token;
     handleRef.current = mountGoatGame(hostRef.current, {
       player: { id: String(me.id), name: me.name || me.email, coins: board.me.coin_pool },
-      leaderboard: board.distance.map((r) => ({ name: r.name, team: "", distance: r.distance ?? 0 })),
-      coinLeaderboard: board.coins.map((r) => ({ name: r.name, team: "", coins: r.coins ?? 0 })),
+      leaderboard: (board.distance ?? []).map((r) => ({ name: r.name, team: "", distance: r.distance ?? 0 })),
+      coinLeaderboard: (board.coins ?? []).map((r) => ({ name: r.name, team: "", coins: r.coins ?? 0 })),
       runToken: board.run_token,
       async onGameEnd(result: GoatResult) {
         try {
@@ -49,8 +49,8 @@ export function GoatGame() {
   // Push refreshed boards + token in place whenever the query data changes (no remount).
   useEffect(() => {
     if (!handleRef.current || !board) return;
-    handleRef.current.setLeaderboard(board.distance.map((r) => ({ name: r.name, team: "", distance: r.distance ?? 0 })));
-    handleRef.current.setCoinLeaderboard(board.coins.map((r) => ({ name: r.name, team: "", coins: r.coins ?? 0 })));
+    handleRef.current.setLeaderboard((board.distance ?? []).map((r) => ({ name: r.name, team: "", distance: r.distance ?? 0 })));
+    handleRef.current.setCoinLeaderboard((board.coins ?? []).map((r) => ({ name: r.name, team: "", coins: r.coins ?? 0 })));
     if (board.run_token && board.run_token !== tokenRef.current) {
       tokenRef.current = board.run_token;
       handleRef.current.setRunToken(board.run_token);

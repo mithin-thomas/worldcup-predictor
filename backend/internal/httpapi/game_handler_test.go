@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -124,6 +125,11 @@ func TestGetGameLeaderboard_ReturnsBoards(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	// Empty boards (the fake store returns nil) must serialize as JSON `[]`,
+	// never `null` — the client maps over these arrays unconditionally.
+	if body := w.Body.String(); strings.Contains(body, `"distance":null`) || strings.Contains(body, `"coins":null`) {
+		t.Fatalf("empty boards must serialize as [] not null; body=%s", body)
 	}
 	var resp gameLeaderboardResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
