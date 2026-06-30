@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Home } from "./Home";
 
@@ -16,15 +15,15 @@ function wrap(ui: React.ReactNode) {
 }
 
 describe("Home promo banners", () => {
-  it("invokes onOpenGame when the GOAT card is clicked", async () => {
-    const onOpenGame = vi.fn();
-    render(wrap(<Home onOpenGame={onOpenGame} />));
-    await userEvent.click(screen.getByRole("button", { name: /chased by the goat/i }));
-    expect(onOpenGame).toHaveBeenCalledTimes(1);
+  it("renders the GOAT card as a new-tab link to /goat-game.html", () => {
+    render(wrap(<Home />));
+    const link = screen.getByRole("link", { name: /chased by the goat/i });
+    expect(link).toHaveAttribute("href", "/goat-game.html");
+    expect(link).toHaveAttribute("target", "_blank");
   });
 
   it("keeps Penalty Shootout an external link", () => {
-    render(wrap(<Home onOpenGame={() => {}} />));
+    render(wrap(<Home />));
     const link = screen.getByRole("link", { name: /penalty shootout/i });
     expect(link).toHaveAttribute("target", "_blank");
   });

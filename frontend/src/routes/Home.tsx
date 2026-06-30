@@ -9,10 +9,9 @@ type HomeMobileView = "fixtures" | "ranks";
 
 type HomeProps = {
   mobileView?: HomeMobileView;
-  onOpenGame: () => void;
 };
 
-export function Home({ mobileView, onOpenGame }: HomeProps) {
+export function Home({ mobileView }: HomeProps) {
   // Mobile: toggle between "left column" (bonus + fixtures) and "ranks" (sidebar)
   const [localMobileView, setLocalMobileView] = useState<HomeMobileView>("fixtures");
   const activeMobileView = mobileView ?? localMobileView;
@@ -72,11 +71,12 @@ export function Home({ mobileView, onOpenGame }: HomeProps) {
               />
             </a>
 
-            <button
-              type="button"
+            <a
               className="promo-banner promo-banner--goat"
-              onClick={onOpenGame}
-              aria-label="Play Chased by the GOAT"
+              href="/goat-game.html"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Play Chased by the GOAT in a new tab"
             >
               {/* When the banner art exists, swap this block for:
                   <img className="promo-banner__image" src="/goat-game-banner.png"
@@ -85,7 +85,7 @@ export function Home({ mobileView, onOpenGame }: HomeProps) {
                 <span className="promo-banner__fallback-title">Chased by the GOAT</span>
                 <span className="promo-banner__fallback-sub">Outrun the legend ▶</span>
               </span>
-            </button>
+            </a>
           </section>
 
           <BonusPanel />

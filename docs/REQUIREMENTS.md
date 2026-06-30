@@ -151,7 +151,10 @@ standings, and **no prize/payment data is attached to the game** (decision §17.
   boards); they are **not** part of `GET /api/leaderboard`.
 - **Launch surface**: the game is opened from the **Predictions screen's top promo strip**, which is
   split into two cards — the existing external **Penalty Shootout** link and a **Chased by the GOAT**
-  button that opens the game in a **full-screen in-app overlay** (mounted at the app root). No nav tab.
+  card that opens the game in a **new browser tab** at the standalone page `/goat-game.html` (exactly
+  like the external Penalty Shootout `<a target="_blank">`). The standalone page has a FIFA-World-Cup-style
+  dark background and reuses the same first-party session cookie and `/api/game/*` endpoints (same origin).
+  No nav tab.
 - **Saving**: each completed run fires the bundle's `onGameEnd`; the host persists it via
   `POST /api/game/runs`. Storage is **append-only** (one `game_runs` row per run); the boards are
   plain aggregates over those rows, never incremented in place — consistent with the

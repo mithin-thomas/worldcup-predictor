@@ -3,7 +3,6 @@ import { useMe, GoogleSignInButton, useLogout } from "./lib/auth";
 import { Home } from "./routes/Home";
 import { Admin } from "./routes/Admin";
 import { HowToPlayModal } from "./components/HowToPlayModal";
-import { GameOverlay } from "./components/GameOverlay";
 import { VictoryCelebration } from "./components/VictoryCelebration";
 import { ChatWidget } from "./components/ChatWidget";
 import { ChevronDownIcon, HelpIcon, LogOutIcon, ShieldTabIcon, SparkIcon, StandingsIcon } from "./components/icons";
@@ -42,7 +41,6 @@ export default function App() {
   const isPhone = useIsPhone();
   // Hooks must be declared unconditionally before any early return.
   const [helpOpen, setHelpOpen] = useState(false);
-  const [gameOpen, setGameOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -276,7 +274,7 @@ export default function App() {
 
         {/* ── Main content ── */}
         {activeView === "predictions" ? (
-          <Home mobileView={homeMobileView} onOpenGame={() => setGameOpen(true)} />
+          <Home mobileView={homeMobileView} />
         ) : (
           <Admin />
         )}
@@ -318,9 +316,6 @@ export default function App() {
 
       {/* ── How to Play modal ── */}
       {helpOpen && <HowToPlayModal onClose={() => setHelpOpen(false)} />}
-
-      {/* ── GOAT game overlay ── */}
-      {gameOpen && <GameOverlay onClose={() => setGameOpen(false)} />}
 
       {activeCelebration && (
         <VictoryCelebration celebration={activeCelebration} onDone={handleCelebrationDone} />
