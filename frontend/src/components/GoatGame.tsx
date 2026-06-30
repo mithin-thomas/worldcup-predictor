@@ -30,6 +30,12 @@ export function GoatGame() {
   const tokenRef = useRef<string | undefined>(board?.run_token);
 
   // Mount once, after we have both the player and the first board+token.
+  // NOTE: teardown is intentionally NOT here. `board` is a dep (we need the
+  // first board+token to mount), and it changes after every run (save →
+  // invalidate → refetch). If destroy() lived in this effect's cleanup, each
+  // board change would tear down and remount the game — resetting it to a fresh
+  // Kick Off landing and wiping the game-over screen. Teardown lives in a
+  // dedicated unmount-only effect below; board refreshes update in place.
   useEffect(() => {
     if (!hostRef.current || !me || !board || handleRef.current) return;
     tokenRef.current = board.run_token;
@@ -55,12 +61,17 @@ export function GoatGame() {
         }
       },
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me, board]);
+
+  // Teardown only on real unmount — never on a board refresh. Strict-Mode's dev
+  // double-invoke still destroys+remounts once at startup, which is fine.
+  useEffect(() => {
     return () => {
       handleRef.current?.destroy();
       handleRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [me, board]);
+  }, []);
 
   // Push refreshed boards + token in place whenever the query data changes (no remount).
   useEffect(() => {
