@@ -185,6 +185,33 @@ describe("PastRow — result card", () => {
     expect(screen.getByText("vs")).toBeInTheDocument();
   });
 
+  it("shows the user's penalty winner pick while awaiting result", () => {
+    const m: MatchDTO = {
+      ...baseMatch,
+      stage: "knockout",
+      round: "Round of 16",
+      group: "",
+      status: "live",
+      home_score: null,
+      away_score: null,
+      prediction: {
+        home_score: 1,
+        away_score: 1,
+        penalty_winner_team_id: 2,
+        points: null,
+        penalty_bonus: null,
+      },
+    };
+
+    render(<PastRow match={m} />);
+
+    expect(screen.getByText(/Awaiting result/i)).toBeInTheDocument();
+    const penaltyPick = screen.getByLabelText(/Penalty winner South Africa/i);
+    expect(penaltyPick).toBeInTheDocument();
+    expect(penaltyPick).toHaveTextContent(/Pens/);
+    expect(penaltyPick).toHaveTextContent(/RSA/);
+  });
+
   it("surfaces +1 PEN bonus when penalty_bonus > 0", () => {
     const m: MatchDTO = {
       ...baseMatch,

@@ -295,6 +295,12 @@ export function PastRow({ match }: Props) {
 
   const penBonus = prediction?.penalty_bonus;
   const hasPenBonus = penBonus != null && penBonus > 0;
+  const predictionPenTeam =
+    prediction?.penalty_winner_team_id === home.id
+      ? home
+      : prediction?.penalty_winner_team_id === away.id
+      ? away
+      : null;
   const pts = prediction?.points ?? null;
   const ptsVal = pts ?? 0;
   const hit =
@@ -382,6 +388,13 @@ export function PastRow({ match }: Props) {
                   <span className="pr-arrow" aria-hidden="true">→</span>
                   <b className="pr-final mono">{hs}–{as_}</b>
                 </>
+              )}
+              {predictionPenTeam && (
+                <span className="pr-pen-pick" aria-label={`Penalty winner ${predictionPenTeam.name}`}>
+                  <span className="pr-pen-pick__label">Pens</span>
+                  <Flag code={predictionPenTeam.code} size={18} radius={3} />
+                  <span className="mono pr-pen-pick__code">{predictionPenTeam.code}</span>
+                </span>
               )}
               {hasPenBonus && <span className="pr-pen">+{penBonus} PEN</span>}
             </span>
