@@ -1,0 +1,4 @@
+{
+  "_comment": "email (any case) -> full country name from the bundle list: Argentina, Brasil/Brazil, Germany, Netharland/Netherlands/Holland, Spain, Portugal, France, Belgium. Unknown/blank -> neutral flag. Keys without '@' are ignored.",
+  "mithin@sayonetech.com": "Portugal"
+}

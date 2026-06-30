@@ -11,6 +11,7 @@ type GameDistanceRow struct {
 	UserID    int64
 	Name      string
 	AvatarURL string
+	Email     string
 	Distance  int64
 }
 
@@ -18,6 +19,7 @@ type GameCoinRow struct {
 	UserID    int64
 	Name      string
 	AvatarURL string
+	Email     string
 	Coins     int64
 }
 
@@ -59,6 +61,7 @@ func (s *SQLStore) GameDistanceBoard(ctx context.Context) ([]GameDistanceRow, er
 			UserID:    r.UserID,
 			Name:      r.Name,
 			AvatarURL: r.AvatarUrl,
+			Email:     r.Email,
 			Distance:  r.BestDistance,
 		})
 	}
@@ -76,6 +79,7 @@ func (s *SQLStore) GameCoinBoard(ctx context.Context) ([]GameCoinRow, error) {
 			UserID:    r.UserID,
 			Name:      r.Name,
 			AvatarURL: r.AvatarUrl,
+			Email:     r.Email,
 			Coins:     r.CoinPool,
 		})
 	}

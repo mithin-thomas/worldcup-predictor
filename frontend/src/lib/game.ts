@@ -6,6 +6,7 @@ export type GameBoardRow = {
   user_id: number;
   name: string;
   avatar_url: string;
+  team?: string;
   distance?: number;
   coins?: number;
 };

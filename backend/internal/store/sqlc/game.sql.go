@@ -10,10 +10,10 @@ import (
 )
 
 const gameCoinBoard = `-- name: GameCoinBoard :many
-SELECT u.id AS user_id, u.name, u.avatar_url,
+SELECT u.id AS user_id, u.name, u.avatar_url, u.email,
        CAST(SUM(r.coins) AS SIGNED) AS coin_pool
 FROM game_runs r JOIN users u ON u.id = r.user_id
-GROUP BY u.id, u.name, u.avatar_url
+GROUP BY u.id, u.name, u.avatar_url, u.email
 ORDER BY coin_pool DESC, u.id ASC
 LIMIT 20
 `
@@ -22,6 +22,7 @@ type GameCoinBoardRow struct {
 	UserID    int64  `json:"user_id"`
 	Name      string `json:"name"`
 	AvatarUrl string `json:"avatar_url"`
+	Email     string `json:"email"`
 	CoinPool  int64  `json:"coin_pool"`
 }
 
@@ -38,6 +39,7 @@ func (q *Queries) GameCoinBoard(ctx context.Context) ([]GameCoinBoardRow, error)
 			&i.UserID,
 			&i.Name,
 			&i.AvatarUrl,
+			&i.Email,
 			&i.CoinPool,
 		); err != nil {
 			return nil, err
@@ -54,10 +56,10 @@ func (q *Queries) GameCoinBoard(ctx context.Context) ([]GameCoinBoardRow, error)
 }
 
 const gameDistanceBoard = `-- name: GameDistanceBoard :many
-SELECT u.id AS user_id, u.name, u.avatar_url,
+SELECT u.id AS user_id, u.name, u.avatar_url, u.email,
        CAST(MAX(r.distance) AS SIGNED) AS best_distance
 FROM game_runs r JOIN users u ON u.id = r.user_id
-GROUP BY u.id, u.name, u.avatar_url
+GROUP BY u.id, u.name, u.avatar_url, u.email
 ORDER BY best_distance DESC, u.id ASC
 LIMIT 20
 `
@@ -66,6 +68,7 @@ type GameDistanceBoardRow struct {
 	UserID       int64  `json:"user_id"`
 	Name         string `json:"name"`
 	AvatarUrl    string `json:"avatar_url"`
+	Email        string `json:"email"`
 	BestDistance int64  `json:"best_distance"`
 }
 
@@ -82,6 +85,7 @@ func (q *Queries) GameDistanceBoard(ctx context.Context) ([]GameDistanceBoardRow
 			&i.UserID,
 			&i.Name,
 			&i.AvatarUrl,
+			&i.Email,
 			&i.BestDistance,
 		); err != nil {
 			return nil, err
