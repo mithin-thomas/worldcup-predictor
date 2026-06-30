@@ -101,10 +101,10 @@ func (d *Deps) GetGameLeaderboard(w http.ResponseWriter, r *http.Request) {
 		Coins:    make([]gameBoardRowDTO, 0, len(coins)),
 	}
 	for _, row := range dist {
-		resp.Distance = append(resp.Distance, gameBoardRowDTO{UserID: row.UserID, Name: row.Name, AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Distance: row.Distance})
+		resp.Distance = append(resp.Distance, gameBoardRowDTO{UserID: row.UserID, Name: gameDisplayName(row.Name, row.Email), AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Distance: row.Distance})
 	}
 	for _, row := range coins {
-		resp.Coins = append(resp.Coins, gameBoardRowDTO{UserID: row.UserID, Name: row.Name, AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Coins: row.Coins})
+		resp.Coins = append(resp.Coins, gameBoardRowDTO{UserID: row.UserID, Name: gameDisplayName(row.Name, row.Email), AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Coins: row.Coins})
 	}
 	resp.Me.BestDistance, resp.Me.CoinPool = me.BestDistance, me.CoinPool
 	resp.RunToken = d.GameTokens.Issue(u.ID, newJTI())
