@@ -21,10 +21,10 @@ packed tarball.
 
 ```bash
 # pack a tarball from this repo
-pnpm build && pnpm pack            # → chased-by-the-goat-0.6.0.tgz
+pnpm build && pnpm pack            # → chased-by-the-goat-1.0.0.tgz
 
 # install it in the host app
-pnpm add /path/to/chased-by-the-goat-0.6.0.tgz
+pnpm add /path/to/chased-by-the-goat-1.0.0.tgz
 ```
 
 The shipped `files` are `dist/chased-by-the-goat.mjs`, `types/index.d.ts`, this
