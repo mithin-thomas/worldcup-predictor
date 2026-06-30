@@ -610,7 +610,7 @@ packages:
     engines: {node: '>=18'}
 
   chased-by-the-goat@file:goat-game/chased-by-the-goat-1.0.0.tgz:
-    resolution: {integrity: sha512-qn9z/YAEtZNFCNOr7uBYmQ/3Mp3T50wapLfb2bESFEwgkhvVxWibGzD9BfJS8OhlVLVs7xSGmxj9ia9ni3EZEA==, tarball: file:goat-game/chased-by-the-goat-1.0.0.tgz}
+    resolution: {integrity: sha512-i5E8GCg3A7ZftrtPSdHP1aNlCvD4FcBQvtxUT1oDvjU022Pu1rUaAQhET44KhdkLnMUzf62+VOzMxFjLGvkK8Q==, tarball: file:goat-game/chased-by-the-goat-1.0.0.tgz}
     version: 1.0.0
 
   combined-stream@1.0.8:
