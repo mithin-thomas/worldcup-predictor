@@ -14,14 +14,24 @@ import (
 	"github.com/sayonetech/worldcup-predictor/backend/internal/game"
 )
 
-// firstName returns the first whitespace-separated token of a full name — the
-// game leaderboard discs are small, so we show only the first name. Falls back
-// to "Unknown" when the name is blank (so the bundle doesn't drop the row).
-func firstName(name string) string {
+// firstName returns the first token of the user's name for the small game
+// leaderboard discs. When there's no stored name, it derives one from the
+// email's local part ("hiba.kareem@sayonetech.com" -> "Hiba") instead of
+// showing "Unknown".
+func firstName(name, email string) string {
 	if f := strings.Fields(name); len(f) > 0 {
 		return f[0]
 	}
-	return "Unknown"
+	local := email
+	if i := strings.IndexByte(local, '@'); i >= 0 {
+		local = local[:i]
+	}
+	for _, p := range strings.FieldsFunc(local, func(r rune) bool { return r == '.' || r == '_' || r == '-' }) {
+		if p != "" {
+			return strings.ToUpper(p[:1]) + p[1:]
+		}
+	}
+	return "Player"
 }
 
 // seenJTI is a single-use guard for run-token jtis (in-memory, single-instance —
@@ -111,12 +121,13 @@ func (d *Deps) GetGameLeaderboard(w http.ResponseWriter, r *http.Request) {
 		Distance: make([]gameBoardRowDTO, 0, len(dist)),
 		Coins:    make([]gameBoardRowDTO, 0, len(coins)),
 	}
-	// Show only the first name on the (small) leaderboard discs; "Unknown" when blank.
+	// Show only the first name on the (small) leaderboard discs; derive from the
+	// email when there's no stored name.
 	for _, row := range dist {
-		resp.Distance = append(resp.Distance, gameBoardRowDTO{UserID: row.UserID, Name: firstName(row.Name), AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Distance: row.Distance})
+		resp.Distance = append(resp.Distance, gameBoardRowDTO{UserID: row.UserID, Name: firstName(row.Name, row.Email), AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Distance: row.Distance})
 	}
 	for _, row := range coins {
-		resp.Coins = append(resp.Coins, gameBoardRowDTO{UserID: row.UserID, Name: firstName(row.Name), AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Coins: row.Coins})
+		resp.Coins = append(resp.Coins, gameBoardRowDTO{UserID: row.UserID, Name: firstName(row.Name, row.Email), AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Coins: row.Coins})
 	}
 	resp.Me.BestDistance, resp.Me.CoinPool = me.BestDistance, me.CoinPool
 	resp.RunToken = d.GameTokens.Issue(u.ID, newJTI())

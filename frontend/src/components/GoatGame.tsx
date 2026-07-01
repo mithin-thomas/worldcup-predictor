@@ -4,6 +4,16 @@ import { mountGoatGame, type GoatGameHandle, type GoatResult } from "chased-by-t
 import { useMe } from "../lib/auth";
 import { useGameLeaderboard, saveGameRun } from "../lib/game";
 
+// First name for the small game discs; when there's no stored name, derive it
+// from the email's local part ("hiba.kareem@..." -> "Hiba").
+function firstName(me: { name: string; email: string }): string {
+  const fromName = me.name?.trim().split(/\s+/)[0];
+  if (fromName) return fromName;
+  const local = me.email.split("@")[0] ?? "";
+  const first = local.split(/[._-]+/).filter(Boolean)[0];
+  return first ? first.charAt(0).toUpperCase() + first.slice(1) : "Player";
+}
+
 export function GoatGame() {
   const { data: me, isPending: mePending } = useMe();
   const { data: board, isPending: boardPending } = useGameLeaderboard();
@@ -24,7 +34,7 @@ export function GoatGame() {
     if (!hostRef.current || !me || !board || handleRef.current) return;
     tokenRef.current = board.run_token;
     handleRef.current = mountGoatGame(hostRef.current, {
-      player: { id: String(me.id), name: me.name?.trim().split(/\s+/)[0] || "Unknown", coins: board.me.coin_pool },
+      player: { id: String(me.id), name: firstName(me), coins: board.me.coin_pool },
       leaderboard: (board.distance ?? []).map((r) => ({ name: r.name, team: r.team ?? "", distance: r.distance ?? 0 })),
       coinLeaderboard: (board.coins ?? []).map((r) => ({ name: r.name, team: r.team ?? "", coins: r.coins ?? 0 })),
       runToken: board.run_token,
