@@ -151,11 +151,6 @@
   min-height: 100vh;
   padding: 0 16px;
 }
-.game-page__loading {
-  font-size: 15px;
-  color: var(--text-3, rgba(255,255,255,0.4));
-  font-weight: 500;
-}
 .game-page__unauth {
   text-align: center;
 }
@@ -165,17 +160,17 @@
   gap: 7px;
   padding: 13px 24px;
   border-radius: 999px;
-  background: rgba(26,132,255,0.15);
-  border: 1px solid rgba(26,132,255,0.35);
-  color: #1a84ff;
+  background: color-mix(in oklch, var(--brand) 15%, transparent);
+  border: 1px solid color-mix(in oklch, var(--brand) 35%, transparent);
+  color: var(--brand);
   font-size: 15px;
   font-weight: 600;
   text-decoration: none;
   transition: background 0.16s, border-color 0.16s;
 }
 .game-page__back-link:hover {
-  background: rgba(26,132,255,0.24);
-  border-color: rgba(26,132,255,0.55);
+  background: color-mix(in oklch, var(--brand) 24%, transparent);
+  border-color: color-mix(in oklch, var(--brand) 55%, transparent);
 }
 
 .role-switch { display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--control-track); border-radius: var(--r-pill); }

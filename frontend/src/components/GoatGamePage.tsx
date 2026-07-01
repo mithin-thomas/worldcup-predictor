@@ -7,7 +7,7 @@ export function GoatGamePage() {
   if (isLoading) {
     return (
       <div className="game-page game-page--center">
-        <p className="game-page__loading">Loading…</p>
+        <div className="skeleton skeleton--long" style={{ height: "72px", width: "100%", maxWidth: "420px", borderRadius: "var(--r-md)" }} />
       </div>
     );
   }
