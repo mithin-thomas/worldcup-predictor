@@ -24,7 +24,7 @@ export function GoatGame() {
     if (!hostRef.current || !me || !board || handleRef.current) return;
     tokenRef.current = board.run_token;
     handleRef.current = mountGoatGame(hostRef.current, {
-      player: { id: String(me.id), name: me.name?.trim() || "Unknown", coins: board.me.coin_pool },
+      player: { id: String(me.id), name: me.name?.trim().split(/\s+/)[0] || "Unknown", coins: board.me.coin_pool },
       leaderboard: (board.distance ?? []).map((r) => ({ name: r.name, team: r.team ?? "", distance: r.distance ?? 0 })),
       coinLeaderboard: (board.coins ?? []).map((r) => ({ name: r.name, team: r.team ?? "", coins: r.coins ?? 0 })),
       runToken: board.run_token,

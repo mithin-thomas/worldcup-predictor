@@ -7,11 +7,22 @@ import (
 	"errors"
 	"math"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/sayonetech/worldcup-predictor/backend/internal/game"
 )
+
+// firstName returns the first whitespace-separated token of a full name — the
+// game leaderboard discs are small, so we show only the first name. Falls back
+// to "Unknown" when the name is blank (so the bundle doesn't drop the row).
+func firstName(name string) string {
+	if f := strings.Fields(name); len(f) > 0 {
+		return f[0]
+	}
+	return "Unknown"
+}
 
 // seenJTI is a single-use guard for run-token jtis (in-memory, single-instance —
 // consistent with the rate limiter). Entries expire after the token TTL.
@@ -100,21 +111,12 @@ func (d *Deps) GetGameLeaderboard(w http.ResponseWriter, r *http.Request) {
 		Distance: make([]gameBoardRowDTO, 0, len(dist)),
 		Coins:    make([]gameBoardRowDTO, 0, len(coins)),
 	}
-	// Names come from the user's Google profile (populated at login). Fall back to
-	// "Unknown" only so the bundle doesn't drop a row with no name yet.
+	// Show only the first name on the (small) leaderboard discs; "Unknown" when blank.
 	for _, row := range dist {
-		name := row.Name
-		if name == "" {
-			name = "Unknown"
-		}
-		resp.Distance = append(resp.Distance, gameBoardRowDTO{UserID: row.UserID, Name: name, AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Distance: row.Distance})
+		resp.Distance = append(resp.Distance, gameBoardRowDTO{UserID: row.UserID, Name: firstName(row.Name), AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Distance: row.Distance})
 	}
 	for _, row := range coins {
-		name := row.Name
-		if name == "" {
-			name = "Unknown"
-		}
-		resp.Coins = append(resp.Coins, gameBoardRowDTO{UserID: row.UserID, Name: name, AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Coins: row.Coins})
+		resp.Coins = append(resp.Coins, gameBoardRowDTO{UserID: row.UserID, Name: firstName(row.Name), AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Coins: row.Coins})
 	}
 	resp.Me.BestDistance, resp.Me.CoinPool = me.BestDistance, me.CoinPool
 	resp.RunToken = d.GameTokens.Issue(u.ID, newJTI())
