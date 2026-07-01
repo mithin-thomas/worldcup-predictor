@@ -4,22 +4,6 @@ import { mountGoatGame, type GoatGameHandle, type GoatResult } from "chased-by-t
 import { useMe } from "../lib/auth";
 import { useGameLeaderboard, saveGameRun } from "../lib/game";
 
-// The bundle shows player.name in-game and on the leaderboard. Prefer the
-// stored display name; if it's blank, derive a name from the email's local
-// part (e.g. "mithin@sayonetech.com" -> "Mithin") rather than showing the
-// raw email address.
-function playerName(me: { name: string; email: string }): string {
-  const name = me.name?.trim();
-  if (name) return name;
-  const local = me.email.split("@")[0] ?? "";
-  const pretty = local
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-  return pretty || "Player";
-}
-
 export function GoatGame() {
   const { data: me, isPending: mePending } = useMe();
   const { data: board, isPending: boardPending } = useGameLeaderboard();
@@ -40,7 +24,7 @@ export function GoatGame() {
     if (!hostRef.current || !me || !board || handleRef.current) return;
     tokenRef.current = board.run_token;
     handleRef.current = mountGoatGame(hostRef.current, {
-      player: { id: String(me.id), name: playerName(me), coins: board.me.coin_pool },
+      player: { id: String(me.id), name: me.name?.trim() || "Unknown", coins: board.me.coin_pool },
       leaderboard: (board.distance ?? []).map((r) => ({ name: r.name, team: r.team ?? "", distance: r.distance ?? 0 })),
       coinLeaderboard: (board.coins ?? []).map((r) => ({ name: r.name, team: r.team ?? "", coins: r.coins ?? 0 })),
       runToken: board.run_token,

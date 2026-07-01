@@ -100,11 +100,21 @@ func (d *Deps) GetGameLeaderboard(w http.ResponseWriter, r *http.Request) {
 		Distance: make([]gameBoardRowDTO, 0, len(dist)),
 		Coins:    make([]gameBoardRowDTO, 0, len(coins)),
 	}
+	// Names come from the user's Google profile (populated at login). Fall back to
+	// "Unknown" only so the bundle doesn't drop a row with no name yet.
 	for _, row := range dist {
-		resp.Distance = append(resp.Distance, gameBoardRowDTO{UserID: row.UserID, Name: gameDisplayName(row.Name, row.Email), AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Distance: row.Distance})
+		name := row.Name
+		if name == "" {
+			name = "Unknown"
+		}
+		resp.Distance = append(resp.Distance, gameBoardRowDTO{UserID: row.UserID, Name: name, AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Distance: row.Distance})
 	}
 	for _, row := range coins {
-		resp.Coins = append(resp.Coins, gameBoardRowDTO{UserID: row.UserID, Name: gameDisplayName(row.Name, row.Email), AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Coins: row.Coins})
+		name := row.Name
+		if name == "" {
+			name = "Unknown"
+		}
+		resp.Coins = append(resp.Coins, gameBoardRowDTO{UserID: row.UserID, Name: name, AvatarURL: row.AvatarURL, Team: teamForEmail(row.Email), Coins: row.Coins})
 	}
 	resp.Me.BestDistance, resp.Me.CoinPool = me.BestDistance, me.CoinPool
 	resp.RunToken = d.GameTokens.Issue(u.ID, newJTI())

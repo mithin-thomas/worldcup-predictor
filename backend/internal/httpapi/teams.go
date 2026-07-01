@@ -67,27 +67,3 @@ func init() {
 func teamForEmail(email string) string {
 	return teamMap[strings.ToLower(strings.TrimSpace(email))]
 }
-
-// gameDisplayName returns a non-empty display name for a leaderboard row. The
-// game bundle drops rows with a blank name, so when the stored name is empty we
-// derive one from the email's local part ("mithin@sayonetech.com" -> "Mithin"),
-// mirroring the frontend playerName() fallback. Falls back to "Player".
-func gameDisplayName(name, email string) string {
-	if n := strings.TrimSpace(name); n != "" {
-		return n
-	}
-	local := email
-	if i := strings.IndexByte(local, '@'); i >= 0 {
-		local = local[:i]
-	}
-	parts := strings.FieldsFunc(local, func(r rune) bool { return r == '.' || r == '_' || r == '-' })
-	for i, p := range parts {
-		if p != "" {
-			parts[i] = strings.ToUpper(p[:1]) + p[1:]
-		}
-	}
-	if out := strings.Join(parts, " "); out != "" {
-		return out
-	}
-	return "Player"
-}
